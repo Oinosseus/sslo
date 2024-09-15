@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="195pt"
+   height="195pt"
+   viewBox="0 0 68.791658 68.791655"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.3.2 (091e20ef0f, 2023-11-25)"
+   sodipodi:docname="favicon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="2.0560887"
+     inkscape:cx="19.940774"
+     inkscape:cy="114.78104"
+     inkscape:window-width="2560"
+     inkscape:window-height="1358"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-2.4746312,-74.753705)">
+    <path
+       style="fill:#e52115;fill-opacity:1;stroke:none;stroke-width:0.220109px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 0.31163114,124.6505 0.66703962,-8.43698 73.44296624,-0.11966 2.519621,8.44985 z"
+       id="path2"
+       sodipodi:nodetypes="ccccc" />
+    <path
+       style="fill:#e52115;fill-opacity:1;stroke:none;stroke-width:0.208016px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 0.61976622,107.24565 1.2868058,99.71023 74.729772,99.603351 77.249393,107.15026 Z"
+       id="path4"
+       sodipodi:nodetypes="ccccc" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:43.5458px;line-height:1.25;font-family:'MuseJazz Text';-inkscape-font-specification:'MuseJazz Text, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;fill-opacity:1;stroke-width:1.08865"
+       x="0.49291536"
+       y="104.67321"
+       id="text1"
+       transform="matrix(0.79395137,-0.01339829,0.03326046,1.2589617,0,0)"><tspan
+         sodipodi:role="line"
+         id="tspan1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:43.5458px;font-family:'MuseJazz Text';-inkscape-font-specification:'MuseJazz Text, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;fill-opacity:1;stroke-width:1.08865"
+         x="0.49291536"
+         y="104.67321">SSLO</tspan></text>
+  </g>
+</svg>

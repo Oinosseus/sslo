@@ -1,0 +1,245 @@
+:root {
+
+    /* Common colors */
+    --color-text: #ddd;
+/*     --color-red-accent: #bd0000; */
+/*     --color-disabled: #883440; */
+
+    --color-dark-bg: rgba(0, 0, 0, 0.6);
+    --color-dark-text: #ddd;
+
+    --color-light-bg: rgba(0, 0, 0, 0.3);
+    --color-light-text: #bbb;
+
+    --color-bg-image: #222f33;
+}
+
+
+body {
+    background-color: #111;
+    color: var(--color-text);
+    margin: 0;
+    padding: 0;
+}
+
+body > div {
+    background-color: var(--color-bg-image);
+    background-image: url("/rsc/img/background.png");
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    background-size: 100%;
+}
+
+/*div#bodybox {
+    display: grid;
+    grid-template-columns: auto;
+    max-width: 60em;
+    margin-left: auto;
+    margin-right: auto;
+}*/
+
+
+
+/*****************************************************************************
+                                Header
+ *****************************************************************************/
+
+header {
+    margin-top: 0;
+    width: 100%;
+/*     border-top-left-radius: 1em; */
+/*     border-top-right-radius: 1em; */
+    background-color: var(--color-dark-bg);
+    color: var(--color-dark-text);
+}
+
+
+
+/*****************************************************************************
+                                Navigation
+ *****************************************************************************/
+
+nav {
+    background-color: var(--color-dark-bg);
+    margin-left: auto;
+    margin-right: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    color: var(--color-dark-text);
+}
+
+nav > div#NavbarLogo > img {
+    height: 3em;
+}
+
+nav > div#NavbarMenu {
+    display: flex;
+    gap: 1em;
+}
+
+nav a {
+    color: var(--color-dark-text);
+    font-weight: bold;
+    font-size: 1.2em;
+    padding: 0.25em 1em;
+    text-decoration: none;
+}
+
+nav > div#NavbarMenu > div > a:hover {
+    background-color: var(--color-dark-text);
+    color: var(--color-dark-bg);
+    border-radius: 0.5em;
+}
+
+nav > div#NavbarMenu > div.NavbarDropdown > div {
+    display: none;
+    position: absolute;
+    background-color: var(--color-dark-text);
+}
+
+nav > div#NavbarMenu > div.NavbarDropdown > div > a {
+    display: block;
+}
+
+nav > div#NavbarMenu > div.NavbarDropdown > div > a:hover {
+    text-decoration: underline;
+}
+
+nav > div#NavbarMenu > div.NavbarDropdownActive a {
+    background-color: var(--color-dark-text);
+    color: var(--color-dark-bg);
+    border-radius: 0.5em;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+nav > div#NavbarMenu > div.NavbarDropdownActive > div {
+    display: block;
+
+    /* Unfortunately, does not work :-/  */
+    border-bottom-right-radius: 0.5em;
+    border-bottom-left-radius: 0.5em;
+}
+
+nav > div > div.NavbarLogin > a {
+    background-color: #2b1;
+    border-radius: 0.5em;
+}
+
+nav > div > div.NavbarLogin > a:hover {
+    background-color: #3d1;
+}
+
+
+
+/******************************************************************************
+                              Breadcrumps
+ *****************************************************************************/
+
+breadcrumps {
+    display: block;
+    padding-top: 0.3em;
+    padding-bottom: 0.3em;
+    text-align: center;
+    background-color: var(--color-light-bg);
+    color: var(--color-light-text);
+}
+
+breadcrumps > a {
+    font-size: 0.8em;
+    font-style: italic;
+    color: var(--color-light-text);
+    display: inline-block;
+    text-decoration: none;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+}
+
+breadcrumps > a:hover {
+    text-decoration: underline;
+}
+
+breadcrumps > a:last-child {
+    padding-right: 0;
+}
+
+breadcrumps > a:first-child {
+    padding-left: 0;
+}
+
+
+
+/*****************************************************************************
+                                Messages
+ *****************************************************************************/
+
+messages {
+/*     display: block; */
+/*     text-align: center; */
+    display: flex;
+    flex-direction: column;
+    margin-left: auto;
+    margin-right: auto;
+/*     width: 40em; */
+    max-width: max-content;
+}
+
+messages > div {
+    margin-top: 1.0em;
+    border-radius: 0.7em;
+    border: 0.2em solid;
+    padding: 0.5em 1em;
+/*     margin-left: auto; */
+/*     margin-right: auto; */
+/*     display: block; */
+/*     width: max-content; */
+/*     width: max-content; */
+    flex: auto;
+    text-align: center;
+}
+
+messages > div.MessageError {
+    background-color: rgba(255, 100, 100, 0.3);
+    border-color: rgba(255, 100, 100, 0.8);
+}
+
+messages > div.MessageWarning {
+    background-color: rgba(255, 255, 100, 0.3);
+    border-color: rgba(255, 255, 100, 0.8);
+}
+
+messages > div.MessageSuccess {
+    background-color: rgba(100, 255, 100, 0.3);
+    border-color: rgba(100, 255, 100, 0.8);
+}
+
+
+/*****************************************************************************
+                                Main Body
+ *****************************************************************************/
+
+main {
+    padding: 1em;
+    background-color: var(--color-light-bg);
+    color: #eee;
+/*     width: 80%; */
+    max-width: max-content;
+    margin-top: 2em;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 1em;
+    border-radius: 0.5em;
+}
+
+
+
+/*****************************************************************************
+                                Footer
+ *****************************************************************************/
+
+footer {
+    padding-bottom: 3em;
+    background-color: var(--color-dark-bg);
+}
