@@ -70,7 +70,7 @@ nav {
     color: var(--color-dark-text);
 }
 
-nav > div#NavbarLogo > img {
+nav > div#NavbarLogo img {
     height: 3em;
 }
 

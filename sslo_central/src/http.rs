@@ -1,8 +1,12 @@
 mod route_rsc;
 
-use axum::http::StatusCode;
-use axum::response::{Html, IntoResponse, Response};
+use std::net::{Ipv4Addr, SocketAddr};
+use axum::extract::Host;
+use axum::handler::HandlerWithoutStateExt;
+use axum::http::{StatusCode, Uri};
+use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::Router;
+use crate::{CONFIG_PORT_HTTP, CONFIG_PORT_HTTPS};
 
 struct HtmlTemplate {
     html_body: String,
@@ -63,7 +67,7 @@ impl IntoResponse for HtmlTemplate {
 
         // navigation
         html += "    <nav>\n";
-        html += "      <div id=\"NavbarLogo\"><img src=\"/rsc/img/sslo_logo.svg\"></div>\n";
+        html += "      <div id=\"NavbarLogo\"><a href=\"/\"><img src=\"/rsc/img/sslo_logo.svg\" title=\"Simracing Sports League Organization\"></a></div>\n";
         html += "      <div id=\"NavbarMenu\">\n";
         html += "          <div class=\"NavbarNoDrop\">\n";
         html += "              <a href=\"#\" class=\"active\">Home</a>\n";
@@ -118,4 +122,41 @@ pub fn create_router() -> Router {
         .route("/", axum::routing::get(route_main))
         .route("/rsc/*filepath", axum::routing::get(route_rsc::route_handler_rsc));
     router
+}
+
+
+#[allow(dead_code)]
+pub async fn http2https_background_service() {
+    // Implementation from:
+    // https://github.com/tokio-rs/axum/blob/main/examples/tls-rustls/src/main.rs
+
+    fn make_https(host: String, uri: Uri) -> Result<Uri, axum::BoxError> {
+        let mut parts = uri.into_parts();
+
+        parts.scheme = Some(axum::http::uri::Scheme::HTTPS);
+
+        if parts.path_and_query.is_none() {
+            parts.path_and_query = Some("/".parse().unwrap());
+        }
+
+        let https_host = host.replace(&CONFIG_PORT_HTTP.to_string(), &CONFIG_PORT_HTTPS.to_string());
+        parts.authority = Some(https_host.parse()?);
+
+        Ok(Uri::from_parts(parts)?)
+    }
+
+    let redirect = move |Host(host): Host, uri: Uri| async move {
+        match make_https(host, uri) {
+            Ok(uri) => Ok(Redirect::permanent(&uri.to_string())),
+            Err(_) => {
+                Err(StatusCode::BAD_REQUEST)
+            }
+        }
+    };
+
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, CONFIG_PORT_HTTP));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    axum::serve(listener, redirect.into_make_service())
+        .await
+        .unwrap();
 }
