@@ -10,3 +10,4 @@ axum = "0.7.5"
 axum-server = { version = "0.7.1", features = ["tls-rustls"] }
 rust-embed = { version = "8.5.0", features = ["interpolate-folder-path"] }
 tokio = { version = "1.40.0", features = ["full"] }
+sslo_lib = { path = "../sslo_lib" }

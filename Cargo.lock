@@ -1155,6 +1155,7 @@ dependencies = [
  "axum",
  "axum-server",
  "rust-embed",
+ "sslo_lib",
  "tokio",
 ]
 
@@ -1165,6 +1166,10 @@ version = "0.1.0"
 [[package]]
 name = "sslo_lib"
 version = "0.1.0"
+dependencies = [
+ "axum",
+ "rust-embed",
+]
 
 [[package]]
 name = "subtle"

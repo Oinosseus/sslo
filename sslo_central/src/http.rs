@@ -1,5 +1,3 @@
-mod route_rsc;
-
 use std::net::{Ipv4Addr, SocketAddr};
 use axum::extract::Host;
 use axum::handler::HandlerWithoutStateExt;
@@ -7,6 +5,7 @@ use axum::http::{StatusCode, Uri};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::Router;
 use crate::{CONFIG_PORT_HTTP, CONFIG_PORT_HTTPS};
+use sslo_lib::http_routes::static_resources;
 
 struct HtmlTemplate {
     html_body: String,
@@ -120,7 +119,7 @@ async fn route_main() -> Result<impl IntoResponse, StatusCode> {
 pub fn create_router() -> Router {
     let router = Router::new()
         .route("/", axum::routing::get(route_main))
-        .route("/rsc/*filepath", axum::routing::get(route_rsc::route_handler_rsc));
+        .route("/rsc/*filepath", axum::routing::get(static_resources::route_handler));
     router
 }
 

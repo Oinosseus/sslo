@@ -8,7 +8,7 @@ use rust_embed::RustEmbed;
 struct Resources;
 
 
-pub(super) async fn route_handler_rsc(Path(filepath): Path<String>) -> Result<impl IntoResponse, StatusCode> {
+pub async fn route_handler(Path(filepath): Path<String>) -> Result<impl IntoResponse, StatusCode> {
     let fileconent = Resources::get(&filepath).ok_or_else(|| StatusCode::NOT_FOUND)?;
 
     // find content-type
