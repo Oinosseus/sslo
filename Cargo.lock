@@ -1162,6 +1162,12 @@ dependencies = [
 [[package]]
 name = "sslo_league"
 version = "0.1.0"
+dependencies = [
+ "axum",
+ "axum-server",
+ "sslo_lib",
+ "tokio",
+]
 
 [[package]]
 name = "sslo_lib"
