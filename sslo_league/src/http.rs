@@ -3,12 +3,15 @@ use axum::extract::Host;
 use axum::handler::HandlerWithoutStateExt;
 use axum::http::{StatusCode, Uri};
 use axum::response::{Html, IntoResponse, Redirect, Response};
-use axum::Router;
+use axum::{routing, Router};
 use crate::{CONFIG_PORT_HTTP, CONFIG_PORT_HTTPS};
 use sslo_lib::http_routes::static_resources;
 
+pub mod route_html_login;
+
 struct HtmlTemplate {
     html_body: String,
+    css_files: Vec<& 'static str>,
 }
 
 impl HtmlTemplate {
@@ -16,6 +19,7 @@ impl HtmlTemplate {
     pub fn new() -> Self {
         HtmlTemplate {
             html_body: "".to_string(),
+            css_files: Vec::new(),
         }
     }
 
@@ -23,6 +27,12 @@ impl HtmlTemplate {
     /// Adding a string to the HTML body
     pub fn push_body(&mut self, body: &str) {
         self.html_body += body;
+    }
+
+
+    /// request a CSS file to be additionally loaded
+    pub fn include_css(&mut self, file_path: & 'static str) {
+        self.css_files.push(file_path)
     }
 }
 
@@ -40,11 +50,11 @@ impl IntoResponse for HtmlTemplate {
         html += "    <link rel=\"icon\" href=\"rsc/img/favicon.svg\" sizes=\"any\" type=\"image/svg+xml\">\n";
         html += "    <link rel=\"stylesheet\" href=\"/rsc/css/main.css\">\n";
         html += "    <script src=\"/rsc/js/main.js\" async></script>\n";
-        // for css_file in &self.css_files {
-        //     html += "    <link rel=\"stylesheet\" href=\"";
-        //     html += css_file;
-        //     html += "\">\n";
-        // }
+        for css_file in &self.css_files {
+            html += "    <link rel=\"stylesheet\" href=\"";
+            html += css_file;
+            html += "\">\n";
+        }
         // for js_file in &self.js_files {
         //     html += "    <script type=\"module\" src=\"";
         //     html += js_file;
@@ -78,7 +88,7 @@ impl IntoResponse for HtmlTemplate {
         html += "              </div>\n";
         html += "          </div>\n";
         html += "          <div class=\"NavbarLogin\">\n";
-        html += "              <a href=\"#\">Login</a>\n";
+        html += "              <a href=\"/html/login\">Login</a>\n";
         html += "          </div>\n";
         html += "      </div>\n";
         html += "    </nav>\n";
@@ -118,8 +128,9 @@ async fn route_main() -> Result<impl IntoResponse, StatusCode> {
 
 pub fn create_router() -> Router {
     let router = Router::new()
-        .route("/", axum::routing::get(route_main))
-        .route("/rsc/*filepath", axum::routing::get(static_resources::route_handler));
+        .route("/", routing::get(route_main))
+        .route("/html/login", routing::get(route_html_login::handler))
+        .route("/rsc/*filepath", routing::get(static_resources::route_handler));
     router
 }
 

@@ -12,6 +12,8 @@
     --color-light-text: #bbb;
 
     --color-bg-image: #222f33;
+
+    --color-green: #3d1;
 }
 
 
@@ -38,6 +40,9 @@ body > div {
     margin-right: auto;
 }*/
 
+*:focus {
+    outline: 0.2em solid var(--color-green);
+}
 
 
 /*****************************************************************************
@@ -68,6 +73,10 @@ nav {
     justify-content: space-between;
     padding: 20px;
     color: var(--color-dark-text);
+}
+
+div#NavbarMenu  *:focus {
+    outline: 0.2em solid var(--color-dark-text);
 }
 
 nav > div#NavbarLogo img {
@@ -124,12 +133,12 @@ nav > div#NavbarMenu > div.NavbarDropdownActive > div {
 }
 
 nav > div > div.NavbarLogin > a {
-    background-color: #2b1;
+    background-color: var(--color-green);
     border-radius: 0.5em;
 }
 
 nav > div > div.NavbarLogin > a:hover {
-    background-color: #3d1;
+    background-color: var(--color-green);
 }
 
 
