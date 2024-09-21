@@ -40,7 +40,7 @@ body > div {
     margin-right: auto;
 }*/
 
-*:focus {
+input:focus, button:focus {
     outline: 0.2em solid var(--color-green);
 }
 

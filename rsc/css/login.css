@@ -4,6 +4,22 @@ main > form {
     margin: 1em;
 }
 
+div#TabSelection {
+    display: block;
+    margin-bottom: 2em;
+}
+
+div#TabSelection > button {
+    display: inline-block;
+    padding: 0.5em 1em;
+    margin-right: 1em;
+    border-radius: 0;
+}
+
+div#TabSelection > button:last-child {
+    margin-right: 0;
+}
+
 main > form > input {
     margin: 0 0 1em 0;
     display: block;

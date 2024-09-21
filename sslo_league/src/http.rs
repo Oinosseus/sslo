@@ -12,6 +12,7 @@ pub mod route_html_login;
 struct HtmlTemplate {
     html_body: String,
     css_files: Vec<& 'static str>,
+    js_files: Vec<& 'static str>,
 }
 
 impl HtmlTemplate {
@@ -20,6 +21,7 @@ impl HtmlTemplate {
         HtmlTemplate {
             html_body: "".to_string(),
             css_files: Vec::new(),
+            js_files: Vec::neww(),
         }
     }
 
@@ -29,10 +31,14 @@ impl HtmlTemplate {
         self.html_body += body;
     }
 
-
     /// request a CSS file to be additionally loaded
     pub fn include_css(&mut self, file_path: & 'static str) {
         self.css_files.push(file_path)
+    }
+
+    /// request a javascript file to be additionally loaded
+    pub fn include_js(&mut self, file_path: & 'static str) {
+        self.js_files.push(file_path)
     }
 }
 
@@ -55,11 +61,11 @@ impl IntoResponse for HtmlTemplate {
             html += css_file;
             html += "\">\n";
         }
-        // for js_file in &self.js_files {
-        //     html += "    <script type=\"module\" src=\"";
-        //     html += js_file;
-        //     html += "\" defer></script>\n";
-        // }
+        for js_file in &self.js_files {
+            html += "    <script type=\"module\" src=\"";
+            html += js_file;
+            html += "\" defer></script>\n";
+        }
         // for js_file in active_page.javascript_files() {
         //     html += "    <script type=\"module\" src=\"";
         //     html += js_file;
