@@ -1,31 +1,39 @@
 :root {
 
+
+
+
+
+
+
     /* Common colors */
-    --color-text: #ddd;
+    /*--color-text: #ddd;*/
 /*     --color-red-accent: #bd0000; */
 /*     --color-disabled: #883440; */
 
     --color-dark-bg: rgba(0, 0, 0, 0.6);
-    --color-dark-text: #ddd;
+    /*--color-dark-text: #ddd;*/
 
     --color-light-bg: rgba(0, 0, 0, 0.3);
-    --color-light-text: #bbb;
+    /*--color-light-text: #bbb;*/
 
-    --color-bg-image: #222f33;
 
+    /* New Color Scheme */
+    --color-white: #ddd;
+    --color-black: #666;
     --color-green: #3d1;
 }
 
 
 body {
     background-color: #111;
-    color: var(--color-text);
+    color: var(--color-white);
     margin: 0;
     padding: 0;
 }
 
 body > div {
-    background-color: var(--color-bg-image);
+    background-color: #222f33;
     background-image: url("/rsc/img/background.png");
     background-attachment: fixed;
     background-repeat: no-repeat;
@@ -55,7 +63,7 @@ header {
 /*     border-top-left-radius: 1em; */
 /*     border-top-right-radius: 1em; */
     background-color: var(--color-dark-bg);
-    color: var(--color-dark-text);
+    color: var(--color-white);
 }
 
 
@@ -72,11 +80,11 @@ nav {
     align-items: center;
     justify-content: space-between;
     padding: 20px;
-    color: var(--color-dark-text);
+    color: var(--color-white);
 }
 
 div#NavbarMenu  *:focus {
-    outline: 0.2em solid var(--color-dark-text);
+    outline: 0.2em solid var(--color-white);
 }
 
 nav > div#NavbarLogo img {
@@ -89,7 +97,7 @@ nav > div#NavbarMenu {
 }
 
 nav a {
-    color: var(--color-dark-text);
+    color: var(--color-white);
     font-weight: bold;
     font-size: 1.2em;
     padding: 0.25em 1em;
@@ -97,7 +105,7 @@ nav a {
 }
 
 nav > div#NavbarMenu > div > a:hover {
-    background-color: var(--color-dark-text);
+    background-color: var(--color-white);
     color: var(--color-dark-bg);
     border-radius: 0.5em;
 }
@@ -105,7 +113,7 @@ nav > div#NavbarMenu > div > a:hover {
 nav > div#NavbarMenu > div.NavbarDropdown > div {
     display: none;
     position: absolute;
-    background-color: var(--color-dark-text);
+    background-color: var(--color-white);
 }
 
 nav > div#NavbarMenu > div.NavbarDropdown > div > a {
@@ -117,7 +125,7 @@ nav > div#NavbarMenu > div.NavbarDropdown > div > a:hover {
 }
 
 nav > div#NavbarMenu > div.NavbarDropdownActive a {
-    background-color: var(--color-dark-text);
+    background-color: var(--color-white);
     color: var(--color-dark-bg);
     border-radius: 0.5em;
     border-bottom-right-radius: 0;
@@ -153,13 +161,13 @@ breadcrumps {
     padding-bottom: 0.3em;
     text-align: center;
     background-color: var(--color-light-bg);
-    color: var(--color-light-text);
+    color: var(--color-black);
 }
 
 breadcrumps > a {
     font-size: 0.8em;
     font-style: italic;
-    color: var(--color-light-text);
+    color: var(--color-black);
     display: inline-block;
     text-decoration: none;
     padding-left: 0.5em;

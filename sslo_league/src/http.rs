@@ -21,7 +21,7 @@ impl HtmlTemplate {
         HtmlTemplate {
             html_body: "".to_string(),
             css_files: Vec::new(),
-            js_files: Vec::neww(),
+            js_files: Vec::new(),
         }
     }
 
@@ -55,22 +55,17 @@ impl IntoResponse for HtmlTemplate {
         html += "    <title>SSLO League</title>\n";
         html += "    <link rel=\"icon\" href=\"rsc/img/favicon.svg\" sizes=\"any\" type=\"image/svg+xml\">\n";
         html += "    <link rel=\"stylesheet\" href=\"/rsc/css/main.css\">\n";
-        html += "    <script src=\"/rsc/js/main.js\" async></script>\n";
         for css_file in &self.css_files {
             html += "    <link rel=\"stylesheet\" href=\"";
             html += css_file;
             html += "\">\n";
         }
+        html += "    <script src=\"/rsc/js/main.js\" async></script>\n";
         for js_file in &self.js_files {
-            html += "    <script type=\"module\" src=\"";
+            html += "    <script src=\"";
             html += js_file;
-            html += "\" defer></script>\n";
+            html += "\"></script>\n";
         }
-        // for js_file in active_page.javascript_files() {
-        //     html += "    <script type=\"module\" src=\"";
-        //     html += js_file;
-        //     html += "\" defer></script>\n";
-        // }
         html += "  </head>\n";
 
         // html body

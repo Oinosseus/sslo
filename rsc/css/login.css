@@ -1,37 +1,52 @@
-main > form {
-    display: block;
-    padding: 0;
-    margin: 1em;
-}
+/* --------------------------------------------------------------------------------------------------------------------
+                                                      Tab Select
+-------------------------------------------------------------------------------------------------------------------- */
 
 div#TabSelection {
     display: block;
     margin-bottom: 2em;
 }
 
+
 div#TabSelection > button {
     display: inline-block;
     padding: 0.5em 1em;
     margin-right: 1em;
     border-radius: 0;
+    border: 0.2em solid var(--color-white);
+    font-weight: bold;
+    background-color: transparent;
+    color: var(--color-white);
 }
-
 div#TabSelection > button:last-child {
     margin-right: 0;
 }
 
-main > form > input {
-    margin: 0 0 1em 0;
-    display: block;
-    border-radius: 0.2em;
-    padding: 0.1em 1em 0.5em 1em;
+div#TabSelection > button.ActiveButton {
+    background-color: var(--color-white);
+    color: var(--color-black);
 }
 
-main > form > button {
-    margin: 0 0 1em 0;
+div#TabSelection > button:focus {
+    outline: none;
+}
+
+/* --------------------------------------------------------------------------------------------------------------------
+                                                      Form Tabs
+-------------------------------------------------------------------------------------------------------------------- */
+
+main > form {
+    display: none;
+    padding: 0;
+    margin: 1em;
+}
+
+main > form > * {
     display: block;
-    background-color: var(--color-green);
-    border-radius: 0.5em;
-    padding: 0.1em 1em 0.5em 1em;
-    font-weight: bold;
+    margin-bottom: 1em;
+    padding: 0.5em 1em;
+}
+
+main > form.ActiveTab {
+    display: block;
 }
