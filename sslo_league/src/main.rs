@@ -1,14 +1,31 @@
-use std::net::{Ipv4Addr, SocketAddr};
+use clap::Parser;
 use axum_server::tls_rustls::RustlsConfig;
+use std::net::{Ipv4Addr, SocketAddr};
 
 mod http;
+mod config;
 
 // temporarily until a config is available
 static CONFIG_PORT_HTTP: u16 = 8080;
 static CONFIG_PORT_HTTPS: u16 = 8443;
 
+#[derive(Parser)]
+struct CliArgs {
+    config_file: std::path::PathBuf,
+}
+
+
+
 #[tokio::main]
 async fn main() {
+    let cli_args = CliArgs::parse();
+
+    // load config
+    let _config = match config::Config::from_file(cli_args.config_file) {
+        Ok(config) => config,
+        Err(e) => {panic!("{e}")}
+    };
+
     // create TLS config
     let tls_cfg = RustlsConfig::from_pem_file(
         "test_db/tls/cert.pem",

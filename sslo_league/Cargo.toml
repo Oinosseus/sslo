@@ -10,3 +10,7 @@ axum = "0.7.5"
 axum-server = { version = "0.7.1", features = ["tls-rustls"] }
 tokio = { version = "1.40.0", features = ["full"] }
 sslo_lib = {path="../sslo_lib"}
+clap = { version = "4.5.18", features = ["derive"] }
+serde = { version = "1.0.210", features = ["derive"] }
+toml = "0.8.19"
+thiserror = "1.0.64"
