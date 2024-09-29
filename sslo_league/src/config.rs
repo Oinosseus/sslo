@@ -16,7 +16,7 @@ pub enum ConfigLoadError {
 pub struct Config {
 
     /// Configuration for the http(s) server(s)
-    http: Http,
+    pub http: Http,
 }
 
 impl Config {
@@ -30,17 +30,17 @@ impl Config {
 }
 
 #[derive(Deserialize)]
-struct Http {
+pub struct Http {
 
     /// The port to run the http server onto
-    port_http: u16,
+    pub port_http: u16,
 
     /// the port to run the https server onto
-    port_https: u16,
+    pub port_https: u16,
 
     /// Path to the SSL cert file in PEM format
-    ssl_cert: PathBuf,
+    pub ssl_cert: PathBuf,
 
     /// Path to the SSL key file in PEM format
-    ssl_key: PathBuf,
+    pub ssl_key: PathBuf,
 }

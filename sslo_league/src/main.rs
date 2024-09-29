@@ -5,9 +5,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 mod http;
 mod config;
 
-// temporarily until a config is available
-static CONFIG_PORT_HTTP: u16 = 8080;
-static CONFIG_PORT_HTTPS: u16 = 8443;
+
 
 #[derive(Parser)]
 struct CliArgs {
@@ -21,10 +19,8 @@ async fn main() {
     let cli_args = CliArgs::parse();
 
     // load config
-    let _config = match config::Config::from_file(cli_args.config_file) {
-        Ok(config) => config,
-        Err(e) => {panic!("{e}")}
-    };
+    let config : config::Config = config::Config::from_file(cli_args.config_file)
+        .unwrap_or_else(|e| { panic!("{e}") });
 
     // create TLS config
     let tls_cfg = RustlsConfig::from_pem_file(
@@ -33,11 +29,11 @@ async fn main() {
     ).await.unwrap();
 
     // HTTP to HTTPS forwarder (background service)
-    tokio::spawn(http::http2https_background_service());
+    tokio::spawn(http::http2https_background_service(config.http.port_http, config.http.port_https));
 
     // run https server
     let app = http::create_router();
-    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, CONFIG_PORT_HTTPS));
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, config.http.port_https));
     axum_server::bind_rustls(addr, tls_cfg)
         .serve(app.into_make_service())
         .await.unwrap()
