@@ -17,6 +17,9 @@ pub struct Config {
 
     /// Configuration for the http(s) server(s)
     pub http: Http,
+
+    /// Configuration for the SQL databases
+    pub database: Database,
 }
 
 impl Config {
@@ -43,4 +46,11 @@ pub struct Http {
 
     /// Path to the SSL key file in PEM format
     pub ssl_key: PathBuf,
+}
+
+#[derive(Deserialize)]
+pub struct Database {
+
+    /// The directory where all SQL databases are stored
+    pub sql_dir: PathBuf,
 }

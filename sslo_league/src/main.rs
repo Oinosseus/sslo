@@ -13,6 +13,11 @@ struct CliArgs {
 }
 
 
+struct AppState {
+    
+}
+
+
 
 #[tokio::main]
 async fn main() {
