@@ -5,6 +5,7 @@ use axum::http::{StatusCode, Uri};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::{routing, Router};
 use sslo_lib::http_routes::static_resources;
+use crate::app_state::AppState;
 
 pub mod route_html_login;
 
@@ -126,11 +127,12 @@ async fn route_main() -> Result<impl IntoResponse, StatusCode> {
 
 
 
-pub fn create_router() -> Router {
+pub fn create_router(app_state: AppState) -> Router {
     let router = Router::new()
         .route("/", routing::get(route_main))
         .route("/html/login", routing::get(route_html_login::handler))
-        .route("/rsc/*filepath", routing::get(static_resources::route_handler));
+        .route("/rsc/*filepath", routing::get(static_resources::route_handler))
+        .with_state(app_state);
     router
 }
 

@@ -1,16 +1,7 @@
+use std::error::Error;
 use std::path::PathBuf;
 use serde::Deserialize;
 use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum ConfigLoadError {
-    #[error("Cannot open configuration file: {0}")]
-    ReadFileError(#[from] std::io::Error),
-
-    #[error("Cannot parse configuration file: {0}")]
-    ParseFileError(#[from] toml::de::Error),
-}
-
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -25,10 +16,9 @@ pub struct Config {
 impl Config {
 
     /// Read config from a toml file
-    pub fn from_file(file_path: PathBuf) -> Result<Self, ConfigLoadError> {
+    pub fn from_file(file_path: PathBuf) -> Result<Self, impl Error> {
         let toml_content = std::fs::read_to_string(file_path)?;
-        let cfg: Self = toml::from_str(&toml_content)?;
-        return Ok(cfg);
+        toml::from_str(&toml_content)
     }
 }
 
