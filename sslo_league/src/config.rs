@@ -16,9 +16,10 @@ pub struct Config {
 impl Config {
 
     /// Read config from a toml file
-    pub fn from_file(file_path: PathBuf) -> Result<Self, impl Error> {
+    pub fn from_file(file_path: PathBuf) -> Result<Self, Box<dyn Error>> {
         let toml_content = std::fs::read_to_string(file_path)?;
-        toml::from_str(&toml_content)
+        let config : Self = toml::from_str(&toml_content)?;
+        Ok(config)
     }
 }
 

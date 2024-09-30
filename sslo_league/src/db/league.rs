@@ -8,7 +8,7 @@ pub struct League {
 
 impl League {
 
-    pub fn new(db_path: &PathBuf) -> Result<Self, impl Error> {
+    pub fn new(db_path: &PathBuf) -> Result<Self, Box<dyn Error>> {
 
         let db_path : &str = db_path.to_str().ok_or(Err("Cannot parse db path!"))?;
 

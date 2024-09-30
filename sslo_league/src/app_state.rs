@@ -1,4 +1,4 @@
-use serde::de::Error;
+use std::error::Error;
 use db::league::League;
 use crate::db;
 use super::config::Config;
@@ -10,7 +10,7 @@ pub struct AppState {
 
 impl AppState {
 
-    pub fn new(config: &Config) -> Result<Self, impl Error> {
+    pub fn new(config: &Config) -> Result<Self, Box<dyn Error>> {
         let db_league = League::new(&config.database.sql_dir)?;
 
         Ok(AppState {
