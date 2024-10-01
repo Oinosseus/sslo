@@ -1,6 +1,8 @@
 use clap::Parser;
 use axum_server::tls_rustls::RustlsConfig;
 use std::net::{Ipv4Addr, SocketAddr};
+use app_state::AppState;
+use config::Config;
 
 mod http;
 mod config;
@@ -26,11 +28,11 @@ async fn main() {
     let cli_args = CliArgs::parse();
 
     // load config
-    let config : config::Config = config::Config::from_file(cli_args.config_file)
+    let config : Config = Config::from_file(cli_args.config_file)
         .unwrap_or_else(|e| { panic!("{e}") });
 
     // create app state
-    let app_state = app_state::AppState::new(&config);
+    let app_state: AppState = AppState::new(&config).unwrap();
 
     // create TLS config
     let tls_cfg = RustlsConfig::from_pem_file(
