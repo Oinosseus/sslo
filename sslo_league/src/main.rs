@@ -15,7 +15,6 @@ struct CliArgs {
 }
 
 
-
 #[tokio::main]
 async fn main() {
 
@@ -32,7 +31,8 @@ async fn main() {
         .unwrap_or_else(|e| { panic!("{e}") });
 
     // create app state
-    let app_state: AppState = AppState::new(&config).unwrap();
+    let mut app_state: AppState = AppState::new(&config).unwrap();
+    app_state.init().await.unwrap();
 
     // create TLS config
     let tls_cfg = RustlsConfig::from_pem_file(
