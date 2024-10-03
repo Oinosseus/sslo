@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use serde::Deserialize;
 use thiserror::Error;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Config {
 
     /// Configuration for the http(s) server(s)
@@ -16,14 +16,14 @@ pub struct Config {
 impl Config {
 
     /// Read config from a toml file
-    pub fn from_file(file_path: PathBuf) -> Result<Self, Box<dyn Error>> {
+    pub fn from_file(file_path: &PathBuf) -> Result<Self, Box<dyn Error>> {
         let toml_content = std::fs::read_to_string(file_path)?;
         let config : Self = toml::from_str(&toml_content)?;
         Ok(config)
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Http {
 
     /// The port to run the http server onto
@@ -39,9 +39,9 @@ pub struct Http {
     pub ssl_key: PathBuf,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Database {
 
     /// The directory where all SQL databases are stored
-    pub sql_dir: PathBuf,
+    pub dir: PathBuf,
 }

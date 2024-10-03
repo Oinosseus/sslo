@@ -18,34 +18,33 @@ struct CliArgs {
 #[tokio::main]
 async fn main() {
 
+    let cli_args = CliArgs::parse();
+
+    // create app state
+    let mut app_state: AppState = AppState::new(&cli_args.config_file).unwrap();
+    app_state.init().await.unwrap();
+
     // initialize logging
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Info)
         .format_target(true)
         .init();
 
-    let cli_args = CliArgs::parse();
-
-    // load config
-    let config : Config = Config::from_file(cli_args.config_file)
-        .unwrap_or_else(|e| { panic!("{e}") });
-
-    // create app state
-    let mut app_state: AppState = AppState::new(&config).unwrap();
-    app_state.init().await.unwrap();
-
     // create TLS config
     let tls_cfg = RustlsConfig::from_pem_file(
-        "test_db/tls/cert.pem",
-        "test_db/tls/key.pem"
+        app_state.abspath(&app_state.config.http.ssl_cert),
+        app_state.abspath(&app_state.config.http.ssl_key),
     ).await.unwrap();
 
     // HTTP to HTTPS forwarder (background service)
-    tokio::spawn(http::http2https_background_service(config.http.port_http, config.http.port_https));
+    tokio::spawn(http::http2https_background_service(app_state.config.http.port_http, app_state.config.http.port_https));
+
+    // user info
+    log::info!("initialization complete");
 
     // run https server
     let app = http::create_router(app_state.clone());
-    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, config.http.port_https));
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, app_state.config.http.port_https));
     axum_server::bind_rustls(addr, tls_cfg)
         .serve(app.into_make_service())
         .await.unwrap()

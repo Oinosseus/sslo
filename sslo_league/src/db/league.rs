@@ -9,7 +9,11 @@ pub struct League {
 
 impl League {
 
-    pub fn new(db_path: &PathBuf) -> Result<Self, Box<dyn Error>> {
+    pub fn new(db_pool: SqlitePool) -> Self {
+        League {db_pool}
+    }
+
+    pub fn new_old(db_path: &PathBuf) -> Result<Self, Box<dyn Error>> {
 
         let db_conn_opts = SqliteConnectOptions::new()
             .filename(db_path)
