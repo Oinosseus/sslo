@@ -4,10 +4,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
 pub mod league;
 
-pub fn create_db_pool(app_state: &super::AppState, db_name: &str) -> SqlitePool {
-
-    let db_path = app_state.abspath(&db_name);
-
+pub fn create_db_pool(db_path: &str) -> SqlitePool {
 
     let db_conn_opts = SqliteConnectOptions::new()
         .filename(db_path)
