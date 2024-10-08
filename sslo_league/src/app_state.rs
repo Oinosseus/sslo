@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use db::league::League;
 use crate::db;
 use crate::db::Database;
+use crate::db::users::Users;
 use super::config::Config;
 
 fn ensure_dir_exists(dir_path: &Path) -> Result<(), Box<dyn Error>> {
@@ -15,10 +16,7 @@ fn ensure_dir_exists(dir_path: &Path) -> Result<(), Box<dyn Error>> {
 #[derive(Clone)]
 pub struct AppState {
 
-    /// path of the config.toml file
-    config_toml_path: PathBuf,
-
-    // embedded config object
+    /// embedded config object
     pub config: Config,
 
     /// path to the sslo database directory
@@ -26,6 +24,7 @@ pub struct AppState {
 
 
     db_league: League,
+    db_users: Users,
 }
 
 impl AppState {
@@ -50,19 +49,22 @@ impl AppState {
         ensure_dir_exists(sqlite_dir.as_path())?;
         let pool_league = db::create_db_pool(sqlite_dir.join("league.db").to_str().unwrap());
         let db_league = League::new(pool_league);
+        let pool_users = db::create_db_pool(sqlite_dir.join("users.db").to_str().unwrap());
+        let db_users = Users::new(pool_users);
 
         // compile app state
         Ok(AppState {
-            config_toml_path,
             database_dir,
             config,
             db_league,
+            db_users,
         })
     }
 
 
     pub async fn init(&mut self) -> Result<(), Box<dyn Error>> {
         self.db_league.init().await?;
+        self.db_users.init().await?;
         Ok(())
     }
 

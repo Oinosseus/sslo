@@ -3,6 +3,7 @@ use sqlx::{Row, SqlitePool};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
 pub mod league;
+pub mod users;
 
 pub fn create_db_pool(db_path: &str) -> SqlitePool {
 
@@ -34,9 +35,9 @@ pub trait Database {
 
 
     async fn create_table_if_not_exists(&self, db_pool: &sqlx::SqlitePool) -> Result<(), Box<dyn Error>> {
+
         let res = sqlx::query("PRAGMA table_list;").fetch_all(db_pool).await?;
         for row in res {
-            let mut row_string = String::new();
             let row_schema: String = row.get(0);
             let row_name: String = row.get(1);
             let row_type: String = row.get(2);
