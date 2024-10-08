@@ -32,8 +32,8 @@ async fn main() {
 
     // create TLS config
     let tls_cfg = RustlsConfig::from_pem_file(
-        app_state.abspath(&app_state.config.http.ssl_cert),
-        app_state.abspath(&app_state.config.http.ssl_key),
+        app_state.dbpath(&app_state.config.http.ssl_cert),
+        app_state.dbpath(&app_state.config.http.ssl_key),
     ).await.unwrap();
 
     // HTTP to HTTPS forwarder (background service)
