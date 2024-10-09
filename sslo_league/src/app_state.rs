@@ -1,17 +1,17 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
-use db::league::League;
 use crate::db;
 use crate::db::Database;
-use crate::db::users::Users;
 use super::config::Config;
+
 
 fn ensure_dir_exists(dir_path: &Path) -> Result<(), Box<dyn Error>> {
     if !dir_path.exists() {
         std::fs::create_dir_all(dir_path)?;
     }
-    return Ok(())
+    Ok(())
 }
+
 
 #[derive(Clone)]
 pub struct AppState {
@@ -22,10 +22,10 @@ pub struct AppState {
     /// path to the sslo database directory
     database_dir: PathBuf,
 
-
-    db_league: League,
-    db_users: Users,
+    /// databases
+    db_users: db::users::Database,
 }
+
 
 impl AppState {
 
@@ -47,23 +47,19 @@ impl AppState {
         // sqlite databases
         let sqlite_dir = database_dir.join("sqlite");
         ensure_dir_exists(sqlite_dir.as_path())?;
-        let pool_league = db::create_db_pool(sqlite_dir.join("league.db").to_str().unwrap());
-        let db_league = League::new(pool_league);
         let pool_users = db::create_db_pool(sqlite_dir.join("users.db").to_str().unwrap());
-        let db_users = Users::new(pool_users);
+        let db_users = db::users::Database::new(pool_users);
 
         // compile app state
         Ok(AppState {
             database_dir,
             config,
-            db_league,
             db_users,
         })
     }
 
 
     pub async fn init(&mut self) -> Result<(), Box<dyn Error>> {
-        self.db_league.init().await?;
         self.db_users.init().await?;
         Ok(())
     }

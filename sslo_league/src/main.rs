@@ -21,7 +21,7 @@ async fn main() {
 
     // create app state
     let mut app_state: AppState = AppState::new(&cli_args.config_file).unwrap();
-    let _ = app_state.init().await.unwrap();
+    app_state.init().await.unwrap();
 
     // initialize logging
     env_logger::Builder::new()
