@@ -1,5 +1,4 @@
 use std::error::Error;
-use std::future::Future;
 use std::path::{Path, PathBuf};
 use axum_server::tls_rustls::RustlsConfig;
 use crate::db;

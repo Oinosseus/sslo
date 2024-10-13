@@ -1,5 +1,4 @@
 use clap::Parser;
-use axum_server::tls_rustls::RustlsConfig;
 use std::net::{Ipv4Addr, SocketAddr};
 use app_state::AppState;
 
