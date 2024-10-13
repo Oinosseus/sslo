@@ -1,5 +1,7 @@
 use std::error::Error;
+use std::future::Future;
 use std::path::{Path, PathBuf};
+use axum_server::tls_rustls::RustlsConfig;
 use crate::db;
 use crate::db::Database;
 use super::config::Config;
@@ -56,6 +58,25 @@ impl AppState {
             config,
             db_users,
         })
+    }
+
+
+    /// Returns a RustlsConfig object, or panics
+    pub async fn get_rustls_config(&self) -> RustlsConfig {
+
+        // get and check cert file
+        let path_cert = self.dbpath(&self.config.http.ssl_cert);
+        if !path_cert.exists() {
+            panic!("Cannot find SSL CERT path: '{}!'", path_cert.display());
+        }
+
+        // get and check key file
+        let path_key = self.dbpath(&self.config.http.ssl_key);
+        if !path_cert.exists() {
+            panic!("Cannot find SSL KEY path: '{}!'", path_key.display());
+        }
+
+        RustlsConfig::from_pem_file(path_cert, path_key).await.unwrap()
     }
 
 

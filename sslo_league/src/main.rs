@@ -29,12 +29,6 @@ async fn main() {
         .format_target(true)
         .init();
 
-    // create TLS config
-    let tls_cfg = RustlsConfig::from_pem_file(
-        app_state.dbpath(&app_state.config.http.ssl_cert),
-        app_state.dbpath(&app_state.config.http.ssl_key),
-    ).await.unwrap();
-
     // HTTP to HTTPS forwarder (background service)
     tokio::spawn(http::http2https_background_service(app_state.config.http.port_http, app_state.config.http.port_https));
 
@@ -44,6 +38,7 @@ async fn main() {
     // run https server
     let app = http::create_router(app_state.clone());
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, app_state.config.http.port_https));
+    let tls_cfg = app_state.get_rustls_config().await;
     axum_server::bind_rustls(addr, tls_cfg)
         .serve(app.into_make_service())
         .await.unwrap()
