@@ -28,11 +28,11 @@ async fn main() {
         .format_target(true)
         .init();
 
-    // HTTP to HTTPS forwarder (background service)
-    tokio::spawn(http::http2https_background_service(app_state.config.http.port_http, app_state.config.http.port_https));
-
     // user info
     log::info!("initialization complete");
+
+    // HTTP to HTTPS forwarder (background service)
+    tokio::spawn(http::http2https_background_service(app_state.config.http.port_http, app_state.config.http.port_https));
 
     // run https server
     let app = http::create_router(app_state.clone());
