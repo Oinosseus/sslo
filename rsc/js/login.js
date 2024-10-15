@@ -1,21 +1,33 @@
-function tabSelectSsloLogin() {
+function tabSelectByIndex(active_index) {
 
-    // activate buttons
-    document.getElementById("LoginSsloButton").classList.add("ActiveButton");
-    document.getElementById("RegisterSsloButton").classList.remove("ActiveButton");
+    const buttons = [
+        document.getElementById("LoginButtonLoginPassword"),
+        document.getElementById("LoginButtonLoginEmail"),
+        document.getElementById("LoginButtonLoginSteam"),
+        document.getElementById("RegisterButton"),
+    ];
 
-    // show/hide tabs
-    document.getElementById("TabLoginSsloForm").classList.add("ActiveTab");
-    document.getElementById("TabRegisterSsloForm").classList.remove("ActiveTab");
-}
+    for (let i = 0; i < buttons.length; i++) {
+        if (i == active_index) {
+            buttons[i].classList.add("ActiveButton");
+        } else {
+            buttons[i].classList.remove("ActiveButton");
+        }
+    }
 
-function tabSelectSlloRegister() {
+    const tabs = [
+        document.getElementById("TabLoginPassword"),
+        document.getElementById("TabLoginEmail"),
+        document.getElementById("TabLoginSteam"),
+        document.getElementById("TabRegisterSsloForm"),
+    ]
 
-    // activate buttons
-    document.getElementById("LoginSsloButton").classList.remove("ActiveButton");
-    document.getElementById("RegisterSsloButton").classList.add("ActiveButton");
 
-    // show/hide tabs
-    document.getElementById("TabLoginSsloForm").classList.remove("ActiveTab");
-    document.getElementById("TabRegisterSsloForm").classList.add("ActiveTab");
+    for (let i = 0; i < tabs.length; i++) {
+        if (i == active_index) {
+            tabs[i].classList.add("ActiveTab");
+        } else {
+            tabs[i].classList.remove("ActiveTab");
+        }
+    }
 }
