@@ -64,13 +64,13 @@ impl AppState {
     pub async fn get_rustls_config(&self) -> RustlsConfig {
 
         // get and check cert file
-        let path_cert = self.dbpath(&self.config.http.ssl_cert);
+        let path_cert = self.dbpath(&self.config.http.tls_cert);
         if !path_cert.exists() {
             panic!("Cannot find SSL CERT path: '{}!'", path_cert.display());
         }
 
         // get and check key file
-        let path_key = self.dbpath(&self.config.http.ssl_key);
+        let path_key = self.dbpath(&self.config.http.tls_key);
         if !path_cert.exists() {
             panic!("Cannot find SSL KEY path: '{}!'", path_key.display());
         }

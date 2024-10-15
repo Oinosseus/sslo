@@ -11,6 +11,9 @@ pub struct Config {
 
     /// Configuration for the http(s) server(s)
     pub http: Http,
+
+    /// Configuration for sending emails
+    pub smtp: Smtp,
 }
 
 
@@ -46,9 +49,28 @@ pub struct Http {
     /// The port to run the https server onto
     pub port_https: u16,
 
-    /// Path to the SSL cert file in PEM format
-    pub ssl_cert: PathBuf,
+    /// Path to the TLS cert file in PEM format
+    pub tls_cert: PathBuf,
 
-    /// Path to the SSL key file in PEM format
-    pub ssl_key: PathBuf,
+    /// Path to the TLS key file in PEM format
+    pub tls_key: PathBuf,
+}
+
+
+#[derive(Deserialize, Clone)]
+/// Configuration for SMTP email sending server
+/// secure STARTTLS SMTP expected -> TLS certificate must be valid
+pub struct Smtp {
+
+    /// The email address that shall be used as sender for the SSLO system
+    pub email: String,
+
+    /// The hostname of the SMTP server (eg. mail.mydomain.com)
+    pub host: String,
+
+    /// The username for login
+    pub username: String,
+
+    /// The password for login
+    pub password: String,
 }

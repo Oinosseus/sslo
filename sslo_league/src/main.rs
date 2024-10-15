@@ -6,6 +6,7 @@ mod http;
 mod config;
 mod app_state;
 mod db;
+mod helpers;
 
 #[derive(Parser)]
 struct CliArgs {
