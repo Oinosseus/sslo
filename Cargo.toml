@@ -2,6 +2,6 @@
 
 members = [
     "sslo_central",
-    "sslo_community",
+    "sslo_league",
     "sslo_lib",
 ]
