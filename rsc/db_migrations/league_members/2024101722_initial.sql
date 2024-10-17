@@ -1,3 +1,10 @@
+CREATE TABLE NewEmailUser (
+                              Id INTEGER PRIMARY KEY ,
+                              Email TEXT NOT NULL,
+                              Token BLOB NOT NULL,
+                              CreationTimeStamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE User (
     Id INTEGER PRIMARY KEY,
     Name TEXT NOT NULL,
@@ -11,13 +18,6 @@ CREATE TABLE Email (
     Email TEXT NOT NULL,
     IsVerified INTEGER NOT NULL,
     Password BLOB
-);
-
-CREATE TABLE EmailVerificationToken (
-    Id INTEGER PRIMARY KEY ,
-    Email INTEGER NOT NULL,
-    Token BLOB NOT NULL,
-    CreationTimeStamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE Steam (

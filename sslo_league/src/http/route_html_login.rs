@@ -40,6 +40,7 @@ pub async fn handler() -> Result<impl IntoResponse, StatusCode> {
     // SSLO Local Registration
     html.push_body("<form id=\"TabRegisterSsloForm\" method=\"post\">");
     html.push_body("<label>Register with email address</label>");
+    html.push_body("<input type=\"hidden\" name=\"Action\" value=\"Register\">");
     html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" name=\"LoginEmail\">");
     html.push_body("<button type=\"submit\">Send email verification link</button>");
     html.push_body("</form>");
