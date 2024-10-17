@@ -1,7 +1,9 @@
+use axum::extract::State;
 use axum::Form;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Deserialize;
+use crate::app_state::AppState;
 use crate::http::HtmlTemplate;
 
 
@@ -56,7 +58,10 @@ pub async fn handler() -> Result<impl IntoResponse, StatusCode> {
     return Ok(html);
 }
 
-pub async fn handler_register(Form(form_data): Form<RegisterSsloFormData>) -> Result<impl IntoResponse, StatusCode> {
+pub async fn handler_register(State(app_state): State<AppState>,
+                              Form(form_data): Form<RegisterSsloFormData>,
+) -> Result<impl IntoResponse, StatusCode> {
+    
     let mut html = HtmlTemplate::new();
     html.include_css("/rsc/css/login.css");
     html.include_js("/rsc/js/login.js");
