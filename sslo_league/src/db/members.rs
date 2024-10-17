@@ -19,7 +19,7 @@ impl Database {
 impl super::Database for Database {
 
     async fn init(&mut self) -> Result<(), Box<dyn Error>> {
-        sqlx::migrate!("../rsc/db_migrations/league_users").run(&self.db_pool).await?;
+        sqlx::migrate!("../rsc/db_migrations/league_members").run(&self.db_pool).await?;
         Ok(())
     }
 

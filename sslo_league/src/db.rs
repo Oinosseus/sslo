@@ -2,7 +2,7 @@ use std::error::Error;
 use sqlx::SqlitePool;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
-pub mod users;
+pub mod members;
 
 
 pub fn create_db_pool(db_path: &str) -> SqlitePool {
