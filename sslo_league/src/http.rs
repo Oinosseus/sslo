@@ -13,6 +13,9 @@ struct HtmlTemplate {
     html_body: String,
     css_files: Vec<& 'static str>,
     js_files: Vec<& 'static str>,
+    messages_success: Vec<String>,
+    messages_warning: Vec<String>,
+    messages_error: Vec<String>,
 }
 
 impl HtmlTemplate {
@@ -22,6 +25,9 @@ impl HtmlTemplate {
             html_body: "".to_string(),
             css_files: Vec::new(),
             js_files: Vec::new(),
+            messages_success: Vec::new(),
+            messages_warning: Vec::new(),
+            messages_error: Vec::new(),
         }
     }
 
@@ -29,6 +35,21 @@ impl HtmlTemplate {
     /// Adding a string to the HTML body
     pub fn push_body(&mut self, body: &str) {
         self.html_body += body;
+    }
+
+    /// Add a success message
+    pub fn message_success(&mut self, message: String) {
+        self.messages_success.push(message);
+    }
+
+    /// Add a warning message
+    pub fn message_warning(&mut self, message: String) {
+        self.messages_warning.push(message);
+    }
+
+    /// Add an error message
+    pub fn message_error(&mut self, message: String) {
+        self.messages_error.push(message);
     }
 
     /// request a CSS file to be additionally loaded
@@ -96,8 +117,24 @@ impl IntoResponse for HtmlTemplate {
 
         // TODO: implement breadcrumps
 
-        // TODO: implement messages
-        html += "<messages></messages>";
+        // messages
+        html += "<messages>";
+        for msg in self.messages_success {
+            html += "<div class=\"MessageSuccess\">";
+            html += &msg;
+            html += "</div>";
+        }
+        for msg in self.messages_warning {
+            html += "<div class=\"MessageWarning\">";
+            html += &msg;
+            html += "</div>";
+        }
+        for msg in self.messages_error {
+            html += "<div class=\"MessageError\">";
+            html += &msg;
+            html += "</div>";
+        }
+        html += "</messages>";
 
         // content
         html += "    <main>\n";
@@ -131,6 +168,7 @@ pub fn create_router(app_state: AppState) -> Router {
     let router = Router::new()
         .route("/", routing::get(route_main))
         .route("/html/login", routing::get(route_html_login::handler))
+        .route("/html/login/register", routing::post(route_html_login::handler_register))
         .route("/rsc/*filepath", routing::get(static_resources::route_handler))
         .with_state(app_state);
     router

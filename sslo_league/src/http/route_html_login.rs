@@ -1,6 +1,14 @@
+use axum::Form;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use serde::Deserialize;
 use crate::http::HtmlTemplate;
+
+
+#[derive(Deserialize)]
+pub struct RegisterSsloFormData {
+    login_email: String,
+}
 
 pub async fn handler() -> Result<impl IntoResponse, StatusCode> {
     let mut html = HtmlTemplate::new();
@@ -38,12 +46,41 @@ pub async fn handler() -> Result<impl IntoResponse, StatusCode> {
     html.push_body("</form>");
 
     // SSLO Local Registration
-    html.push_body("<form id=\"TabRegisterSsloForm\" method=\"post\">");
+    html.push_body("<form id=\"TabRegisterSsloForm\" method=\"post\" action=\"login/register\">");
     html.push_body("<label>Register with email address</label>");
-    html.push_body("<input type=\"hidden\" name=\"Action\" value=\"Register\">");
-    html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" name=\"LoginEmail\">");
+    // html.push_body("<input type=\"hidden\" name=\"Action\" value=\"Register\">");
+    html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" name=\"login_email\">");
     html.push_body("<button type=\"submit\">Send email verification link</button>");
     html.push_body("</form>");
 
     return Ok(html);
+}
+
+pub async fn handler_register(Form(form_data): Form<RegisterSsloFormData>) -> Result<impl IntoResponse, StatusCode> {
+    let mut html = HtmlTemplate::new();
+    html.include_css("/rsc/css/login.css");
+    html.include_js("/rsc/js/login.js");
+
+    // Check if exist in User table
+    todo!();
+
+    // check if exist in NewEmailUser table
+    todo!();
+
+    // generate new token
+    todo!();
+
+    // create newEmailUser entry
+    todo!();
+
+    // wait arbitrary time
+    todo!();
+
+    // send new token via email
+    todo!();
+
+    // create user info
+    todo!();
+
+    Ok(html)
 }
