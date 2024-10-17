@@ -74,7 +74,7 @@ impl IntoResponse for HtmlTemplate {
         html += "    <meta charset=\"UTF-8\">\n";
         html += "    <meta name=\"color-scheme\" content=\"dark light\">\n";
         html += "    <title>SSLO League</title>\n";
-        html += "    <link rel=\"icon\" href=\"rsc/img/favicon.svg\" sizes=\"any\" type=\"image/svg+xml\">\n";
+        html += "    <link rel=\"icon\" href=\"/rsc/img/favicon.svg\" sizes=\"any\" type=\"image/svg+xml\">\n";
         html += "    <link rel=\"stylesheet\" href=\"/rsc/css/main.css\">\n";
         for css_file in &self.css_files {
             html += "    <link rel=\"stylesheet\" href=\"";
