@@ -26,6 +26,9 @@ pub fn create_db_pool(db_path: &str) -> SqlitePool {
 
 pub trait Database {
 
+    /// Provide the  pool
+    fn pool(&self) -> &SqlitePool;
+
     /// Ensure database is working correctly
     ///
     /// * initialize a first connection

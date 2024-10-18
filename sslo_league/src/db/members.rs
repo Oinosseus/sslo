@@ -13,10 +13,15 @@ impl Database {
         Self {db_pool}
     }
 
+
 }
 
 
 impl super::Database for Database {
+
+    fn pool(&self) -> &SqlitePool {
+        &self.db_pool
+    }
 
     async fn init(&mut self) -> Result<(), Box<dyn Error>> {
         sqlx::migrate!("../rsc/db_migrations/league_members").run(&self.db_pool).await?;

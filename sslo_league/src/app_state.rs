@@ -24,7 +24,7 @@ pub struct AppState {
     database_dir: PathBuf,
 
     /// databases
-    db_members: db::members::Database,
+    pub db_members: db::members::Database,
 }
 
 

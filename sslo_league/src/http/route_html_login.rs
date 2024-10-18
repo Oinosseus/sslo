@@ -4,6 +4,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Deserialize;
 use crate::app_state::AppState;
+use crate::db::Database;
 use crate::http::HtmlTemplate;
 
 
@@ -67,25 +68,52 @@ pub async fn handler_register(State(app_state): State<AppState>,
     html.include_js("/rsc/js/login.js");
 
     // Check if exist in User table
-    todo!();
+    let same_email_count = match sqlx::query("SELECT Id FROM Email WHERE Email = $1 LIMIT 1;")
+        .bind(&form_data.login_email)
+        .fetch_all(app_state.db_members.pool()).await {
+            Ok(vec) => vec.len(),
+            Err(e) => {
+                log::error!("Failed to request DB.members.Email!");
+                log::error!("{}", e);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+    };
 
     // check if exist in NewEmailUser table
-    todo!();
+    let res = sqlx::query("SELECT Id, CreationTimestamp FROM NewEmailUser WHERE Email = $1 LIMIT 1;")
+        .bind(&form_data.login_email)
+        .fetch_all(app_state.db_members.pool()).await
+        .or(Err(StatusCode::INTERNAL_SERVER_ERROR))?.len();
 
     // generate new token
-    todo!();
+    let new_token = "12345".to_string();
 
     // create newEmailUser entry
-    todo!();
+    match sqlx::query("INSERT INTO NewEmailUser (Email, Token) VALUES ($1, $2) RETURNING Id;")
+        .bind(&form_data.login_email)
+        .bind(new_token)
+        .fetch_all(app_state.db_members.pool()).await {
+        Err(e) => {
+            log::error!("Failed to request DB.members.NewEmailUser!");
+            log::error!("{}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        },
+        Ok(res) => {
+
+        }
+    }
 
     // wait arbitrary time
-    todo!();
+    // todo!();
 
     // send new token via email
-    todo!();
+    // todo!();
 
     // create user info
-    todo!();
+    // todo!();
+
+    html.message_warning("Login link is valid for 60 Minutes, until expiry now new re-registration will be possible.".to_string());
+    html.message_error("When this email is not already registered, an email with a login link should be send.".to_string());
 
     Ok(html)
 }
