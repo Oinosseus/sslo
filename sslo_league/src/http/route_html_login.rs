@@ -114,7 +114,19 @@ pub async fn handler_register(State(app_state): State<AppState>,
     }
 
     // output user info
-    html.message_success("When this email is not already registered, an email with a login link should be send.".to_string());
-    html.message_warning("Login link is valid for 60 Minutes, until expiry now new re-registration will be possible.".to_string());
+    html.message_success("An email with a login link should be send to your specified address.".to_string());
+    html.message_warning("In case the email address is already registered, or a link was sent within the last 60 minutes, no email was sent.\n\
+                          To protect from spying, the actual email transmission is kept secret.".to_string());
+    Ok(html)
+}
+
+
+pub async fn handler_login_email(State(app_state): State<AppState>) -> Result<impl IntoResponse, StatusCode> {
+    let mut html = HtmlTemplate::new();
+    html.include_css("/rsc/css/login.css");
+    html.include_js("/rsc/js/login.js");
+
+    todo!();
+
     Ok(html)
 }

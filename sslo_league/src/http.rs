@@ -119,21 +119,7 @@ impl IntoResponse for HtmlTemplate {
         // messages
         html += "<messages>";
         for msg in self.frontend_messages {
-            match msg {
-                FrontendMessage::Error(msg) => {
-                    html += "<div class=\"MessageError\">";
-                    html += &msg;
-                },
-                FrontendMessage::Warning(msg) => {
-                    html += "<div class=\"MessageWarning\">";
-                    html += &msg;
-                },
-                FrontendMessage::Success(msg) => {
-                    html += "<div class=\"MessageSuccess\">";
-                    html += &msg;
-                },
-            }
-            html += "</div>";
+            html += &msg.to_html();
         }
         html += "</messages>";
 
@@ -170,6 +156,7 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/", routing::get(route_main))
         .route("/html/login", routing::get(route_html_login::handler))
         .route("/html/login/register", routing::post(route_html_login::handler_register))
+        .route("/html/login/email", routing::get(route_html_login::handler_login_email))
         .route("/rsc/*filepath", routing::get(static_resources::route_handler))
         .with_state(app_state);
     router
@@ -217,4 +204,27 @@ enum FrontendMessage {
     Success(String),
     Warning(String),
     Error(String),
+}
+
+impl FrontendMessage {
+
+    pub fn extract_message(&self) -> String {
+        match self {
+            FrontendMessage::Success(msg) => msg.clone(),
+            FrontendMessage::Warning(msg) => msg.clone(),
+            FrontendMessage::Error(msg) => msg.clone(),
+        }
+    }
+
+    pub fn to_html(&self) -> String {
+        let mut html = String::new();
+        html += match self {
+            Self::Success(_) => "<div class=\"MessageSuccess\">",
+            Self::Warning(_) => "<div class=\"MessageWarning\">",
+            Self::Error(_) => "<div class=\"MessageError\">",
+        };
+        html += &self.extract_message().replace("\n", "<br>");
+        html += "</div>";
+        html
+    }
 }
