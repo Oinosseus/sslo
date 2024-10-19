@@ -7,7 +7,8 @@ use axum::{routing, Router};
 use sslo_lib::http_routes::static_resources;
 use crate::app_state::AppState;
 
-pub mod route_html_login;
+mod routes_html;
+mod routes_rest_v0;
 
 struct HtmlTemplate {
     html_body: String,
@@ -154,10 +155,9 @@ async fn route_main() -> Result<impl IntoResponse, StatusCode> {
 pub fn create_router(app_state: AppState) -> Router {
     let router = Router::new()
         .route("/", routing::get(route_main))
-        .route("/html/login", routing::get(route_html_login::handler))
-        .route("/html/login/register", routing::post(route_html_login::handler_register))
-        .route("/html/login/email", routing::get(route_html_login::handler_login_email))
+        .route("/html/login", routing::get(routes_html::login::handler))
         .route("/rsc/*filepath", routing::get(static_resources::route_handler))
+        .route("/api/v0/login", routing::post(routes_rest_v0::login::handler()))
         .with_state(app_state);
     router
 }

@@ -8,5 +8,5 @@ CREATE TABLE email (
     email TEXT NOT NULL UNIQUE,
     token BLOB UNIQUE,
     token_creation_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    user INTEGER DEFAULT NULL,
+    user INTEGER DEFAULT NULL
 );
