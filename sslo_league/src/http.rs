@@ -13,9 +13,7 @@ struct HtmlTemplate {
     html_body: String,
     css_files: Vec<& 'static str>,
     js_files: Vec<& 'static str>,
-    messages_success: Vec<String>,
-    messages_warning: Vec<String>,
-    messages_error: Vec<String>,
+    frontend_messages: Vec<FrontendMessage>,
 }
 
 impl HtmlTemplate {
@@ -25,9 +23,7 @@ impl HtmlTemplate {
             html_body: "".to_string(),
             css_files: Vec::new(),
             js_files: Vec::new(),
-            messages_success: Vec::new(),
-            messages_warning: Vec::new(),
-            messages_error: Vec::new(),
+            frontend_messages: Vec::new(),
         }
     }
 
@@ -39,17 +35,20 @@ impl HtmlTemplate {
 
     /// Add a success message
     pub fn message_success(&mut self, message: String) {
-        self.messages_success.push(message);
+        let fem = FrontendMessage::Success(message);
+        self.frontend_messages.push(fem)
     }
 
     /// Add a warning message
     pub fn message_warning(&mut self, message: String) {
-        self.messages_warning.push(message);
+        let fem = FrontendMessage::Warning(message);
+        self.frontend_messages.push(fem)
     }
 
     /// Add an error message
     pub fn message_error(&mut self, message: String) {
-        self.messages_error.push(message);
+        let fem = FrontendMessage::Error(message);
+        self.frontend_messages.push(fem)
     }
 
     /// request a CSS file to be additionally loaded
@@ -119,19 +118,21 @@ impl IntoResponse for HtmlTemplate {
 
         // messages
         html += "<messages>";
-        for msg in self.messages_success {
-            html += "<div class=\"MessageSuccess\">";
-            html += &msg;
-            html += "</div>";
-        }
-        for msg in self.messages_warning {
-            html += "<div class=\"MessageWarning\">";
-            html += &msg;
-            html += "</div>";
-        }
-        for msg in self.messages_error {
-            html += "<div class=\"MessageError\">";
-            html += &msg;
+        for msg in self.frontend_messages {
+            match msg {
+                FrontendMessage::Error(msg) => {
+                    html += "<div class=\"MessageError\">";
+                    html += &msg;
+                },
+                FrontendMessage::Warning(msg) => {
+                    html += "<div class=\"MessageWarning\">";
+                    html += &msg;
+                },
+                FrontendMessage::Success(msg) => {
+                    html += "<div class=\"MessageSuccess\">";
+                    html += &msg;
+                },
+            }
             html += "</div>";
         }
         html += "</messages>";
@@ -209,4 +210,11 @@ pub async fn http2https_background_service(port_http: u16, port_https: u16) {
     axum::serve(listener, redirect.into_make_service())
         .await
         .unwrap();
+}
+
+
+enum FrontendMessage {
+    Success(String),
+    Warning(String),
+    Error(String),
 }

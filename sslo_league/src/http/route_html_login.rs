@@ -1,4 +1,4 @@
-use axum::extract::State;
+use axum::extract::{Host, State};
 use axum::Form;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -60,15 +60,18 @@ pub async fn handler() -> Result<impl IntoResponse, StatusCode> {
 }
 
 pub async fn handler_register(State(app_state): State<AppState>,
+                              axum::http::uri::Uri(uri) : 
                               Form(form_data): Form<RegisterSsloFormData>,
 ) -> Result<impl IntoResponse, StatusCode> {
+
+    println!("HERE '{}'", &host);
     
     let mut html = HtmlTemplate::new();
     html.include_css("/rsc/css/login.css");
     html.include_js("/rsc/js/login.js");
 
     // Check if exist in User table
-    let same_email_count = match sqlx::query("SELECT Id FROM Email WHERE Email = $1 LIMIT 1;")
+    let existing_user_count = match sqlx::query("SELECT Id FROM Email WHERE Email = $1 LIMIT 1;")
         .bind(&form_data.login_email)
         .fetch_all(app_state.db_members.pool()).await {
             Ok(vec) => vec.len(),
@@ -80,40 +83,38 @@ pub async fn handler_register(State(app_state): State<AppState>,
     };
 
     // check if exist in NewEmailUser table
-    let res = sqlx::query("SELECT Id, CreationTimestamp FROM NewEmailUser WHERE Email = $1 LIMIT 1;")
+    let existing_registration_count = sqlx::query("SELECT Id, CreationTimestamp FROM NewEmailUser WHERE Email = $1 LIMIT 1;")
         .bind(&form_data.login_email)
         .fetch_all(app_state.db_members.pool()).await
         .or(Err(StatusCode::INTERNAL_SERVER_ERROR))?.len();
 
+    // when email is not in the system, yet
+    if existing_user_count > 0 {
+        log::warn!("Ignored registration for existing Email='{}'", &form_data.login_email);
+    } else if existing_registration_count > 0 {
+        log::warn!("Ignored registration for existing NewEmailUser='{}'", &form_data.login_email);
+    } else {
+
     // generate new token
-    let new_token = "12345".to_string();
+        let token: String = app_state.db_members.new_email_user(&form_data.login_email)
+            .await.or(Err(StatusCode::INTERNAL_SERVER_ERROR))?;
 
-    // create newEmailUser entry
-    match sqlx::query("INSERT INTO NewEmailUser (Email, Token) VALUES ($1, $2) RETURNING Id;")
-        .bind(&form_data.login_email)
-        .bind(new_token)
-        .fetch_all(app_state.db_members.pool()).await {
-        Err(e) => {
-            log::error!("Failed to request DB.members.NewEmailUser!");
-            log::error!("{}", e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        },
-        Ok(res) => {
-
-        }
+        // send new token via email
+        let email_message = "Follow this link to finish you registration to the SSLO system: ".to_string();
+        crate::helpers::send_email(&app_state.config,
+                                   &form_data.login_email,
+                                   "SSLO League Registration",
+                                   email_message)
+            .await
+            .or_else(|err| {
+                log::warn!("Could not send registration email to '{}'", &form_data.login_email);
+                log::warn!("{}", err);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            })?;
     }
 
-    // wait arbitrary time
-    // todo!();
-
-    // send new token via email
-    // todo!();
-
-    // create user info
-    // todo!();
-
+    // output user info
+    html.message_success("When this email is not already registered, an email with a login link should be send.".to_string());
     html.message_warning("Login link is valid for 60 Minutes, until expiry now new re-registration will be possible.".to_string());
-    html.message_error("When this email is not already registered, an email with a login link should be send.".to_string());
-
     Ok(html)
 }
