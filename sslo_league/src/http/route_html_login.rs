@@ -1,4 +1,4 @@
-use axum::extract::{Host, State};
+use axum::extract::{Host, OriginalUri, State};
 use axum::Form;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -60,11 +60,11 @@ pub async fn handler() -> Result<impl IntoResponse, StatusCode> {
 }
 
 pub async fn handler_register(State(app_state): State<AppState>,
-                              axum::http::uri::Uri(uri) : 
+                              OriginalUri(uri): OriginalUri,
                               Form(form_data): Form<RegisterSsloFormData>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
-    println!("HERE '{}'", &host);
+    println!("HERE '{}'", &uri);
     
     let mut html = HtmlTemplate::new();
     html.include_css("/rsc/css/login.css");
