@@ -18,3 +18,4 @@ sqlx = { version = "0.8.2", features = ["runtime-tokio", "sqlite"] }
 log = { version = "0.4.22", features = ["release_max_level_warn"] }
 env_logger = "0.11.5"
 lettre = { version = "0.11.9", default-features = false, features = ["builder", "hostname", "pool", "smtp-transport", "tokio1-native-tls"] }
+rand = "0.8.5"

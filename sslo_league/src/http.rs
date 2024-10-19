@@ -157,7 +157,7 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/", routing::get(route_main))
         .route("/html/login", routing::get(routes_html::login::handler))
         .route("/rsc/*filepath", routing::get(static_resources::route_handler))
-        .route("/api/v0/login", routing::post(routes_rest_v0::login::handler()))
+        .route("/api/v0/login/email", routing::post(routes_rest_v0::login_email::handler))
         .with_state(app_state);
     router
 }

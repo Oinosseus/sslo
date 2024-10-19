@@ -2318,6 +2318,7 @@ dependencies = [
  "env_logger",
  "lettre",
  "log",
+ "rand",
  "serde",
  "sqlx",
  "sslo_lib",
