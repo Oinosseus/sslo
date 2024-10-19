@@ -8,7 +8,7 @@ pub mod members;
 pub fn create_db_pool(db_path: &str) -> SqlitePool {
 
     let pool_opts = SqlitePoolOptions::new()
-        .max_connections(5)
+        .max_connections(1)
         .acquire_time_level(log::LevelFilter::Debug)
         .acquire_slow_level(log::LevelFilter::Warn)
         .max_lifetime(Some(std::time::Duration::from_secs(600)));
