@@ -23,24 +23,24 @@ pub async fn handler() -> Result<impl IntoResponse, StatusCode> {
     html.push_body("</div>");
 
     // Login with Password
-    html.push_body("<form id=\"TabLoginPassword\" class=\"ActiveTab\" method=\"post\">");
+    html.push_body("<form id=\"TabLoginPassword\" class=\"ActiveTab\">");
     html.push_body("<label>Login with SSLO Password</label>");
     html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" name=\"LoginEmail\">");
     html.push_body("<input required placeholder=\"password\" type=\"password\" name=\"LoginPassword\">");
-    html.push_body("<button type=\"submit\">Login</button>");
+    html.push_body("<button type=\"button\">Login</button>");
     html.push_body("</form>");
 
     // Login with Email SSO
-    html.push_body("<form id=\"TabLoginEmail\" method=\"post\">");
+    html.push_body("<form id=\"TabLoginEmail\">");
     html.push_body("<label>Login via sending Email login link</label>");
-    html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" name=\"LoginEmail\">");
-    html.push_body("<button type=\"submit\">Send Login Link</button>");
+    html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" id=\"LoginByEmailInputEmail\">");
+    html.push_body("<button type=\"button\" onclick=\"buttonLoginEmail()\">Send Login Link</button>");
     html.push_body("</form>");
 
     // Login with Steam SSO
-    html.push_body("<form id=\"TabLoginSteam\" method=\"post\">");
+    html.push_body("<form id=\"TabLoginSteam\">");
     html.push_body("<label>Login via Steam</label>");
-    html.push_body("<button type=\"submit\">Forward to Steam Login</button>");
+    html.push_body("<button type=\"button\">Forward to Steam Login</button>");
     html.push_body("</form>");
 
     return Ok(html);

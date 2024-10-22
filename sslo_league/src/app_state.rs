@@ -24,7 +24,7 @@ pub struct AppState {
     database_dir: PathBuf,
 
     /// databases
-    pub db_members: db::members::Database,
+    pub db_members: db::members::DbMembers,
 }
 
 
@@ -49,7 +49,7 @@ impl AppState {
         let sqlite_dir = database_dir.join("sqlite");
         ensure_dir_exists(sqlite_dir.as_path())?;
         let pool_members = db::create_db_pool(sqlite_dir.join("members.db").to_str().unwrap());
-        let db_members = db::members::Database::new(pool_members);
+        let db_members = db::members::DbMembers::new(pool_members);
 
         // compile app state
         Ok(AppState {

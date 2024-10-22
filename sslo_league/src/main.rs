@@ -1,5 +1,10 @@
+use std::error::Error;
 use clap::Parser;
 use std::net::{Ipv4Addr, SocketAddr};
+use env_logger::fmt::Formatter;
+use std::io::Write;
+use log::{Level, Record};
+use sqlx::error::BoxDynError;
 use app_state::AppState;
 
 mod http;
@@ -11,6 +16,31 @@ mod helpers;
 #[derive(Parser)]
 struct CliArgs {
     config_file: std::path::PathBuf,
+}
+
+fn env_logger_format(buf: &mut Formatter, record: &Record<'_>) -> std::io::Result<()> {
+    let level: &'static str = match record.level() {
+        Level::Error => "\x1b[91mERR",
+        Level::Warn => "\x1b[93mWRN",
+        Level::Info => "\x1b[96mIFO",
+        Level::Debug => "\x1b[95mDBG",
+        Level::Trace => "\x1b[97mTRC",
+    };
+    let style_msg: &'static str = match record.level() {
+        Level::Error => "\x1b[0;31m",
+        Level::Warn => "\x1b[0;33m",
+        Level::Info => "\x1b[0;36m",
+        Level::Debug => "\x1b[0;35m",
+        Level::Trace => "\x1b[0;37m",
+    };
+    writeln!(buf, "\x1b[37m{} {} \x1b[3;37m{}:{} {}{}\x1b[0m",
+             chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+             level,
+             record.module_path().unwrap_or("unknown"),
+             record.line().unwrap_or(0),
+             style_msg,
+             record.args())?;
+    Ok(())
 }
 
 
@@ -26,7 +56,7 @@ async fn main() {
     // initialize logging
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Info)
-        .format_target(true)
+        .format(env_logger_format)
         .init();
 
     // user info

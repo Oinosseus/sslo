@@ -1,3 +1,4 @@
+
 function tabSelectByIndex(active_index) {
 
     // definition of buttons
@@ -31,4 +32,18 @@ function tabSelectByIndex(active_index) {
             tabs[i].classList.remove("ActiveTab");
         }
     }
+}
+
+
+function buttonLoginEmail() {
+    console.log("Login clicked!");
+
+    var post_data = {
+        email : document.getElementById("LoginByEmailInputEmail").value,
+    }
+    api_post("login/email", post_data, login_callback);
+}
+
+function login_callback(data) {
+    console.log("Arrived here:" + data)
 }
