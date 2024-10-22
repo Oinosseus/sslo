@@ -1,4 +1,3 @@
-
 function tabSelectByIndex(active_index) {
 
     // definition of buttons
@@ -36,14 +35,19 @@ function tabSelectByIndex(active_index) {
 
 
 function buttonLoginEmail() {
-    console.log("Login clicked!");
-
     var post_data = {
         email : document.getElementById("LoginByEmailInputEmail").value,
     }
-    api_post("login/email", post_data, login_callback);
+    api_v0_post("login/email", post_data, login_callback);
 }
 
-function login_callback(data) {
-    console.log("Arrived here:" + data)
+
+function login_callback(response_code, json_data) {
+    if (response_code == 200) {
+        append_message_success("An email with login data should be sent.",
+            "When email already exists, a new token was sent. When a token was already sent, nothing happens.");
+    } else {
+        append_message_error("Error",
+            "Something went wrong. Please try again.");
+    }
 }

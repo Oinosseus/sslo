@@ -73,6 +73,7 @@ impl TblEmail {
                 let token_creation = crate::db::string2time(&token_creation_str)?;
                 if token_creation > time_token_outdated {           // token is still valid
                     if existing_row.token_last_usage.is_none() {    // token is not used, yet
+                        log::warn!("Not generating new email login token for '{}' because last token is still active.", &email);
                         Err("Last generated token is still active!")?
                     }
                 }

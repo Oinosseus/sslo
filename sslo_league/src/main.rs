@@ -19,12 +19,12 @@ struct CliArgs {
 }
 
 fn env_logger_format(buf: &mut Formatter, record: &Record<'_>) -> std::io::Result<()> {
-    let level: &'static str = match record.level() {
-        Level::Error => "\x1b[91mERR",
-        Level::Warn => "\x1b[93mWRN",
-        Level::Info => "\x1b[96mIFO",
-        Level::Debug => "\x1b[95mDBG",
-        Level::Trace => "\x1b[97mTRC",
+    let style_level: &'static str = match record.level() {
+        Level::Error => "\x1b[91m",
+        Level::Warn => "\x1b[93m",
+        Level::Info => "\x1b[96m",
+        Level::Debug => "\x1b[95m",
+        Level::Trace => "\x1b[97m",
     };
     let style_msg: &'static str = match record.level() {
         Level::Error => "\x1b[0;31m",
@@ -33,9 +33,10 @@ fn env_logger_format(buf: &mut Formatter, record: &Record<'_>) -> std::io::Resul
         Level::Debug => "\x1b[0;35m",
         Level::Trace => "\x1b[0;37m",
     };
-    writeln!(buf, "\x1b[37m{} {} \x1b[3;37m{}:{} {}{}\x1b[0m",
+    writeln!(buf, "\x1b[37m{} {}{} \x1b[3;37m{}:{} {}{}\x1b[0m",
              chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-             level,
+             style_level,
+             record.level(),
              record.module_path().unwrap_or("unknown"),
              record.line().unwrap_or(0),
              style_msg,

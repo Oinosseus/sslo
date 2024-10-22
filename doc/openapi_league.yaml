@@ -30,9 +30,5 @@ paths:
               schema:
                 type: object
                 properties:
-                  one:
-                    type: string
-                  two:
-                    type: string
         '500':
           $ref: '#/components/responses/GeneralError'

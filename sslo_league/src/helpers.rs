@@ -1,10 +1,11 @@
+use std::error::Error;
 use lettre::{AsyncTransport, Tokio1Executor};
 use lettre::message::Mailbox;
 use lettre::transport::smtp::authentication::{Credentials, Mechanism};
 use lettre::transport::smtp::{AsyncSmtpTransport, PoolConfig};
 use crate::config::Config;
 
-pub async fn send_email(cfg: &Config, receiver: &str, subject: &str, message: String) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn send_email(cfg: &Config, receiver: &str, subject: &str, message: String) -> Result<(), Box<dyn Error>> {
 
     // compose email
     let email = lettre::Message::builder()
