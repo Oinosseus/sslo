@@ -19,27 +19,20 @@ struct CliArgs {
 }
 
 fn env_logger_format(buf: &mut Formatter, record: &Record<'_>) -> std::io::Result<()> {
-    let style_level: &'static str = match record.level() {
+    let color: &'static str = match record.level() {
         Level::Error => "\x1b[91m",
         Level::Warn => "\x1b[93m",
-        Level::Info => "\x1b[96m",
-        Level::Debug => "\x1b[95m",
-        Level::Trace => "\x1b[97m",
-    };
-    let style_msg: &'static str = match record.level() {
-        Level::Error => "\x1b[0;31m",
-        Level::Warn => "\x1b[0;33m",
-        Level::Info => "\x1b[0;36m",
-        Level::Debug => "\x1b[0;35m",
-        Level::Trace => "\x1b[0;37m",
+        Level::Info => "\x1b[97m",
+        Level::Debug => "\x1b[35m",
+        Level::Trace => "\x1b[37m",
     };
     writeln!(buf, "\x1b[37m{} {}{} \x1b[3;37m{}:{} {}{}\x1b[0m",
              chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-             style_level,
+             color,
              record.level(),
              record.module_path().unwrap_or("unknown"),
              record.line().unwrap_or(0),
-             style_msg,
+             color,
              record.args())?;
     Ok(())
 }
