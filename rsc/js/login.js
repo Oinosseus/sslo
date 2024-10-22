@@ -35,9 +35,16 @@ function tabSelectByIndex(active_index) {
 
 
 function buttonLoginEmail() {
+
+    // deactivate login button
+    document.getElementById("LoginByEmailButton").setAttribute("disabled", "true");
+
+    // ge form data
     var post_data = {
         email : document.getElementById("LoginByEmailInputEmail").value,
     }
+
+    // send API request
     api_v0_post("login/email", post_data, login_callback);
 }
 

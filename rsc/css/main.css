@@ -52,6 +52,10 @@ input:focus, button:focus, button:hover {
     outline: 0.2em solid var(--color-green);
 }
 
+input:disabled, button:disabled {
+    outline: none;
+}
+
 
 /*****************************************************************************
                                 Header

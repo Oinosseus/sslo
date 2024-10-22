@@ -34,7 +34,7 @@ pub async fn handler() -> Result<impl IntoResponse, StatusCode> {
     html.push_body("<form id=\"TabLoginEmail\">");
     html.push_body("<label>Login via sending Email login link</label>");
     html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" id=\"LoginByEmailInputEmail\">");
-    html.push_body("<button type=\"button\" onclick=\"buttonLoginEmail()\">Send Login Link</button>");
+    html.push_body("<button type=\"button\" onclick=\"buttonLoginEmail()\" id=\"LoginByEmailButton\">Send Login Link</button>");
     html.push_body("</form>");
 
     // Login with Steam SSO
