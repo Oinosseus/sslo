@@ -27,7 +27,7 @@ fn env_logger_format(buf: &mut Formatter, record: &Record<'_>) -> std::io::Resul
         Level::Trace => "\x1b[37m",
     };
     writeln!(buf, "\x1b[37m{} {}{} \x1b[3;37m{}:{} {}{}\x1b[0m",
-             chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+             chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
              color,
              record.level(),
              record.module_path().unwrap_or("unknown"),
