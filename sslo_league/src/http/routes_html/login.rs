@@ -118,6 +118,7 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     // verify login
     match app_state.db_members.tbl_emails.login_from_email_token(email, token).await {
         Ok(row_user) => {
+            log::info!("Login with email, user {}:{}", row_user.rowid, row_user.name);
             html.message_success("Succesfully logged in.".to_string());
         },
         Err(e) => {

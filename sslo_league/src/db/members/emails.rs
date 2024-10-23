@@ -2,6 +2,7 @@ use std::error::Error;
 use chrono::Utc;
 use sqlx::SqlitePool;
 use crate::db;
+use crate::db::members::users::RowUser;
 
 /// A struct that represents a whole table row
 #[derive(sqlx::FromRow)]
@@ -192,20 +193,29 @@ impl TblEmails {
 
         // find according user
         let tbl_usr = super::users::TblUsers::new(self.db_pool.clone());
-        let row_user = tbl_usr.row_new(&row_email.email).await.or_else(|e| {
-            log::error!("Failed to create new user: {}", e);
-            return Err(format!("Failed to create new user: {}", e));
-        })?;
+        let row_user: RowUser;
 
-        // create user link
-        sqlx::query("UPDATE emails SET user=$1 WHERE rowid=$2;")
-            .bind(row_user.rowid)
-            .bind(row_email.rowid)
-            .execute(&self.db_pool)
-            .await.or_else(|e| {
+        if let Some(user_id) = row_email.user {
+            row_user = tbl_usr.row_from_id(user_id).await.or_else(|| {
+                log::error!("Cannot find db.members.user.rowid={} for db.members.emails.rowid={}", user_id, row_email.rowid);
+                return Err(format!("Cannot find db.members.user.rowid={} for db.members.emails.rowid={}", user_id, row_email.rowid));
+            }).unwrap();
+        } else {
+            let row_user = tbl_usr.row_new(&row_email.email).await.or_else(|e| {
+                log::error!("Failed to create new user: {}", e);
+                return Err(format!("Failed to create new user: {}", e));
+            })?;
+
+            // create user link
+            sqlx::query("UPDATE emails SET user=$1 WHERE rowid=$2;")
+                .bind(row_user.rowid)
+                .bind(row_email.rowid)
+                .execute(&self.db_pool)
+                .await.or_else(|e| {
                 log::error!("Failed to update database memebrs.emails.rowid[{}].user={}", row_email.rowid, row_user.rowid);
                 return Err(format!("Failed to update database memebrs.emails.rowid[{}].user={}", row_email.rowid, row_user.rowid));
-        })?;
+            })?;
+        }
 
         Ok(row_user)
     }
