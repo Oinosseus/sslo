@@ -83,7 +83,7 @@ impl TblEmails {
             }
 
             // update
-            sqlx::query("UPDATE emails SET token=$1, token_creation=$2 WHERE rowid=$3;")
+            sqlx::query("UPDATE emails SET token=$1, token_creation=$2, token_last_usage=NULL WHERE rowid=$3;")
                 .bind(token.crypted)
                 .bind(crate::db::time2string(&time_now))
                 .bind(existing_row.rowid)
@@ -193,29 +193,36 @@ impl TblEmails {
 
         // find according user
         let tbl_usr = super::users::TblUsers::new(self.db_pool.clone());
-        let row_user: RowUser;
+        let row_user: RowUser = match row_email.user {
+            Some(user_id) => {
+                let row_user = match tbl_usr.row_from_id(user_id).await {
+                    Some(row_user) => row_user,
+                    None => {
+                        log::error!("Cannot find db.members.user.rowid={} for db.members.emails.rowid={}", user_id, row_email.rowid);
+                        return Err(format!("Cannot find db.members.user.rowid={} for db.members.emails.rowid={}", user_id, row_email.rowid))?;
+                    }
+                };
+                row_user
+            },
+            None => {
+                let row_user = tbl_usr.row_new(&row_email.email).await.or_else(|e| {
+                    log::error!("Failed to create new user: {}", e);
+                    return Err(format!("Failed to create new user: {}", e));
+                })?;
 
-        if let Some(user_id) = row_email.user {
-            row_user = tbl_usr.row_from_id(user_id).await.or_else(|| {
-                log::error!("Cannot find db.members.user.rowid={} for db.members.emails.rowid={}", user_id, row_email.rowid);
-                return Err(format!("Cannot find db.members.user.rowid={} for db.members.emails.rowid={}", user_id, row_email.rowid));
-            }).unwrap();
-        } else {
-            let row_user = tbl_usr.row_new(&row_email.email).await.or_else(|e| {
-                log::error!("Failed to create new user: {}", e);
-                return Err(format!("Failed to create new user: {}", e));
-            })?;
+                // create user link
+                sqlx::query("UPDATE emails SET user=$1 WHERE rowid=$2;")
+                    .bind(row_user.rowid)
+                    .bind(row_email.rowid)
+                    .execute(&self.db_pool)
+                    .await.or_else(|e| {
+                    log::error!("Failed to update database memebrs.emails.rowid[{}].user={}", row_email.rowid, row_user.rowid);
+                    return Err(format!("Failed to update database memebrs.emails.rowid[{}].user={}", row_email.rowid, row_user.rowid));
+                })?;
 
-            // create user link
-            sqlx::query("UPDATE emails SET user=$1 WHERE rowid=$2;")
-                .bind(row_user.rowid)
-                .bind(row_email.rowid)
-                .execute(&self.db_pool)
-                .await.or_else(|e| {
-                log::error!("Failed to update database memebrs.emails.rowid[{}].user={}", row_email.rowid, row_user.rowid);
-                return Err(format!("Failed to update database memebrs.emails.rowid[{}].user={}", row_email.rowid, row_user.rowid));
-            })?;
-        }
+                row_user
+            }
+        };
 
         Ok(row_user)
     }
