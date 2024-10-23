@@ -1,9 +1,9 @@
-CREATE TABLE user (
+CREATE TABLE users (
     name TEXT NOT NULL,
     permission INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE email (
+CREATE TABLE emails (
     email TEXT NOT NULL UNIQUE,
     creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     token BLOB UNIQUE,

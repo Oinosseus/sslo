@@ -24,14 +24,14 @@ pub async fn handler(State(app_state): State<AppState>, Json(input): Json<Reques
 
     // create new token
     let mut token : Option<String> = None;  // need this option, because build fails when nesting new_email_login_token() and send_email()
-    if let Ok(t) = app_state.db_members.tbl_email.new_email_login_token(&input.email).await {
+    if let Ok(t) = app_state.db_members.tbl_emails.new_email_login_token(&input.email).await {
         token = Some(t);
     }
 
     // send info email
     if let Some(t) = token {
         let message = format!("Use this token: '{}'", t);
-        if let Err(e) = crate::helpers::send_email(&app_state.config, &input.email, "Email Login", message).await {
+        if let Err(e) = crate::helpers::send_email(&app_state.config, &input.email, "Email Login", &message).await {
             log::warn!("Could not create new email token for '{}': {}", &input.email, e)
         }
     }

@@ -1,4 +1,5 @@
-mod email;
+mod emails;
+mod users;
 
 use std::error::Error;
 use axum::http::StatusCode;
@@ -9,7 +10,8 @@ use crate::db::Database;
 #[derive(Clone)]
 pub struct DbMembers {
     db_pool: SqlitePool,
-    pub tbl_email: email::TblEmail,
+    pub tbl_emails: emails::TblEmails,
+    pub tbl_users: users::TblUsers,
 }
 
 
@@ -18,7 +20,8 @@ impl DbMembers {
     pub fn new(db_pool: SqlitePool) -> Self {
         Self {
             db_pool: db_pool.clone(),
-            tbl_email: email::TblEmail::new(db_pool.clone()),
+            tbl_emails: emails::TblEmails::new(db_pool.clone()),
+            tbl_users: users::TblUsers::new(db_pool.clone()),
         }
     }
 

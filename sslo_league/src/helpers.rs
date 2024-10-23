@@ -5,14 +5,22 @@ use lettre::transport::smtp::authentication::{Credentials, Mechanism};
 use lettre::transport::smtp::{AsyncSmtpTransport, PoolConfig};
 use crate::config::Config;
 
-pub async fn send_email(cfg: &Config, receiver: &str, subject: &str, message: String) -> Result<(), Box<dyn Error>> {
+pub async fn send_email(cfg: &Config, receiver: &str, subject: &str, message: &str) -> Result<(), Box<dyn Error>> {
+
+    // create message body
+    let mut body = String::new();
+    body += "<!DDOCTYPE html>";
+    body += "<html><body>";
+    body += message.replace("\n", "<br>").as_str();
+    body += "</body></html>";
 
     // compose email
     let email = lettre::Message::builder()
+        .header(lettre::message::header::ContentType::TEXT_HTML)
         .from(Mailbox::new(Some("SSLO League".to_string()), cfg.smtp.email.parse()?))
         .to(receiver.parse()?)
         .subject(subject)
-        .body(message).or_else(|e| {
+        .body(body).or_else(|e| {
             log::error!("Could not compose email: {}", e);
             Err(e)
     })?;

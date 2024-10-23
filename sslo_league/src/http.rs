@@ -154,9 +154,13 @@ async fn route_main() -> Result<impl IntoResponse, StatusCode> {
 
 pub fn create_router(app_state: AppState) -> Router {
     let router = Router::new()
+        .route("/rsc/*filepath", routing::get(static_resources::route_handler))
+
         .route("/", routing::get(route_main))
         .route("/html/login", routing::get(routes_html::login::handler))
-        .route("/rsc/*filepath", routing::get(static_resources::route_handler))
+        .route("/html/login_email_generate", routing::post(routes_html::login::handler_email_generate))
+        .route("/html/login_email_verify/:email/:token", routing::get(routes_html::login::handler_email_verify))
+
         .route("/api/v0/login/email", routing::post(routes_rest_v0::login_email::handler))
         .with_state(app_state);
     router
