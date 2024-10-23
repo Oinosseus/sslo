@@ -4,9 +4,9 @@ use sqlx::SqlitePool;
 
 #[derive(sqlx::FromRow)]
 pub struct RowUser {
-    rowid: i64,
-    name: String,
-    permission: i64,
+    pub rowid: i64,
+    pub name: String,
+    pub permission: i64,
 }
 
 #[derive(Clone)]

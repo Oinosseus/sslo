@@ -130,7 +130,7 @@ impl TblEmails {
             .unwrap();  // subtracting one hour cannot fail, technically
 
         // get table row
-        let email_row = match self.row_from_email(&email).await {
+        let row_email = match self.row_from_email(&email).await {
             Some(row) => row,
             None => {
                 return Err(format!("Email not found '{}'", &email))?
@@ -138,7 +138,7 @@ impl TblEmails {
         };
 
         // check if token is existing
-        let crypted_token = match email_row.token {
+        let crypted_token = match row_email.token {
             Some(token) => token,
             None => {
                 log::warn!("No active token for email '{}'", &email);
@@ -147,15 +147,15 @@ impl TblEmails {
         };
 
         // check if token was already used
-        if let Some(last_usage_time) = email_row.token_last_usage {
-            log::warn!("Email token for {} was already used at '{}'", &email_row.email, last_usage_time);
-            return Err(format!("Email token for {} was already used at '{}'", &email_row.email, last_usage_time))?;
+        if let Some(last_usage_time) = row_email.token_last_usage {
+            log::warn!("Email token for {} was already used at '{}'", &row_email.email, last_usage_time);
+            return Err(format!("Email token for {} was already used at '{}'", &row_email.email, last_usage_time))?;
         }
 
         // check if token is still valid
-        let token_creation: chrono::DateTime<Utc> = match email_row.token_creation {
+        let token_creation: chrono::DateTime<Utc> = match row_email.token_creation {
             None => {
-                log::error!("invalid column 'token_creation' for db.members.emails.rowid={}", email_row.rowid);
+                log::error!("invalid column 'token_creation' for db.members.emails.rowid={}", row_email.rowid);
                 return Err(format!("Invalid column 'token_creation' for email '{}'", &email))?;
             }
             Some(token_creation_string) => {
@@ -183,18 +183,28 @@ impl TblEmails {
         // redeem token
         sqlx::query("UPDATE emails SET token_last_usage=$1 WHERE rowid=$2;")
             .bind(crate::db::time2string(&time_now))
-            .bind(email_row.rowid)
+            .bind(row_email.rowid)
             .execute(&self.db_pool)
             .await.or_else(|e| {
-                log::error!("Failed to update db.members.emails.rowid={}: {}", email_row.rowid, e);
+                log::error!("Failed to update db.members.emails.rowid={}: {}", row_email.rowid, e);
                 return Err(e);
         })?;
 
         // find according user
         let tbl_usr = super::users::TblUsers::new(self.db_pool.clone());
-        let row_user = tbl_usr.row_new(&email_row.email).await.or_else(|e| {
+        let row_user = tbl_usr.row_new(&row_email.email).await.or_else(|e| {
             log::error!("Failed to create new user: {}", e);
             return Err(format!("Failed to create new user: {}", e));
+        })?;
+
+        // create user link
+        sqlx::query("UPDATE emails SET user=$1 WHERE rowid=$2;")
+            .bind(row_user.rowid)
+            .bind(row_email.rowid)
+            .execute(&self.db_pool)
+            .await.or_else(|e| {
+                log::error!("Failed to update database memebrs.emails.rowid[{}].user={}", row_email.rowid, row_user.rowid);
+                return Err(format!("Failed to update database memebrs.emails.rowid[{}].user={}", row_email.rowid, row_user.rowid));
         })?;
 
         Ok(row_user)
