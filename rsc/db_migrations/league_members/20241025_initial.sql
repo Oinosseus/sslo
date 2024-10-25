@@ -14,3 +14,11 @@ CREATE TABLE emails (
     password_last_usage TEXT,
     user INTEGER DEFAULT NULL
 );
+
+CREATE TABLE cookie_logins (
+    user INTEGER NOT NULL,
+    token BLOB NOT NULL UNIQUE,
+    token_creation_time TEXT NOT NULL,
+    last_user_agent BLOB,
+    last_usage TEXT DEFAULT CURRENT_TIMESTAMP
+);

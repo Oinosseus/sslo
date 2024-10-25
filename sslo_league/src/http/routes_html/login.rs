@@ -1,6 +1,7 @@
 use axum::extract::{OriginalUri, Path, State};
+use axum::http::header::SET_COOKIE;
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use rand::RngCore;
 use serde::Deserialize;
 use crate::app_state::AppState;
@@ -106,7 +107,7 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
 
 pub async fn handler_email_verify(State(app_state): State<AppState>,
                                   Path((email,token)): Path<(String, String)>,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<Response, StatusCode> {
     let mut html = HtmlTemplate::new();
     html.include_css("/rsc/css/login.css");
     html.include_js("/rsc/js/login.js");
@@ -116,17 +117,24 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
     // verify login
+    let login_valid;
     match app_state.db_members.tbl_emails.login_from_email_token(email, token).await {
         Ok(row_user) => {
             log::info!("Login with email, user {}:{}", row_user.rowid, row_user.name);
             html.message_success("Succesfully logged in.".to_string());
+            login_valid = true;
         },
         Err(e) => {
             log::warn!("Could not login by email: {}", e);
             html.message_error("Login failed!".to_string());
+            login_valid = false;
         }
     }
 
     // done
-    Ok(html)
+    let mut response = html.into_response();
+    if login_valid {
+        response.headers_mut().insert(SET_COOKIE, "login_token=HelloWorld; HttpOnly; Max-Age=31536000; SameSite=Strict; Partitioned; Secure;".parse().unwrap());
+    }
+    Ok(response)
 }
