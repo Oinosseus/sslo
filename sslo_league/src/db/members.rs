@@ -1,5 +1,6 @@
 mod emails;
 mod users;
+mod cookie_logins;
 
 use std::error::Error;
 use axum::http::StatusCode;
