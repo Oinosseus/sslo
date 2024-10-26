@@ -42,7 +42,7 @@ impl TblCookieLogins {
             .await?;
 
         // create cookie
-        let cookie = format!("login_token={}:{}; HttpOnly; Max-Age=31536000; SameSite=Strict; Partitioned; Secure;",
+        let cookie = format!("cookie_login={}:{}; HttpOnly; Max-Age=31536000; SameSite=Strict; Partitioned; Secure;",
                              res.rowid, token.decrypted);
 
         Ok(cookie)

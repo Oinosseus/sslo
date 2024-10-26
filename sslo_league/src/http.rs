@@ -101,7 +101,7 @@ impl IntoResponse for HtmlTemplate {
         html += "      <div id=\"NavbarLogo\"><a href=\"/\"><img src=\"/rsc/img/sslo_logo.svg\" title=\"Simracing Sports League Organization\"></a></div>\n";
         html += "      <div id=\"NavbarMenu\">\n";
         html += "          <div class=\"NavbarNoDrop\">\n";
-        html += "              <a href=\"#\" class=\"active\">Home</a>\n";
+        html += "              <a href=\"/\" class=\"active\">Home</a>\n";
         html += "          </div>\n";
         html += "          <div class=\"NavbarDropdown\">\n";
         html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">User ⯆</a>\n";
@@ -143,20 +143,11 @@ impl IntoResponse for HtmlTemplate {
 }
 
 
-
-async fn route_main() -> Result<impl IntoResponse, StatusCode> {
-    let mut template = HtmlTemplate::new();
-    template.push_body("Hello World!");
-    Ok(template)
-}
-
-
-
 pub fn create_router(app_state: AppState) -> Router {
     let router = Router::new()
         .route("/rsc/*filepath", routing::get(static_resources::route_handler))
 
-        .route("/", routing::get(route_main))
+        .route("/", routing::get(routes_html::home::handler))
         .route("/html/login", routing::get(routes_html::login::handler))
         .route("/html/login_email_generate", routing::post(routes_html::login::handler_email_generate))
         .route("/html/login_email_verify/:email/:token", routing::get(routes_html::login::handler_email_verify))
