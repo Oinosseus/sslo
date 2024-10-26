@@ -7,12 +7,14 @@ use axum::http::StatusCode;
 use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 use crate::db::Database;
+use crate::db::members::cookie_logins::TblCookieLogins;
 
 #[derive(Clone)]
 pub struct DbMembers {
     db_pool: SqlitePool,
     pub tbl_emails: emails::TblEmails,
     pub tbl_users: users::TblUsers,
+    pub tbl_cookie_logins: TblCookieLogins,
 }
 
 
@@ -23,6 +25,7 @@ impl DbMembers {
             db_pool: db_pool.clone(),
             tbl_emails: emails::TblEmails::new(db_pool.clone()),
             tbl_users: users::TblUsers::new(db_pool.clone()),
+            tbl_cookie_logins: cookie_logins::TblCookieLogins::new(db_pool.clone()),
         }
     }
 

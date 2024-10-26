@@ -84,7 +84,7 @@ impl TblEmails {
 
             // update
             sqlx::query("UPDATE emails SET token=$1, token_creation=$2, token_last_usage=NULL WHERE rowid=$3;")
-                .bind(token.crypted)
+                .bind(token.encrypted)
                 .bind(crate::db::time2string(&time_now))
                 .bind(existing_row.rowid)
                 .execute(&self.db_pool)
@@ -96,7 +96,7 @@ impl TblEmails {
 
             // return
             log::info!("Update token for db.members.emails.email={}", email);
-            Ok(token.plain)
+            Ok(token.decrypted)
 
         // create new
         } else {
@@ -104,7 +104,7 @@ impl TblEmails {
             // insert
             sqlx::query("INSERT INTO emails (email, token, token_creation) VALUES ($1, $2, $3)")
                 .bind(email)
-                .bind(&token.crypted)
+                .bind(&token.encrypted)
                 .bind(crate::db::time2string(&time_now))
                 .execute(&self.db_pool)
                 .await
@@ -115,7 +115,7 @@ impl TblEmails {
 
             // return
             log::info!("New db.members.emails.email={}", email);
-            Ok(token.plain)
+            Ok(token.decrypted)
         }
     }
 

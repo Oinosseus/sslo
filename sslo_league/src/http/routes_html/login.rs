@@ -117,24 +117,36 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
     // verify login
-    let login_valid;
+    let user_id: Option<i64>;
     match app_state.db_members.tbl_emails.login_from_email_token(email, token).await {
         Ok(row_user) => {
             log::info!("Login with email, user {}:{}", row_user.rowid, row_user.name);
-            html.message_success("Succesfully logged in.".to_string());
-            login_valid = true;
+            html.message_success("Successfully logged in.".to_string());
+            user_id = Some(row_user.rowid);
         },
         Err(e) => {
             log::warn!("Could not login by email: {}", e);
             html.message_error("Login failed!".to_string());
-            login_valid = false;
+            user_id = None;
         }
     }
 
+    // prepare cookie
+    let cookie: Option<String> = match user_id {
+        None => None,
+        Some(id) => {
+            Some(app_state.db_members.tbl_cookie_logins.new_cookie(id).await.or_else(|e| {
+                log::error!("Failed to create login cookie: {}", e);
+                html.message_error("Internal Server Error!".to_string());
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            })?)
+        },
+    };
+
     // done
     let mut response = html.into_response();
-    if login_valid {
-        response.headers_mut().insert(SET_COOKIE, "login_token=HelloWorld; HttpOnly; Max-Age=31536000; SameSite=Strict; Partitioned; Secure;".parse().unwrap());
+    if let Some(cookie) = cookie {
+        response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
     }
     Ok(response)
 }

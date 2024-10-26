@@ -2430,6 +2430,7 @@ dependencies = [
  "chrono",
  "clap",
  "env_logger",
+ "hex",
  "lettre",
  "log",
  "rand",
