@@ -19,11 +19,11 @@ struct Item {
 }
 
 #[derive(Clone)]
-pub struct TblEmails {
+pub struct Table {
     db_pool: SqlitePool,
 }
 
-impl TblEmails {
+impl Table {
 
     pub fn new(db_pool: SqlitePool) -> Self {
         Self{ db_pool }
@@ -191,7 +191,7 @@ impl TblEmails {
         })?;
 
         // find according user
-        let tbl_usr = super::users::TblUsers::new(self.db_pool.clone());
+        let tbl_usr = super::users::Table::new(self.db_pool.clone());
         let user_item: super::users::Item = match row_email.user {
             Some(user_id) => {
                 let row_user = match tbl_usr.from_id(user_id).await {

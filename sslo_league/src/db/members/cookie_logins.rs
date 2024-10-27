@@ -17,12 +17,12 @@ pub struct Item {
 
 
 #[derive(Clone)]
-pub struct TblCookieLogins {
+pub struct Table {
     db_pool: SqlitePool,
 }
 
 
-impl TblCookieLogins {
+impl Table {
     pub fn new(db_pool: SqlitePool) -> Self {
         Self { db_pool }
     }

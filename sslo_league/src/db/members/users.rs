@@ -10,11 +10,11 @@ pub struct Item {
 }
 
 #[derive(Clone)]
-pub struct TblUsers {
+pub struct Table {
     db_pool: SqlitePool
 }
 
-impl TblUsers {
+impl Table {
     pub fn new(db_pool: SqlitePool) -> Self { Self {db_pool}}
 
 
