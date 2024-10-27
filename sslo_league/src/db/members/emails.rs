@@ -61,7 +61,7 @@ impl Table {
     pub async fn new_email_login_token(&self, email: &str) -> Result<String, Box<dyn Error>> {
 
         // get some basics
-        let token = sslo_lib::token::Token::generate()?;
+        let token = sslo_lib::token::Token::generate(None)?;
         let time_now = &crate::helpers::now();
         let time_token_outdated = time_now.clone()
             .checked_add_signed(chrono::TimeDelta::hours(-1))

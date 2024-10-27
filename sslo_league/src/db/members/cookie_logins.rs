@@ -31,7 +31,11 @@ impl Table {
     pub async fn new_cookie(&self, user: i64) -> Result<String, Box<dyn Error>> {
 
         // generate token
-        let token: Token = Token::generate()?;
+        let mut token_cfg = argon2::Config::default();
+        // token_cfg.mem_cost = 128;
+        // token_cfg.time_cost = 1;
+        token_cfg.variant = argon2::Variant::Argon2d;
+        let token: Token = Token::generate(Some(token_cfg))?;
         let token_creation = chrono::DateTime::<chrono::Utc>::from(Utc::now());
 
         // save to DB

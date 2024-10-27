@@ -2435,6 +2435,7 @@ dependencies = [
  "log",
  "rand",
  "regex",
+ "rust-argon2",
  "serde",
  "sqlx",
  "sslo_lib",
