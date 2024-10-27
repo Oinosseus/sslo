@@ -3,7 +3,7 @@ use std::fs::Permissions;
 use sqlx::SqlitePool;
 
 #[derive(sqlx::FromRow)]
-pub struct RowUser {
+pub struct Item {
     pub rowid: i64,
     pub name: String,
     pub permission: i64,
@@ -18,9 +18,9 @@ impl TblUsers {
     pub fn new(db_pool: SqlitePool) -> Self { Self {db_pool}}
 
 
-    pub async fn row_from_id(&self, rowid: i64) -> Option<RowUser> {
+    pub async fn from_id(&self, rowid: i64) -> Option<Item> {
 
-        let mut res : Vec<RowUser> = match sqlx::query_as("SELECT rowid, * FROM users WHERE rowid=$1 LIMIT 2;")
+        let mut res : Vec<Item> = match sqlx::query_as("SELECT rowid, * FROM users WHERE rowid=$1 LIMIT 2;")
             .bind(rowid)
             .fetch_all(&self.db_pool)
             .await {
@@ -43,8 +43,8 @@ impl TblUsers {
 
     /// Insert new entry into users table
     /// Returns rowid on success
-    pub async fn row_new(&self, name: &str) -> Result<RowUser, Box<dyn Error>> {
-        let res: RowUser = sqlx::query_as("INSERT INTO users (name) VALUES ($1) RETURNING rowid, *;")
+    pub async fn new_item(&self, name: &str) -> Result<Item, Box<dyn Error>> {
+        let res: Item = sqlx::query_as("INSERT INTO users (name) VALUES ($1) RETURNING rowid, *;")
             .bind(&name)
             .fetch_one(&self.db_pool)
             .await

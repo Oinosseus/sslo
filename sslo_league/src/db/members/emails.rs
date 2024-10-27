@@ -2,11 +2,10 @@ use std::error::Error;
 use chrono::Utc;
 use sqlx::SqlitePool;
 use crate::db;
-use crate::db::members::users::RowUser;
 
 /// A struct that represents a whole table row
 #[derive(sqlx::FromRow)]
-struct RowEmail {
+struct Item {
     rowid: i64,
     email: String,
     creation: String,
@@ -32,9 +31,9 @@ impl TblEmails {
 
 
     /// Find a table row by email address
-    pub async fn row_from_email(&self, email: &str) -> Option<RowEmail> {
+    pub async fn from_email(&self, email: &str) -> Option<Item> {
 
-        let mut res : Vec<RowEmail> = match sqlx::query_as("SELECT rowid, * FROM emails WHERE email=$1 LIMIT 2;")
+        let mut res : Vec<Item> = match sqlx::query_as("SELECT rowid, * FROM emails WHERE email=$1 LIMIT 2;")
             .bind(email)
             .fetch_all(&self.db_pool)
             .await {
@@ -69,7 +68,7 @@ impl TblEmails {
             .unwrap();  // subtracting one hour cannot fail, technically
 
         // update entry
-        if let Some(existing_row) = self.row_from_email(email).await {
+        if let Some(existing_row) = self.from_email(email).await {
 
             // check last token
             if let Some(token_creation_str) = existing_row.token_creation {
@@ -121,8 +120,8 @@ impl TblEmails {
 
 
     /// Try to login with an email address and a plain token (not encrypted)
-    /// Returns the rowid of the associated user
-    pub async fn login_from_email_token(&self, email: String, plain_token: String) -> Result<super::users::RowUser, Box<dyn Error>> {
+    /// Returns the item of from the associated user table
+    pub async fn from_email_token(&self, email: String, plain_token: String) -> Result<super::users::Item, Box<dyn Error>> {
 
         // get some basics
         let time_now = &crate::helpers::now();
@@ -131,7 +130,7 @@ impl TblEmails {
             .unwrap();  // subtracting one hour cannot fail, technically
 
         // get table row
-        let row_email = match self.row_from_email(&email).await {
+        let row_email = match self.from_email(&email).await {
             Some(row) => row,
             None => {
                 return Err(format!("Email not found '{}'", &email))?
@@ -193,9 +192,9 @@ impl TblEmails {
 
         // find according user
         let tbl_usr = super::users::TblUsers::new(self.db_pool.clone());
-        let row_user: RowUser = match row_email.user {
+        let user_item: super::users::Item = match row_email.user {
             Some(user_id) => {
-                let row_user = match tbl_usr.row_from_id(user_id).await {
+                let row_user = match tbl_usr.from_id(user_id).await {
                     Some(row_user) => row_user,
                     None => {
                         log::error!("Cannot find db.members.user.rowid={} for db.members.emails.rowid={}", user_id, row_email.rowid);
@@ -205,7 +204,7 @@ impl TblEmails {
                 row_user
             },
             None => {
-                let row_user = tbl_usr.row_new(&row_email.email).await.or_else(|e| {
+                let row_user = tbl_usr.new_item(&row_email.email).await.or_else(|e| {
                     log::error!("Failed to create new user: {}", e);
                     return Err(format!("Failed to create new user: {}", e));
                 })?;
@@ -224,7 +223,7 @@ impl TblEmails {
             }
         };
 
-        Ok(row_user)
+        Ok(user_item)
     }
 
 }

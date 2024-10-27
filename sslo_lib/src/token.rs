@@ -8,8 +8,8 @@ pub struct Token {
 
 impl Token {
 
-    pub fn new(plain: String, crypted: String) -> Token {
-        Self{ decrypted: plain, encrypted: crypted }
+    pub fn new(decrypted: String, encrypted: String) -> Token {
+        Self{ decrypted, encrypted }
     }
 
     pub fn generate() -> Result<Self, Box<dyn Error>> {

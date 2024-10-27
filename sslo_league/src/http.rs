@@ -152,6 +152,7 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/html/login", routing::get(routes_html::login::handler))
         .route("/html/login_email_generate", routing::post(routes_html::login::handler_email_generate))
         .route("/html/login_email_verify/:email/:token", routing::get(routes_html::login::handler_email_verify))
+        .route("/html/login_test", routing::get(routes_html::login::handler_login_test))
 
         .route("/api/v0/login/email", routing::post(routes_rest_v0::login_email::handler))
         .with_state(app_state);
