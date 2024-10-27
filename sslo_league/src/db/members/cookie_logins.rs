@@ -93,6 +93,7 @@ impl Table {
         let item = self.from_id(id).await?;
 
         // verify token
+        // TODO: This consumes vast amount of time and has to be replaced with weaker but quicker enrcption!!!
         let token = sslo_lib::token::Token::new(token_decrypted, item.token.clone());
         if !token.verify() {
             return None;
