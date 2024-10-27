@@ -9,7 +9,7 @@ use crate::app_state::AppState;
 
 mod routes_html;
 mod routes_rest_v0;
-mod extract_user;
+mod http_user;
 
 struct HtmlTemplate {
     html_body: String,

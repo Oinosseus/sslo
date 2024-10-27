@@ -6,7 +6,7 @@ use rand::RngCore;
 use serde::Deserialize;
 use crate::app_state::AppState;
 use crate::http::HtmlTemplate;
-use super::super::extract_user::WebsiteUser;
+use super::super::http_user::HttpUserExtractor;
 
 #[derive(Deserialize)]
 pub struct RegisterSsloFormData {
@@ -152,7 +152,8 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     Ok(response)
 }
 
-pub async fn handler_login_test(WebsiteUser(wu): WebsiteUser) -> Result<impl IntoResponse, StatusCode> {
-    let html = HtmlTemplate::new();
+pub async fn handler_login_test(HttpUserExtractor(http_user): HttpUserExtractor) -> Result<impl IntoResponse, StatusCode> {
+    let mut html = HtmlTemplate::new();
+    html.message_success(http_user.name);
     Ok(html)
 }
