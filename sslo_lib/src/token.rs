@@ -1,6 +1,26 @@
 use std::error::Error;
 use rand::RngCore;
 
+pub enum TokenType {
+    Strong,
+    Quick,
+}
+
+impl TokenType {
+
+    pub fn get_config(&self) -> argon2::Config {
+        match self {
+            Self::Strong => argon2::Config::default(),
+            Self::Quick => {
+                let mut cfg = argon2::Config::default();
+                cfg.mem_cost = 128;
+                cfg.time_cost = 1;
+                cfg
+            }
+        }
+    }
+}
+
 pub struct Token {
     pub decrypted: String,
     pub encrypted: String,
@@ -12,13 +32,7 @@ impl Token {
         Self{ decrypted, encrypted }
     }
 
-    pub fn generate(argon2_config: Option<argon2::Config>) -> Result<Self, Box<dyn Error>> {
-
-        // generate config
-        let cfg: argon2::Config = match argon2_config {
-            Some(cfg) => cfg,
-            None => argon2::Config::default(),
-        };
+    pub fn generate(token_type: TokenType) -> Result<Self, Box<dyn Error>> {
 
         // create a random token
         let mut token: [u8; 64] = [0; 64];
@@ -30,7 +44,7 @@ impl Token {
         rand::thread_rng().fill_bytes(&mut salt);
 
         // encrypt plain token
-        let encrypted = argon2::hash_encoded(&token, &salt, &cfg).or_else(|e| {
+        let encrypted = argon2::hash_encoded(&token, &salt, &token_type.get_config()).or_else(|e| {
             log::error!("{}", e);
            Err(e)
         })?;
