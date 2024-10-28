@@ -7,6 +7,8 @@ pub struct Item {
     pub rowid: i64,
     pub name: String,
     pub permission: i64,
+    pub last_lap: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_login: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Clone)]

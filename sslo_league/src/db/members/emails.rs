@@ -1,5 +1,5 @@
 use std::error::Error;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
 use sslo_lib::token;
 use crate::db;
@@ -9,13 +9,13 @@ use crate::db;
 struct Item {
     rowid: i64,
     email: String,
-    creation: String,
+    creation: DateTime<Utc>,
     token: Option<String>,
-    token_creation: Option<String>,
-    token_last_usage: Option<String>,
+    token_creation: Option<DateTime<Utc>>,
+    token_last_usage: Option<DateTime<Utc>>,
     password: Option<String>,
-    password_creation: Option<String>,
-    password_last_usage: Option<String>,
+    password_creation: Option<DateTime<Utc>>,
+    password_last_usage: Option<DateTime<Utc>>,
     user: Option<i64>,
 }
 
@@ -72,8 +72,7 @@ impl Table {
         if let Some(existing_row) = self.from_email(email).await {
 
             // check last token
-            if let Some(token_creation_str) = existing_row.token_creation {
-                let token_creation = crate::db::string2time(&token_creation_str)?;
+            if let Some(token_creation) = existing_row.token_creation {
                 if token_creation > time_token_outdated {           // token is still valid
                     if existing_row.token_last_usage.is_none() {    // token is not used, yet
                         log::warn!("Not generating new email login token for '{}' because last token is still active.", &email);
@@ -85,7 +84,7 @@ impl Table {
             // update
             sqlx::query("UPDATE emails SET token=$1, token_creation=$2, token_last_usage=NULL WHERE rowid=$3;")
                 .bind(token.encrypted)
-                .bind(crate::db::time2string(&time_now))
+                .bind(&time_now)
                 .bind(existing_row.rowid)
                 .execute(&self.db_pool)
                 .await
@@ -105,7 +104,7 @@ impl Table {
             sqlx::query("INSERT INTO emails (email, token, token_creation) VALUES ($1, $2, $3)")
                 .bind(email)
                 .bind(&token.encrypted)
-                .bind(crate::db::time2string(&time_now))
+                .bind(&time_now)
                 .execute(&self.db_pool)
                 .await
                 .or_else(|e| {
@@ -154,20 +153,12 @@ impl Table {
         }
 
         // check if token is still valid
-        let token_creation: chrono::DateTime<Utc> = match row_email.token_creation {
+        let token_creation: DateTime<Utc> = match row_email.token_creation {
             None => {
                 log::error!("invalid column 'token_creation' for db.members.emails.rowid={}", row_email.rowid);
                 return Err(format!("Invalid column 'token_creation' for email '{}'", &email))?;
             }
-            Some(token_creation_string) => {
-                match crate::db::string2time(&token_creation_string) {
-                    Ok(token) => token,
-                    Err(e) => {
-                        log::error!("Failed to convert time from string '{}': {}", &token_creation_string, e);
-                        return Err(format!("Failed to convert time from string '{}': {}", &token_creation_string, e))?;
-                    }
-                }
-            }
+            Some(token_creation) => { token_creation },
         };
         if token_creation < time_token_outdated {  // token outdated
             log::warn!("Email token from '{}' outdated since '{}'", token_creation.to_rfc3339(), time_token_outdated.to_rfc3339());
@@ -183,7 +174,7 @@ impl Table {
 
         // redeem token
         sqlx::query("UPDATE emails SET token_last_usage=$1 WHERE rowid=$2;")
-            .bind(crate::db::time2string(&time_now))
+            .bind(&time_now)
             .bind(row_email.rowid)
             .execute(&self.db_pool)
             .await.or_else(|e| {

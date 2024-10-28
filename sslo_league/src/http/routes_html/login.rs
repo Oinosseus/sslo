@@ -13,9 +13,9 @@ pub struct RegisterSsloFormData {
     login_email: String,
 }
 
-pub async fn handler() -> Result<impl IntoResponse, StatusCode> {
+pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor) -> Result<impl IntoResponse, StatusCode> {
 
-    let mut html = HtmlTemplate::new();
+    let mut html = HtmlTemplate::new(http_user);
     html.include_css("/rsc/css/login.css");
     html.include_js("/rsc/js/login.js");
 
@@ -59,10 +59,11 @@ pub struct LoginEmailRequestData {
 
 
 pub async fn handler_email_generate(State(app_state): State<AppState>,
+                                    HttpUserExtractor(http_user): HttpUserExtractor,
                                     OriginalUri(uri): OriginalUri,
                                     axum::Form(form): axum::Form<LoginEmailRequestData>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let mut html = HtmlTemplate::new();
+    let mut html = HtmlTemplate::new(http_user);
     html.include_css("/rsc/css/login.css");
     html.include_js("/rsc/js/login.js");
 
@@ -107,9 +108,10 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
 
 
 pub async fn handler_email_verify(State(app_state): State<AppState>,
+                                  HttpUserExtractor(http_user): HttpUserExtractor,
                                   Path((email,token)): Path<(String, String)>,
 ) -> Result<Response, StatusCode> {
-    let mut html = HtmlTemplate::new();
+    let mut html = HtmlTemplate::new(http_user);
     html.include_css("/rsc/css/login.css");
     html.include_js("/rsc/js/login.js");
 
@@ -150,10 +152,4 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
         response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
     }
     Ok(response)
-}
-
-pub async fn handler_login_test(HttpUserExtractor(http_user): HttpUserExtractor) -> Result<impl IntoResponse, StatusCode> {
-    let mut html = HtmlTemplate::new();
-    html.message_success(http_user.name);
-    Ok(html)
 }

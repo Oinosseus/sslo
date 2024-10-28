@@ -1,5 +1,5 @@
 use std::error::Error;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use rand::RngCore;
 use sqlx::SqlitePool;
 use sslo_lib::token;
@@ -10,9 +10,9 @@ pub struct Item {
     pub rowid: i64,
     pub user: i64,
     pub token: String,
-    pub creation: String,
+    pub creation: DateTime<Utc>,
     pub last_user_agent: Option<String>,
-    pub last_usage: Option<String>,
+    pub last_usage: Option<DateTime<Utc>>,
 }
 
 
@@ -38,7 +38,7 @@ impl Table {
         let res: Item = sqlx::query_as("INSERT INTO cookie_logins (user, token, creation) VALUES ($1, $2, $3) RETURNING rowid,*;")
             .bind(user)
             .bind(token.encrypted)
-            .bind(crate::db::time2string(&token_creation))
+            .bind(&token_creation)
             .fetch_one(&self.db_pool)
             .await?;
 

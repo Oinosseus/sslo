@@ -16,16 +16,18 @@ struct HtmlTemplate {
     css_files: Vec<& 'static str>,
     js_files: Vec<& 'static str>,
     frontend_messages: Vec<FrontendMessage>,
+    http_user: http_user::HttpUser,
 }
 
 impl HtmlTemplate {
 
-    pub fn new() -> Self {
+    pub fn new(http_user: http_user::HttpUser) -> Self {
         HtmlTemplate {
             html_body: "".to_string(),
             css_files: Vec::new(),
             js_files: Vec::new(),
             frontend_messages: Vec::new(),
+            http_user,
         }
     }
 
@@ -152,7 +154,6 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/html/login", routing::get(routes_html::login::handler))
         .route("/html/login_email_generate", routing::post(routes_html::login::handler_email_generate))
         .route("/html/login_email_verify/:email/:token", routing::get(routes_html::login::handler_email_verify))
-        .route("/html/login_test", routing::get(routes_html::login::handler_login_test))
 
         .route("/api/v0/login/email", routing::post(routes_rest_v0::login_email::handler))
         .with_state(app_state);

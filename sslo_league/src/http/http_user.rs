@@ -3,17 +3,55 @@ use axum::http::{header, StatusCode};
 use axum::http::request::Parts;
 use crate::app_state::AppState;
 
+
+pub enum UserPermission{
+    Pedestrian,
+    Guest,
+    WildcardDriver,
+    LeagueGhost,
+    LeagueDriver,
+    RacingSteward,
+    LeagueMarshal,
+    LeagueCommissar,
+    LeagueDirector,
+    ServerDirector,
+    ServerAdmin,
+}
+
+
+impl UserPermission{
+    pub fn as_str(&self) -> &'static str{
+        match self {
+            Self::Pedestrian => "Pedestrian",
+            Self::Guest => "Guest",
+            Self::WildcardDriver => "Wildcard Driver",
+            Self::LeagueGhost => "League Ghost",
+            Self::LeagueDriver => "League Driver",
+            Self::RacingSteward => "Racing Steward",
+            Self::LeagueMarshal => "League Marshal",
+            Self::LeagueCommissar => "League Commissar",
+            Self::LeagueDirector => "League Director",
+            Self::ServerDirector => "Server Director",
+            Self::ServerAdmin => "Server Admin",
+        }
+    }
+}
+
+
 /// Representing the current user of the http service
 pub struct HttpUser {
     pub name: String,
+    pub permission: UserPermission,
 }
+
 
 impl HttpUser {
 
     /// create a new unknown/guest visitor (aka. pedestrian)
     pub fn new_pedestrian() -> Self {
         Self {
-            name: "Pedestrian".to_string()
+            name: "Pedestrian".to_string(),
+            permission: UserPermission::Pedestrian,
         }
     }
 }
@@ -46,9 +84,14 @@ where
             }
         };
 
+        // identify permission
+        let mut permission = UserPermission::Pedestrian;
+        // TODO: Check for other permissions
+        todo!();
+
         // return
         let http_user = match user_item {
-            Some(item) => HttpUser{name: item.name.to_string()},
+            Some(item) => HttpUser{name: item.name.to_string(), permission},
             None => HttpUser::new_pedestrian(),
         };
         Ok(Self(http_user))

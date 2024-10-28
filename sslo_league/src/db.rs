@@ -37,14 +37,3 @@ pub trait Database {
 
 
 }
-
-
-pub fn time2string(timestamp: &chrono::DateTime<chrono::Utc>) -> String {
-    timestamp.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
-}
-
-pub fn string2time(iso8601_string: &String) -> Result<chrono::DateTime<chrono::Utc>, Box<dyn Error>> {
-    let dt_offset = chrono::DateTime::parse_from_rfc3339(iso8601_string)?;
-    let dt_utc = dt_offset.with_timezone(&chrono::Utc);
-    Ok(dt_utc)
-}
