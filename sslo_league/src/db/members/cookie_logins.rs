@@ -2,7 +2,7 @@ use std::error::Error;
 use chrono::Utc;
 use rand::RngCore;
 use sqlx::SqlitePool;
-use sslo_lib::token::Token;
+use sslo_lib::token;
 
 /// A struct that represents a whole table row
 #[derive(sqlx::FromRow)]
@@ -31,11 +31,7 @@ impl Table {
     pub async fn new_cookie(&self, user: i64) -> Result<String, Box<dyn Error>> {
 
         // generate token
-        let mut token_cfg = argon2::Config::default();
-        // token_cfg.mem_cost = 128;
-        // token_cfg.time_cost = 1;
-        token_cfg.variant = argon2::Variant::Argon2d;
-        let token: Token = Token::generate(Some(token_cfg))?;
+        let token= token::Token::generate(token::TokenType::Quick)?;
         let token_creation = chrono::DateTime::<chrono::Utc>::from(Utc::now());
 
         // save to DB

@@ -1,6 +1,7 @@
 use std::error::Error;
 use chrono::Utc;
 use sqlx::SqlitePool;
+use sslo_lib::token;
 use crate::db;
 
 /// A struct that represents a whole table row
@@ -61,7 +62,7 @@ impl Table {
     pub async fn new_email_login_token(&self, email: &str) -> Result<String, Box<dyn Error>> {
 
         // get some basics
-        let token = sslo_lib::token::Token::generate(None)?;
+        let token = token::Token::generate(token::TokenType::Strong)?;
         let time_now = &crate::helpers::now();
         let time_token_outdated = time_now.clone()
             .checked_add_signed(chrono::TimeDelta::hours(-1))
@@ -174,7 +175,7 @@ impl Table {
         }
 
         // verify token
-        let token = sslo_lib::token::Token::new(plain_token, crypted_token);
+        let token = token::Token::new(plain_token, crypted_token);
         if !token.verify() {
             log::warn!("Failed to validate token for email '{}'", email);
             return Err(format!("Failed to validate token for email '{}'", email))?;

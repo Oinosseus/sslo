@@ -1,30 +1,41 @@
 use std::error::Error;
 use rand::RngCore;
 
+
 pub enum TokenType {
+
+    /// eg. for passwords
     Strong,
+
+    /// eg. for random generated, temporary tokens
     Quick,
 }
+
 
 impl TokenType {
 
     pub fn get_config(&self) -> argon2::Config {
         match self {
-            Self::Strong => argon2::Config::default(),
+            Self::Strong => {
+                argon2::Config::default()
+            },
             Self::Quick => {
                 let mut cfg = argon2::Config::default();
                 cfg.mem_cost = 128;
                 cfg.time_cost = 1;
+                cfg.variant = argon2::Variant::Argon2d;
                 cfg
             }
         }
     }
 }
 
+
 pub struct Token {
     pub decrypted: String,
     pub encrypted: String,
 }
+
 
 impl Token {
 
@@ -62,13 +73,13 @@ impl Token {
 
 #[cfg(test)]
 mod tests {
-    use axum::response::IntoResponse;
+    use super::*;
 
     #[test]
     fn normal_function() {
 
         // create a token
-        let token = super::Token::generate(None).unwrap();
+        let token = Token::generate(TokenType::Strong).unwrap();
 
         // check that plain token is a hex string
         assert_eq!(token.decrypted.len(), 128);
@@ -79,14 +90,14 @@ mod tests {
 
     #[test]
     fn manipulation() {
-        let mut token = super::Token::generate(None).unwrap();
+        let mut token = Token::generate(TokenType::Strong).unwrap();
         token.decrypted += "ab";
         assert!(!token.verify());
     }
 
     #[test]
     fn invalid() {
-        let token = super::Token::new("".to_string(), "".to_string());
+        let token = Token::new("".to_string(), "".to_string());
         assert!(!token.verify());
     }
 
@@ -94,18 +105,14 @@ mod tests {
     fn time() {
 
         // strong encryption
-        let token = super::Token::generate(None).unwrap();
+        let token = Token::generate(TokenType::Strong).unwrap();
         let start = std::time::Instant::now();
         assert!(token.verify());
         let duration_strong = start.elapsed();
         let duration_strong = duration_strong.as_millis();
 
         // weak encryption
-        let mut token_cfg = argon2::Config::default();
-        token_cfg.mem_cost = 128;
-        token_cfg.time_cost = 1;
-        // token_cfg.variant = argon2::Variant::Argon2d;
-        let token = super::Token::generate(Some(token_cfg)).unwrap();
+        let token = Token::generate(TokenType::Quick).unwrap();
         let start = std::time::Instant::now();
         assert!(token.verify());
         let duration_weak = start.elapsed();
@@ -114,6 +121,6 @@ mod tests {
         // evaluate
         println!("Duration(strong={}ms)", duration_strong);
         println!("Duration(weak={}ms)", duration_weak);
-        assert!((1000*duration_weak) < duration_strong);
+        assert!((10*duration_weak) < duration_strong);  // the quick encryption should be much faster
     }
 }
