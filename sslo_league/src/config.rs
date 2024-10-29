@@ -37,6 +37,22 @@ pub struct General {
     /// All other relative paths in this file are considered to be relative in relation to this.
     pub database_dir: PathBuf,
 
+    /// The amount of days until last login
+    /// that is regarded as 'recent'.
+    /// Any user login older than this amount of days is considered as lapsed
+    /// recommendation: 70 (which is 10 weeks)
+    pub days_until_recent_activity_login: u16,
+
+    /// The amount of days until last driving activity
+    /// that is regarded as 'recent'.
+    /// Any driven older than this amount of days is considered as lapsed
+    /// recommendation: 70 (which is 10 weeks)
+    pub days_until_recent_activity_driving: u16,
+
+
+    /// Manually define a single user as Server Admin, by user-id
+    /// This is intended to be used only temporarily until
+    pub user_id_server_admin: i64,
 }
 
 

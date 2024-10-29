@@ -6,9 +6,18 @@ use sqlx::SqlitePool;
 pub struct Item {
     pub rowid: i64,
     pub name: String,
-    pub permission: i64,
+    pub promotion: crate::user_grade::Promotion,
     pub last_lap: Option<chrono::DateTime<chrono::Utc>>,
     pub last_login: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+
+pub enum Promotion {
+    RacingSteward,
+    LeagueMarshal,
+    LeagueCommissar,
+    LeagueDirector,
+    ServerDirector,
 }
 
 #[derive(Clone)]

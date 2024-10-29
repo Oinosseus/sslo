@@ -1,47 +1,15 @@
+use std::ops::Sub;
 use axum::extract::{FromRef, FromRequestParts};
-use axum::http::{header, StatusCode};
+use axum::http::header;
 use axum::http::request::Parts;
 use crate::app_state::AppState;
-
-
-pub enum UserPermission{
-    Pedestrian,
-    Guest,
-    WildcardDriver,
-    LeagueGhost,
-    LeagueDriver,
-    RacingSteward,
-    LeagueMarshal,
-    LeagueCommissar,
-    LeagueDirector,
-    ServerDirector,
-    ServerAdmin,
-}
-
-
-impl UserPermission{
-    pub fn as_str(&self) -> &'static str{
-        match self {
-            Self::Pedestrian => "Pedestrian",
-            Self::Guest => "Guest",
-            Self::WildcardDriver => "Wildcard Driver",
-            Self::LeagueGhost => "League Ghost",
-            Self::LeagueDriver => "League Driver",
-            Self::RacingSteward => "Racing Steward",
-            Self::LeagueMarshal => "League Marshal",
-            Self::LeagueCommissar => "League Commissar",
-            Self::LeagueDirector => "League Director",
-            Self::ServerDirector => "Server Director",
-            Self::ServerAdmin => "Server Admin",
-        }
-    }
-}
+use crate::user_grade::UserGrade;
 
 
 /// Representing the current user of the http service
 pub struct HttpUser {
     pub name: String,
-    pub permission: UserPermission,
+    pub user_grade: UserGrade,
 }
 
 
@@ -51,7 +19,19 @@ impl HttpUser {
     pub fn new_pedestrian() -> Self {
         Self {
             name: "Pedestrian".to_string(),
-            permission: UserPermission::Pedestrian,
+            user_grade: UserGrade::Pedestrian,
+        }
+    }
+
+
+    pub fn from_user_item(app_state: &AppState,
+                          user_item: &crate::db::members::users::Item
+    ) -> Self {
+
+        // return new item
+        Self {
+            name: user_item.name.to_string(),
+            user_grade: UserGrade::from_user(&app_state.config, user_item),
         }
     }
 }
@@ -83,17 +63,13 @@ where
                 }
             }
         };
-
-        // identify permission
-        let mut permission = UserPermission::Pedestrian;
-        // TODO: Check for other permissions
-        todo!();
+        let user_item = match user_item {  // extract user_item or return pedestrian
+            Some(x) => x,
+            None => return Ok(Self(HttpUser::new_pedestrian())),
+        };
 
         // return
-        let http_user = match user_item {
-            Some(item) => HttpUser{name: item.name.to_string(), permission},
-            None => HttpUser::new_pedestrian(),
-        };
+        let http_user = HttpUser::from_user_item(&app_state, &user_item);
         Ok(Self(http_user))
     }
 }
