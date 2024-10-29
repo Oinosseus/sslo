@@ -1,5 +1,5 @@
 use axum::extract::{OriginalUri, Path, State};
-use axum::http::header::SET_COOKIE;
+use axum::http::header::{SET_COOKIE, REFRESH};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use rand::RngCore;
@@ -150,6 +150,43 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     let mut response = html.into_response();
     if let Some(cookie) = cookie {
         response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
+        response.headers_mut().insert(REFRESH, "2; url=/".parse().unwrap());
+    }
+    Ok(response)
+}
+
+
+pub async fn handler_logout(State(app_state): State<AppState>,
+                     HttpUserExtractor(http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
+
+    // deny when not logged in
+    if !http_user.currently_logged_in {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    // invalidate token
+    let mut cookie_value: Option<String> = None;
+    if let Some(item) = http_user.cookie_login_item.as_ref() {
+        match app_state.db_members.tbl_cookie_logins.delete_cookie(item).await {
+            Ok(cookie) => {
+                cookie_value = Some(cookie);
+            },
+            Err(e) => {
+                log::error!("Failed to delete cookie login item[rowid={}]: {:?}", item.rowid, e)
+            },
+        };
+    };
+
+    // generate html
+    let name = http_user.name.clone();
+    let mut html = HtmlTemplate::new(http_user);
+    html.message_success(format!("Logged out '{}' ...", name));
+
+    // create response
+    let mut response = html.into_response();
+    if let Some(cookie_value) = cookie_value {
+        response.headers_mut().insert(SET_COOKIE, cookie_value.parse().unwrap());
+        response.headers_mut().insert(REFRESH, "2; url=/".parse().unwrap());
     }
     Ok(response)
 }

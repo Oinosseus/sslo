@@ -10,12 +10,15 @@ use crate::user_grade::UserGrade;
 pub struct HttpUser {
     pub name: String,
     pub user_grade: UserGrade,
+    pub currently_logged_in: bool,
+    pub cookie_login_item: Option<crate::db::members::cookie_logins::Item>,
 }
 
 
 impl HttpUser {
 
     pub fn name(&self) -> &str { &self.name }
+
 }
 
 
@@ -37,10 +40,12 @@ where
 
         // try finding database user from cookies
         let mut user_item: Option<crate::db::members::users::Item> = None;
+        let mut cookie_login_item: Option<crate::db::members::cookie_logins::Item> = None;
         for cookie_header in parts.headers.get_all(header::COOKIE) {
             if let Ok(cookie_string) = cookie_header.to_str() {
-                if let Some(cookie_login_item) = app_state.db_members.tbl_cookie_logins.from_cookie(cookie_string).await {
-                    user_item = app_state.db_members.tbl_users.from_id(cookie_login_item.user).await;
+                if let Some(cli) = app_state.db_members.tbl_cookie_logins.from_cookie(cookie_string).await {
+                    user_item = app_state.db_members.tbl_users.from_id(cli.user).await;
+                    cookie_login_item = Some(cli);
                     break;
                 }
             }
@@ -51,7 +56,9 @@ where
                 Some(ref item) => item.name.clone(),
                 None => String::from("-"),
             },
-            user_grade: crate::user_grade::UserGrade::from_user(&app_state.config, user_item),
+            currently_logged_in: user_item.is_some(),
+            user_grade: UserGrade::from_user(&app_state.config, user_item),
+            cookie_login_item,
         };
 
         // return

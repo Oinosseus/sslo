@@ -106,15 +106,20 @@ impl IntoResponse for HtmlTemplate {
         html += "          <div class=\"NavbarNoDrop\">\n";
         html += "              <a href=\"/\" class=\"active\">Home</a>\n";
         html += "          </div>\n";
-        html += "          <div class=\"NavbarDropdown\">\n";
-        html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">User ⯆</a>\n";
-        html += "              <div>\n";
-        html += "                  <a href=\"#\">User Settings</a>\n";
-        html += "              </div>\n";
-        html += "          </div>\n";
-        html += "          <div class=\"NavbarLogin\">\n";
-        html += "              <a href=\"/html/login\">Login</a>\n";
-        html += "          </div>\n";
+        if self.http_user.currently_logged_in {
+            html += "          <div class=\"NavbarDropdown\">\n";
+            html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">🯅 User ⯆</a>\n";
+            html += "              <div>\n";
+            html += "                  <a href=\"/html/user_settings\">User Settings</a>\n";
+            html += "                  <a href=\"#\">Login Data</a>\n";
+            html += "                  <a href=\"/html/logout\">Logout</a>\n";
+            html += "              </div>\n";
+            html += "          </div>\n";
+        } else {
+            html += "          <div class=\"NavbarLogin\">\n";
+            html += "              <a href=\"/html/login\">Login</a>\n";
+            html += "          </div>\n";
+        }
         html += "      </div>\n";
         html += "    </nav>\n";
 
@@ -156,6 +161,7 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/html/login", routing::get(routes_html::login::handler))
         .route("/html/login_email_generate", routing::post(routes_html::login::handler_email_generate))
         .route("/html/login_email_verify/:email/:token", routing::get(routes_html::login::handler_email_verify))
+        .route("/html/logout", routing::get(routes_html::login::handler_logout))
 
         .route("/api/v0/login/email", routing::post(routes_rest_v0::login_email::handler))
         .with_state(app_state);

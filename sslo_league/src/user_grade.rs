@@ -107,11 +107,11 @@ impl Promotion {
 
 
 pub struct UserGrade {
-    login_activity: LoginActivity,
-    driving_activity: DrivingActivity,
-    promotion: Promotion,
-    promotion_authority: PromotionAuthority,
-    is_root: bool,
+    pub login_activity: LoginActivity,
+    pub driving_activity: DrivingActivity,
+    pub promotion: Promotion,
+    pub promotion_authority: PromotionAuthority,
+    pub is_root: bool,
 }
 
 

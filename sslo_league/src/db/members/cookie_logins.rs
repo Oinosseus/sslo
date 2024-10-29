@@ -50,6 +50,22 @@ impl Table {
     }
 
 
+    /// Delete cookie from database and returns a value for a SET-COOKIE http header value that shall be transmitted
+    pub async fn delete_cookie(self, item: &Item) -> Result<String, Box<dyn Error>> {
+        match sqlx::query("DELETE FROM cookie_logins WHERE rowid = $1;")
+            .bind(item.rowid)
+            .execute(&self.db_pool)
+            .await {
+            Ok(_) => {},
+            Err(e) => {
+                log::error!("Failed to delete members.cookie_login.rowid={}", item.rowid);
+                return Err(format!("{}", e))?
+            }
+        }
+        Ok("cookie_login=\"\"; HttpOnly; Max-Age=-1; SameSite=Strict; Partitioned; Secure; Path=/;".to_string())
+    }
+
+
     pub async fn from_id(&self, id: i64) -> Option<Item> {
 
         let mut res : Vec<Item> = match sqlx::query_as("SELECT rowid, * FROM cookie_logins WHERE rowid=$1 LIMIT 2;")
