@@ -52,7 +52,7 @@ pub struct General {
 
     /// Manually define a single user as Server Admin, by user-id
     /// This is intended to be used only temporarily until
-    pub user_id_server_admin: i64,
+    pub root_user_id: Option<i64>,
 }
 
 

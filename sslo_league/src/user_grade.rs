@@ -3,127 +3,189 @@ use std::ops::Sub;
 use sqlx::{Database, Decode, Encode, Sqlite};
 use sqlx::encode::IsNull;
 use sqlx::error::BoxDynError;
+use chrono::{DateTime, Utc};
 use crate::config::Config;
 use crate::db;
 
-pub enum UserGrade {
-    Pedestrian,
-    Ghost,
-    Guest,
-    WildcardDriver,
-    LeagueGhost,
-    LeagueDriver,
-    RacingSteward,
-    LeagueMarshal,
-    LeagueCommissar,
-    LeagueDirector,
-    ServerDirector,
-    ServerAdmin,
+
+#[derive(PartialEq)]
+pub enum LoginActivity {
+    None = 0,
+    Obsolete = 1,
+    Recent = 2,
+}
+
+impl LoginActivity {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::None => "Wildcard",
+            Self::Obsolete => "Ghost",
+            Self::Recent => "League",
+        }
+    }
+}
+
+
+#[derive(PartialEq)]
+pub enum DrivingActivity {
+    None = 0,
+    Obsolete = 1,
+    Recent = 2,
+}
+
+impl DrivingActivity {
+    pub fn from_user(config: &Config, user_item: &db::members::users::Item) -> Self {
+        let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(config.general.days_until_recent_activity_driving)));
+        match user_item.last_lap {
+            None => Self::None,
+            Some(last_lap) => {
+                if last_lap > obsolescence_threshold { Self::Obsolete }
+                else { Self::Recent }
+            }
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::None => "Pedestrian",
+            Self::Obsolete => "Veteran",
+            Self::Recent => "Driver",
+        }
+    }
+}
+
+
+#[derive(PartialEq)]
+#[derive(sqlx::Type)]
+#[repr(u32)]
+pub enum PromotionAuthority {
+
+    /// Only executing his promotion
+    Executing = 0,
+
+    /// Can also promote other users
+    Chief = 1,
+}
+
+impl PromotionAuthority {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Executing => "Executing",
+            Self::Chief => "Chief",
+        }
+    }
+}
+
+
+#[derive(PartialEq)]
+#[derive(sqlx::Type)]
+#[repr(u32)]
+pub enum Promotion {
+    None = 0,         // no further user rights
+    Steward = 1,      // graceful server control
+    Marshal = 2,      // force server control, update downloads
+    Officer = 3,      // schedule races
+    Commissar = 4,    // correct results, pronounce penalties
+    Director = 5,     // manage series, edit presets
+    Admin = 6,        // almost all permissions (except root)
+}
+
+impl Promotion {
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::None => "",
+            Self::Steward => "Steward",
+            Self::Marshal => "Marshal",
+            Self::Officer => "Officer",
+            Self::Commissar => "Commissar",
+            Self::Director => "Director",
+            Self::Admin => "Administrator",
+        }
+    }
+}
+
+
+pub struct UserGrade {
+    login_activity: LoginActivity,
+    driving_activity: DrivingActivity,
+    promotion: Promotion,
+    promotion_authority: PromotionAuthority,
+    is_root: bool,
 }
 
 
 impl UserGrade {
 
     pub fn from_user(config: &Config,
-                     user: &db::members::users::Item) -> Self {
+                     user_item: Option<db::members::users::Item>
+    ) -> Self {
 
-        #[derive(PartialEq)]
-        enum Activity {
-            None,
-            Any,
-            Recent,
-        }
+        // extract grade from database item
+        if let Some(user_item) = user_item {
 
-        // check for driving activity
-        let mut lap_activity = Activity::None;
-        let time_recent_login = chrono::Utc::now().sub(chrono::Duration::days(i64::from(config.general.days_until_recent_activity_login)));
-        if let Some(last_lap) = user.last_lap {
-            if last_lap < time_recent_login {
-                lap_activity = Activity::Any;
-            } else {
-                lap_activity = Activity::Recent;
-            }
-        }
-
-        // check for login activity
-        let mut login_activity = Activity::None;
-        let time_recent_driving = chrono::Utc::now().sub(chrono::Duration::days(i64::from(config.general.days_until_recent_activity_driving)));
-        if let Some(last_login) = user.last_login {
-            if last_login < time_recent_driving {
-                login_activity = Activity::Any;
-            } else {
-                login_activity = Activity::Recent;
-            }
-        }
-
-        // start grade from lowest
-        let mut grade = Self::Pedestrian;
-
-        if lap_activity != Activity::None {
-
-        }
-
-        // Server Admin
-        if config.general.user_id_server_admin == user.rowid {
-            return Self::ServerAdmin;
-
-        // recent login and recent laps
-        // -> most activity
-        // -> only check promotions
-        } else if lap_activity == Activity::Recent && login_activity == Activity::Recent {
-            return match user.promotion {
-                Promotion::ServerDirector => Self::ServerDirector,
-                Promotion::LeagueDirector => Self::LeagueDirector,
-                Promotion::LeagueCommissar => Self::LeagueCommissar,
-                Promotion::LeagueMarshal => Self::LeagueMarshal,
-                Promotion::RacingSteward => Self::RacingSteward,
-                Promotion::None => Self::LeagueDriver,
+            // determine login activity
+            let login_activity = match user_item.last_lap {
+                None => LoginActivity::None,
+                Some(last_lap) => {
+                    let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(config.general.days_until_recent_activity_login)));
+                    if last_lap > obsolescence_threshold { LoginActivity::Obsolete }
+                    else { LoginActivity::Recent }
+                }
             };
 
-        } else if lap_activity == Activity::Recent && login_activity == Activity::Any {
-        } else if lap_activity == Activity::Recent && login_activity == Activity::None {
+            // determine driving activity
+            let driving_activity = match user_item.last_lap {
+                None => DrivingActivity::None,
+                Some(last_lap) => {
+                    let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(config.general.days_until_recent_activity_driving)));
+                    if last_lap > obsolescence_threshold { DrivingActivity::Obsolete }
+                    else { DrivingActivity::Recent }
+                }
+            };
 
-        } else if lap_activity == Activity::Any && login_activity == Activity::Recent {
-        } else if lap_activity == Activity::Any && login_activity == Activity::Any {
-        } else if lap_activity == Activity::Any && login_activity == Activity::None {
+            // check for root
+            let is_root: bool = match config.general.root_user_id {
+                None => false,
+                Some(root_user_id) => user_item.rowid == root_user_id
+            };
 
-        } else if lap_activity == Activity::None && login_activity == Activity::Recent {
-        } else if lap_activity == Activity::None && login_activity == Activity::Any {
-            return Self::Guest;
+            Self {
+                login_activity,
+                driving_activity,
+                promotion: user_item.promotion,
+                promotion_authority: user_item.promotion_authority,
+                is_root,
+            }
 
-        } else if lap_activity == Activity::None && login_activity == Activity::None {
-            return Self::Pedestrian;
-
+        // assume lowest grade if no database item is available
         } else {
-            log::error!("Got unexpected activity condition: {:?}, {:?}", lap_activity, login_activity);
-            return Self::Pedestrian;
+            Self {
+                login_activity: LoginActivity::None,
+                driving_activity: DrivingActivity::None,
+                promotion: Promotion::None,
+                promotion_authority: PromotionAuthority::Executing,
+                is_root: false,
+            }
         }
     }
 
-    pub fn as_str(&self) -> &'static str{
-        match self {
-            Self::Pedestrian => "Pedestrian",
-            Self::Guest => "Guest",
-            Self::WildcardDriver => "Wildcard Driver",
-            Self::LeagueGhost => "League Ghost",
-            Self::LeagueDriver => "League Driver",
-            Self::RacingSteward => "Racing Steward",
-            Self::LeagueMarshal => "League Marshal",
-            Self::LeagueCommissar => "League Commissar",
-            Self::LeagueDirector => "League Director",
-            Self::ServerDirector => "Server Director",
-            Self::ServerAdmin => "Server Admin",
+
+    pub fn label(&self) -> String {
+        if self.is_root {
+            "Root".to_string()
+        } else if self.promotion == Promotion::None {
+            format!("{} {}",
+                    self.login_activity.label(),
+                    self.driving_activity.label(),
+            )
+        } else {
+            format!("{} {}, {} {}",
+                    self.login_activity.label(),
+                    self.driving_activity.label(),
+                    self.promotion_authority.label(),
+                    self.promotion.label(),
+            )
         }
     }
-}
-
-#[derive(PartialEq)]
-#[derive(sqlx::Type)]
-pub enum Promotion {
-    None = 0,
-    RacingSteward = 1,
-    LeagueMarshal = 2,
-    LeagueCommissar = 3,
-    LeagueDirector = 4,
-    ServerDirector = 5,
 }

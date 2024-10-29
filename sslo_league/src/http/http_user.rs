@@ -15,25 +15,7 @@ pub struct HttpUser {
 
 impl HttpUser {
 
-    /// create a new unknown/guest visitor (aka. pedestrian)
-    pub fn new_pedestrian() -> Self {
-        Self {
-            name: "Pedestrian".to_string(),
-            user_grade: UserGrade::Pedestrian,
-        }
-    }
-
-
-    pub fn from_user_item(app_state: &AppState,
-                          user_item: &crate::db::members::users::Item
-    ) -> Self {
-
-        // return new item
-        Self {
-            name: user_item.name.to_string(),
-            user_grade: UserGrade::from_user(&app_state.config, user_item),
-        }
-    }
+    pub fn name(&self) -> &str { &self.name }
 }
 
 
@@ -63,13 +45,16 @@ where
                 }
             }
         };
-        let user_item = match user_item {  // extract user_item or return pedestrian
-            Some(x) => x,
-            None => return Ok(Self(HttpUser::new_pedestrian())),
+
+        let http_user = HttpUser {
+            name: match user_item {
+                Some(ref item) => item.name.clone(),
+                None => String::from("-"),
+            },
+            user_grade: crate::user_grade::UserGrade::from_user(&app_state.config, user_item),
         };
 
         // return
-        let http_user = HttpUser::from_user_item(&app_state, &user_item);
         Ok(Self(http_user))
     }
 }

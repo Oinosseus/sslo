@@ -134,7 +134,9 @@ impl IntoResponse for HtmlTemplate {
 
         // footer
         html.push_str("    <footer>\n");
-        html.push_str("__FOOTER__");
+        html.push_str(self.http_user.name());
+        html.push_str(" ");
+        html.push_str(&self.http_user.user_grade.label());
         html.push_str("    </footer>\n");
 
         // html finish

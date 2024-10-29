@@ -2,10 +2,12 @@ use std::error::Error;
 use std::fs::Permissions;
 use sqlx::SqlitePool;
 
+
 #[derive(sqlx::FromRow)]
 pub struct Item {
     pub rowid: i64,
     pub name: String,
+    pub promotion_authority: crate::user_grade::PromotionAuthority,
     pub promotion: crate::user_grade::Promotion,
     pub last_lap: Option<chrono::DateTime<chrono::Utc>>,
     pub last_login: Option<chrono::DateTime<chrono::Utc>>,
