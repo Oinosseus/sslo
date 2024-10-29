@@ -89,7 +89,8 @@ impl Table {
     }
 
 
-    pub async fn from_cookie(&self, cookie: &str) -> Option<Item> {
+    // this automatically updates usage info
+    pub async fn from_cookie(&self, user_agent: &str, cookie: &str) -> Option<Item> {
 
         // quick chek
         if cookie.find("cookie_login=").is_none() {
@@ -109,11 +110,24 @@ impl Table {
         let item = self.from_id(id).await?;
 
         // verify token
-        // TODO: This consumes vast amount of time and has to be replaced with weaker but quicker enrcption!!!
         let token = sslo_lib::token::Token::new(token_decrypted, item.token.clone());
         if !token.verify() {
             return None;
         }
+
+        // update usage
+        let item = match sqlx::query_as("UPDATE cookie_logins SET last_user_agent=$1, last_usage=$2 WHERE rowid=$3 RETURNING rowid,*;")
+            .bind(user_agent)
+            .bind(chrono::Utc::now())
+            .bind(item.rowid)
+            .fetch_one(&self.db_pool)
+            .await {
+                Ok(item) => item,
+                Err(e) => {
+                    log::error!("Could not update db.members.cookie_login.rowid={}: {}", item.rowid, e);
+                    return None;
+                }
+        };
 
         Some(item)
     }
