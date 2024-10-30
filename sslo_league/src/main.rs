@@ -3,7 +3,7 @@ use clap::Parser;
 use std::net::{Ipv4Addr, SocketAddr};
 use env_logger::fmt::Formatter;
 use std::io::Write;
-use log::{Level, Record};
+use log::{error, Level, Record};
 use sqlx::error::BoxDynError;
 use app_state::AppState;
 
@@ -40,19 +40,22 @@ fn env_logger_format(buf: &mut Formatter, record: &Record<'_>) -> std::io::Resul
 
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn Error>> {
 
     let cli_args = CliArgs::parse();
-
-    // create app state
-    let mut app_state: AppState = AppState::new(&cli_args.config_file).unwrap();
-    app_state.init().await.unwrap();
 
     // initialize logging
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Info)
         .format(env_logger_format)
         .init();
+
+    // create app state
+    let mut app_state: AppState = AppState::new(&cli_args.config_file).or_else(|e| {
+        error!("Failed to create application state: {}", e);
+        Err(e)
+    })?;
+    app_state.init().await?;
 
     // user info
     log::info!("initialization complete");
@@ -66,5 +69,7 @@ async fn main() {
     let tls_cfg = app_state.get_rustls_config().await;
     axum_server::bind_rustls(addr, tls_cfg)
         .serve(app.into_make_service())
-        .await.unwrap()
+        .await?;
+
+    Ok(())
 }

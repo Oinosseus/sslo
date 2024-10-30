@@ -34,7 +34,10 @@ impl AppState {
 
         // config
         let config_toml_path = config_file_path.clone();
-        let config = Config::from_file(config_file_path)?;
+        let config = Config::from_file(config_file_path).or_else(|e|{
+            log::error!("Could not create config: {}", e);
+            Err(e)
+        })?;
 
         // sslo database directory
         let mut database_dir = config_toml_path.clone();

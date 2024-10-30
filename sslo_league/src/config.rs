@@ -21,8 +21,14 @@ impl Config {
 
     /// Read config from a toml file
     pub fn from_file(file_path: &PathBuf) -> Result<Self, Box<dyn Error>> {
-        let toml_content = std::fs::read_to_string(file_path)?;
-        let config : Self = toml::from_str(&toml_content)?;
+        let toml_content = std::fs::read_to_string(&file_path).or_else(|e| {
+            log::error!("Could not read config file '{}': {}", file_path.display(), e);
+            Err(e)
+        })?;
+        let config : Self = toml::from_str(&toml_content).or_else(|e| {
+            log::error!("Could not parse config file '{}': {}", file_path.display(), e);
+            Err(e)
+        })?;
         Ok(config)
     }
 }
