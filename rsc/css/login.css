@@ -7,6 +7,14 @@ div#TabSelection {
     margin-bottom: 2em;
 }
 
+div#TabSelection > div {
+    display: block;
+    padding: 0.5em 1em;
+    margin-bottom: 0.3em;
+    font-weight: bold;
+    background-color: transparent;
+    color: var(--color-white);
+}
 
 div#TabSelection > button {
     display: inline-block;
@@ -18,6 +26,7 @@ div#TabSelection > button {
     background-color: transparent;
     color: var(--color-white);
 }
+
 div#TabSelection > button:last-child {
     margin-right: 0;
 }
