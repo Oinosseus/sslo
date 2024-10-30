@@ -98,8 +98,9 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
     }
 
     // done
-    html.message_success("An email with a temporary login link was sent.\nNo login link is sent if previous link is still active.".to_string());
-    return Ok(html);
+    html.message_success("An email with a temporary login link was sent.".to_string());
+    html.message_warning("No login link is sent if previous link is still active, or email is invalid.".to_string());
+    Ok(html)
 }
 
 

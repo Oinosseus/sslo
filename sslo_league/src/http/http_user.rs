@@ -61,7 +61,7 @@ where
                 None => String::from("-"),
             },
             currently_logged_in: user_item.is_some(),
-            user_grade: UserGrade::from_user(&app_state.config, user_item),
+            user_grade: UserGrade::from_user(&app_state, user_item).await,
             cookie_login_item,
         };
 

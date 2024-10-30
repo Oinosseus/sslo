@@ -39,7 +39,7 @@ fn env_logger_format(buf: &mut Formatter, record: &Record<'_>) -> std::io::Resul
 
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() {
 
     let cli_args = CliArgs::parse();
 
@@ -50,11 +50,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     // create app state
-    let mut app_state: AppState = AppState::new(&cli_args.config_file).or_else(|e| {
-        error!("Failed to create application state: {}", e);
-        Err(e)
-    })?;
-    app_state.init().await?;
+    let mut app_state: AppState = match AppState::new(&cli_args.config_file) {
+        Ok(x) => x,
+        Err(err) => {
+            log::error!("Failed to create AppState: {}", err);
+            return;
+        }
+    };
+    match app_state.init().await {
+        Ok(_) => {},
+        Err(err) => {
+            log::error!("Failed to initialize AppState: {}", err);
+            return;
+        }
+    };
 
     // user info
     log::info!("initialization complete");
@@ -66,9 +75,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let app = http::create_router(app_state.clone());
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, app_state.config.http.port_https));
     let tls_cfg = app_state.get_rustls_config().await;
-    axum_server::bind_rustls(addr, tls_cfg)
-        .serve(app.into_make_service())
-        .await?;
-
-    Ok(())
+    match axum_server::bind_rustls(addr, tls_cfg).serve(app.into_make_service()).await {
+        Ok(_) => {},
+        Err(err) => {
+            log::error!("Failed to bind axum server: {}", err);
+            return;
+        }
+    };
 }

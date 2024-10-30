@@ -32,7 +32,13 @@ impl DbMembers {
 impl super::Database for DbMembers {
 
     async fn init(&mut self) -> Result<(), Box<dyn Error>> {
-        sqlx::migrate!("../rsc/db_migrations/league_members").run(&self.db_pool).await?;
+        match sqlx::migrate!("../rsc/db_migrations/league_members").run(&self.db_pool).await {
+            Ok(_) => {},
+            Err(e) => {
+                log::error!("Failed to migrate db.members!");
+                return Err(e)?;
+            }
+        };
         Ok(())
     }
 

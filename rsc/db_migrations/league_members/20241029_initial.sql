@@ -2,8 +2,7 @@ CREATE TABLE users (
     name TEXT NOT NULL,
     promotion INTEGER NOT NULL DEFAULT 0,
     promotion_authority INTEGER NOT NULL DEFAULT 0,
-    last_lap TEXT,
-    last_login TEXT
+    last_lap TEXT
 );
 
 CREATE TABLE emails (

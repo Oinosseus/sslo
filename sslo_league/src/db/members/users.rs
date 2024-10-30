@@ -9,7 +9,6 @@ pub struct Item {
     pub promotion_authority: crate::user_grade::PromotionAuthority,
     pub promotion: crate::user_grade::Promotion,
     pub last_lap: Option<chrono::DateTime<chrono::Utc>>,
-    pub last_login: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 

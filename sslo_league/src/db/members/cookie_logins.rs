@@ -130,4 +130,17 @@ impl Table {
 
         Some(item)
     }
+
+
+    pub async fn find_last_login(&self, user_id: i64) -> Option<DateTime<Utc>> {
+        let item: Item = match sqlx::query_as("SELECT rowid,* FROM cookie_logins WHERE user=$1 ORDER BY last_login DESC LIMIT 1;")
+            .bind(user_id)
+            .fetch_one(&self.db_pool)
+            .await {
+            Ok(x) => x,
+            Err(_) => return None,
+        };
+
+        item.last_usage
+    }
 }
