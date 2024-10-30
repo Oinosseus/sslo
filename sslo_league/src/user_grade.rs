@@ -1,9 +1,5 @@
-use std::error::Error;
 use std::ops::Sub;
-use sqlx::{Database, Decode, Encode, Sqlite};
-use sqlx::encode::IsNull;
-use sqlx::error::BoxDynError;
-use chrono::{DateTime, Utc};
+use sqlx::{Database, Decode, Encode};
 use crate::config::Config;
 use crate::db;
 
@@ -34,17 +30,6 @@ pub enum DrivingActivity {
 }
 
 impl DrivingActivity {
-    pub fn from_user(config: &Config, user_item: &db::members::users::Item) -> Self {
-        let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(config.general.days_until_recent_activity_driving)));
-        match user_item.last_lap {
-            None => Self::None,
-            Some(last_lap) => {
-                if last_lap > obsolescence_threshold { Self::Obsolete }
-                else { Self::Recent }
-            }
-        }
-    }
-
     pub fn label(&self) -> &'static str {
         match self {
             Self::None => "Pedestrian",
@@ -128,7 +113,7 @@ impl UserGrade {
             let login_activity = match user_item.last_lap {
                 None => LoginActivity::None,
                 Some(last_lap) => {
-                    let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(config.general.days_until_recent_activity_login)));
+                    let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(config.general.days_recent_activity)));
                     if last_lap > obsolescence_threshold { LoginActivity::Obsolete }
                     else { LoginActivity::Recent }
                 }
@@ -138,7 +123,7 @@ impl UserGrade {
             let driving_activity = match user_item.last_lap {
                 None => DrivingActivity::None,
                 Some(last_lap) => {
-                    let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(config.general.days_until_recent_activity_driving)));
+                    let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(config.general.days_recent_activity)));
                     if last_lap > obsolescence_threshold { DrivingActivity::Obsolete }
                     else { DrivingActivity::Recent }
                 }
