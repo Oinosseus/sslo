@@ -157,7 +157,7 @@ pub async fn handler_logout(State(app_state): State<AppState>,
                      HttpUserExtractor(http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
 
     // deny when not logged in
-    if !http_user.currently_logged_in {
+    if http_user.user_item.is_none() {
         return Err(StatusCode::UNAUTHORIZED);
     }
 
@@ -175,7 +175,7 @@ pub async fn handler_logout(State(app_state): State<AppState>,
     };
 
     // generate html
-    let name = http_user.name.clone();
+    let name = http_user.name().to_string();
     let mut html = HtmlTemplate::new(http_user);
     html.message_success(format!("Logged out '{}' ...", name));
 

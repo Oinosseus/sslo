@@ -257,3 +257,22 @@ footer {
     padding-bottom: 3em;
     background-color: var(--color-dark-bg);
 }
+
+
+
+/*****************************************************************************
+                                Form
+ *****************************************************************************/
+
+form.GridForm {
+    display: grid;
+    grid-template-columns: auto auto;
+}
+
+form.GridForm label {
+    margin-right: 1em;
+}
+
+form.GridForm > * {
+    margin-bottom: 0.5em;
+}

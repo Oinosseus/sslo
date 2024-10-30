@@ -39,7 +39,7 @@ impl DrivingActivity {
 }
 
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 #[derive(sqlx::Type)]
 #[repr(u32)]
 pub enum PromotionAuthority {
@@ -61,7 +61,7 @@ impl PromotionAuthority {
 }
 
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 #[derive(sqlx::Type)]
 #[repr(u32)]
 pub enum Promotion {
@@ -102,7 +102,7 @@ pub struct UserGrade {
 impl UserGrade {
 
     pub async fn from_user(app_state: &AppState,
-                     user_item: Option<db::members::users::Item>
+                     user_item: &Option<db::members::users::Item>
     ) -> Self {
 
         // extract grade from database item
@@ -138,8 +138,8 @@ impl UserGrade {
             Self {
                 login_activity,
                 driving_activity,
-                promotion: user_item.promotion,
-                promotion_authority: user_item.promotion_authority,
+                promotion: user_item.promotion.clone(),
+                promotion_authority: user_item.promotion_authority.clone(),
                 is_root,
             }
 

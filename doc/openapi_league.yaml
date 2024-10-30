@@ -20,7 +20,7 @@ components:
                 type: string
 paths:
   /login/email:
-    get:
+    post:
       description: "Login with a link that is sent via email"
       responses:
         '200':
@@ -32,3 +32,27 @@ paths:
                 properties:
         '500':
           $ref: '#/components/responses/GeneralError'
+  /user/set_name:
+    post:
+      summary: Change name of current user
+      requestBody:
+        description: Containing new username
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                new_name:
+                  type: string
+      responses:
+        '200':
+          description: "Name changed"
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: "Current user not valid"
+        '500':
+          description: "Change failed"

@@ -57,4 +57,21 @@ impl Table {
             })?;
         Ok(res)
     }
+
+
+    pub async fn set_name(&self, rowid: i64, name: &str) -> Result<Item, Box<dyn Error>> {
+        let item = match sqlx::query_as("UPDATE users SET name = $1 WHERE rowid = $2 RETURNING rowid,*;")
+            .bind(name)
+            .bind(rowid)
+            .fetch_one(&self.db_pool)
+            .await {
+            Ok(i) => i,
+            Err(e) => {
+                log::error!("Could not update name for db.members.users.rowid={}", rowid);
+                return Err(e)?;
+            },
+        };
+
+        Ok(item)
+    }
 }

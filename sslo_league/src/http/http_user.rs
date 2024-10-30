@@ -7,16 +7,21 @@ use crate::user_grade::UserGrade;
 
 /// Representing the current user of the http service
 pub struct HttpUser {
-    pub name: String,
+    pub user_item: Option<crate::db::members::users::Item>,
     pub user_grade: UserGrade,
-    pub currently_logged_in: bool,
     pub cookie_login_item: Option<crate::db::members::cookie_logins::Item>,
 }
 
 
 impl HttpUser {
 
-    pub fn name(&self) -> &str { &self.name }
+    pub fn name(&self) -> &str {
+        if let Some(item) = &self.user_item {
+            &item.name
+        } else {
+            ""
+        }
+    }
 
 }
 
@@ -56,12 +61,8 @@ where
         };
 
         let http_user = HttpUser {
-            name: match user_item {
-                Some(ref item) => item.name.clone(),
-                None => String::from("-"),
-            },
-            currently_logged_in: user_item.is_some(),
-            user_grade: UserGrade::from_user(&app_state, user_item).await,
+            user_grade: UserGrade::from_user(&app_state, &user_item).await,
+            user_item,
             cookie_login_item,
         };
 
