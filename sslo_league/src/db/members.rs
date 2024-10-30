@@ -4,8 +4,6 @@ pub mod cookie_logins;
 
 use std::error::Error;
 use sqlx::sqlite::SqlitePool;
-use sqlx::Row;
-use crate::db::Database;
 use crate::db::members::cookie_logins::Table;
 
 #[derive(Clone)]
@@ -32,10 +30,6 @@ impl DbMembers {
 
 
 impl super::Database for DbMembers {
-
-    fn pool(&self) -> &SqlitePool {
-        &self.db_pool
-    }
 
     async fn init(&mut self) -> Result<(), Box<dyn Error>> {
         sqlx::migrate!("../rsc/db_migrations/league_members").run(&self.db_pool).await?;

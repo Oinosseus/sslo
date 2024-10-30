@@ -4,7 +4,6 @@ use std::net::{Ipv4Addr, SocketAddr};
 use env_logger::fmt::Formatter;
 use std::io::Write;
 use log::{error, Level, Record};
-use sqlx::error::BoxDynError;
 use app_state::AppState;
 
 mod http;

@@ -1,6 +1,5 @@
 use std::error::Error;
 use chrono::{DateTime, Utc};
-use rand::RngCore;
 use sqlx::SqlitePool;
 use sslo_lib::token;
 

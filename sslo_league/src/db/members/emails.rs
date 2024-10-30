@@ -2,11 +2,10 @@ use std::error::Error;
 use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
 use sslo_lib::token;
-use crate::db;
 
 /// A struct that represents a whole table row
 #[derive(sqlx::FromRow)]
-struct Item {
+pub struct Item {
     rowid: i64,
     email: String,
     creation: DateTime<Utc>,
@@ -207,7 +206,7 @@ impl Table {
                     .bind(row_email.rowid)
                     .execute(&self.db_pool)
                     .await.or_else(|e| {
-                    log::error!("Failed to update database memebrs.emails.rowid[{}].user={}", row_email.rowid, row_user.rowid);
+                    log::error!("Failed to update database memebrs.emails.rowid[{}].user={}: {}", row_email.rowid, row_user.rowid, e);
                     return Err(format!("Failed to update database memebrs.emails.rowid[{}].user={}", row_email.rowid, row_user.rowid));
                 })?;
 

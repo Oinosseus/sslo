@@ -8,10 +8,6 @@ use crate::app_state::AppState;
 use crate::http::HtmlTemplate;
 use super::super::http_user::HttpUserExtractor;
 
-#[derive(Deserialize)]
-pub struct RegisterSsloFormData {
-    login_email: String,
-}
 
 pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor) -> Result<impl IntoResponse, StatusCode> {
 

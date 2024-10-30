@@ -1,5 +1,4 @@
 use std::error::Error;
-use std::fs::Permissions;
 use sqlx::SqlitePool;
 
 
@@ -13,14 +12,6 @@ pub struct Item {
     pub last_login: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-
-pub enum Promotion {
-    RacingSteward,
-    LeagueMarshal,
-    LeagueCommissar,
-    LeagueDirector,
-    ServerDirector,
-}
 
 #[derive(Clone)]
 pub struct Table {
