@@ -3,10 +3,10 @@ CREATE TABLE users (
     promotion INTEGER NOT NULL DEFAULT 0,
     promotion_authority INTEGER NOT NULL DEFAULT 0,
     last_lap TEXT,
-    email TEXT,
+    email TEXT UNIQUE,
     email_token BLOB UNIQUE,
-    token_creation TEXT,
-    token_consumption TEXT,
+    email_token_creation TEXT,
+    email_token_consumption TEXT,
     password BLOB,
     password_last_usage TEXT,
     password_last_user_agent BLOB

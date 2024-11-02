@@ -4,14 +4,12 @@ pub mod cookie_logins;
 
 use std::error::Error;
 use sqlx::sqlite::SqlitePool;
-use crate::db::members::cookie_logins::Table;
 
 #[derive(Clone)]
 pub struct DbMembers {
     db_pool: SqlitePool,
-    pub tbl_emails: emails::Table,
     pub tbl_users: users::Table,
-    pub tbl_cookie_logins: Table,
+    pub tbl_cookie_logins: cookie_logins::Table,
 }
 
 
@@ -20,7 +18,6 @@ impl DbMembers {
     pub fn new(db_pool: SqlitePool) -> Self {
         Self {
             db_pool: db_pool.clone(),
-            tbl_emails: emails::Table::new(db_pool.clone()),
             tbl_users: users::Table::new(db_pool.clone()),
             tbl_cookie_logins: cookie_logins::Table::new(db_pool.clone()),
         }

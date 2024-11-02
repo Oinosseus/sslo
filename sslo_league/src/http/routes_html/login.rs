@@ -69,10 +69,16 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
 
     // create new token
     let mut token : Option<String> = None;  // need this option, because build fails when nesting new_email_login_token() and send_email()
-    if let Ok(t) = app_state.db_members.tbl_emails.new_email_login_token(&form.email).await {
-        token = Some(t);
-    } else {
-        log::warn!("Could not generate email login token for {}", form.email);
+    if let Some(user_item) = app_state.db_members.tbl_users.from_email(&form.email).await {
+        token = app_state.db_members.tbl_users.new_email_login_token(&user_item).await;
+    } else {  // create new user
+        if let Ok(user_item) = app_state.db_members.tbl_users.new_item(&form.email).await {
+            if let Ok(user_item) = app_state.db_members.tbl_users.new_item(&form.email).await {
+                if app_state.db_members.tbl_users.set_email(user_item.rowid, &form.email).await.is_ok() {
+                    token = app_state.db_members.tbl_users.new_email_login_token(&user_item).await;
+                }
+            }
+        }
     }
 
     // send info email
@@ -118,14 +124,13 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
 
     // verify login
     let user_id: Option<i64>;
-    match app_state.db_members.tbl_emails.from_email_token(email, token).await {
-        Ok(row_user) => {
+    match app_state.db_members.tbl_users.from_email_token(email, token).await {
+        Some(row_user) => {
             log::info!("Login with email, user {}:{}", row_user.rowid, row_user.name);
             html.message_success("Successfully logged in.".to_string());
             user_id = Some(row_user.rowid);
         },
-        Err(e) => {
-            log::warn!("Could not login by email: {}", e);
+        None => {
             html.message_error("Login failed!".to_string());
             user_id = None;
         }
