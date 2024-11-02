@@ -67,18 +67,27 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
     let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~2000 maximum
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
-    // create new token
-    let mut token : Option<String> = None;  // need this option, because build fails when nesting new_email_login_token() and send_email()
-    if let Some(user_item) = app_state.db_members.tbl_users.from_email(&form.email).await {
-        token = app_state.db_members.tbl_users.new_email_login_token(&user_item).await;
-    } else {  // create new user
-        if let Ok(user_item) = app_state.db_members.tbl_users.new_item(&form.email).await {
-            if let Ok(user_item) = app_state.db_members.tbl_users.new_item(&form.email).await {
-                if app_state.db_members.tbl_users.set_email(user_item.rowid, &form.email).await.is_ok() {
-                    token = app_state.db_members.tbl_users.new_email_login_token(&user_item).await;
-                }
+    // get user
+    let mut user_item = app_state.db_members.tbl_users.from_email(&form.email).await;
+    if user_item.is_none() {
+        if let Ok(x) = app_state.db_members.tbl_users.new_item(&form.email).await {
+            user_item = Some(x);
+        }
+    }
+    if user_item.is_some() {
+            user_item = match app_state.db_members.tbl_users.set_email(user_item.unwrap().rowid, &form.email).await {
+            Ok(x) => Some(x),
+            Err(e) => {
+                log::error!("Failed to set email address: {:?}", e);
+                None
             }
         }
+    }
+
+    // create new token
+    let mut token : Option<String> = None;  // need this option, because build fails when nesting new_email_login_token() and send_email()
+    if let Some(some_user_item) = user_item {
+        token = app_state.db_members.tbl_users.new_email_login_token(&some_user_item).await;
     }
 
     // send info email

@@ -154,7 +154,13 @@ impl Table {
             .unwrap();  // subtracting one hour cannot fail, technically
 
         // get user
-        let user_item = self.from_email(&email).await?;
+        let user_item = match self.from_email(&email).await {
+            Some(u) => u,
+            None => {
+                log::warn!("Could not find user for email '{}'", &email);
+                return None;
+            },
+        };
 
         // check if token is existing
         let crypted_token = match user_item.email_token {
