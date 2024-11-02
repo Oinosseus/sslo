@@ -20,19 +20,18 @@ pub struct EmptyResponse {
 pub async fn handler_set_name(State(app_state): State<AppState>,
                               HttpUserExtractor(http_user): HttpUserExtractor,
                               Json(input): Json<ChangeNameRequest>) -> Response {
-    // require login
-    if http_user.user_item.is_none() {
+
+    if let Some(mut user_item) = http_user.user_item {
+        match user_item.update_name(input.new_name).await {
+            Ok(_) => {},
+            Err(e) => {
+                log::error!("Could not update username: {}", e);
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            }
+        };
+    } else {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-
-    // update username
-    match app_state.db_members.tbl_users.set_name(http_user.user_item.unwrap().rowid, &input.new_name).await {
-        Ok(_) => {},
-        Err(e) => {
-            log::error!("Could not update username: {}", e);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        }
-    };
 
     Json(EmptyResponse{}).into_response()
 }

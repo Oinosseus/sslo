@@ -8,7 +8,6 @@ use sqlx::sqlite::SqlitePool;
 #[derive(Clone)]
 pub struct DbMembers {
     db_pool: SqlitePool,
-    pub tbl_users: users::Table,
     pub tbl_cookie_logins: cookie_logins::Table,
 }
 
@@ -18,11 +17,26 @@ impl DbMembers {
     pub fn new(db_pool: SqlitePool) -> Self {
         Self {
             db_pool: db_pool.clone(),
-            tbl_users: users::Table::new(db_pool.clone()),
             tbl_cookie_logins: cookie_logins::Table::new(db_pool.clone()),
         }
     }
 
+
+    /// Get an item from the users database
+    pub async fn user_from_id(&self, rowid: i64) -> Option<users::User> {
+        users::User::from_id(self.db_pool.clone(), rowid).await
+    }
+
+
+    /// Get an item from the users database
+    pub async fn user_from_email(&self, email: &str) -> Option<users::User> {
+        users::User::from_email(self.db_pool.clone(), email).await
+    }
+
+    /// create a new user from email address
+    pub async fn user_new_from_email(&self, email: &str) -> Option<users::User> {
+        users::User::new_from_email(self.db_pool.clone(), email).await
+    }
 }
 
 

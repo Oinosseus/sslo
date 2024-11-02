@@ -7,7 +7,7 @@ use crate::user_grade::UserGrade;
 
 /// Representing the current user of the http service
 pub struct HttpUser {
-    pub user_item: Option<crate::db::members::users::Item>,
+    pub user_item: Option<crate::db::members::users::User>,
     pub user_grade: UserGrade,
     pub cookie_login_item: Option<crate::db::members::cookie_logins::Item>,
 }
@@ -17,7 +17,7 @@ impl HttpUser {
 
     pub fn name(&self) -> &str {
         if let Some(item) = &self.user_item {
-            &item.name
+            &item.name_ref()
         } else {
             ""
         }
@@ -42,16 +42,15 @@ where
 
         let app_state = AppState::from_ref(state);
 
-
         // try finding database user from cookies
-        let mut user_item: Option<crate::db::members::users::Item> = None;
+        let mut user_item: Option<crate::db::members::users::User> = None;
         let mut cookie_login_item: Option<crate::db::members::cookie_logins::Item> = None;
         for cookie_header in parts.headers.get_all(header::COOKIE) {
             if let Ok(cookie_string) = cookie_header.to_str() {
                 if let Some(user_agent) = parts.headers.get(header::USER_AGENT) {
                     if let Ok(user_agent) = user_agent.to_str() {
                         if let Some(cli) = app_state.db_members.tbl_cookie_logins.from_cookie(user_agent, cookie_string).await {
-                            user_item = app_state.db_members.tbl_users.from_id(cli.user).await;
+                            user_item = app_state.db_members.user_from_id(cli.user).await;
                             cookie_login_item = Some(cli);
                             break;
                         }

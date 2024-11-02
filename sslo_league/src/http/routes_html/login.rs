@@ -68,26 +68,15 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
     // get user
-    let mut user_item = app_state.db_members.tbl_users.from_email(&form.email).await;
-    if user_item.is_none() {
-        if let Ok(x) = app_state.db_members.tbl_users.new_item(&form.email).await {
-            user_item = Some(x);
-        }
-    }
-    if user_item.is_some() {
-            user_item = match app_state.db_members.tbl_users.set_email(user_item.unwrap().rowid, &form.email).await {
-            Ok(x) => Some(x),
-            Err(e) => {
-                log::error!("Failed to set email address: {:?}", e);
-                None
-            }
-        }
+    let mut user_item = app_state.db_members.user_from_email(&form.email).await;
+    if user_item.is_none() {  // create new user from email
+        user_item = app_state.db_members.user_new_from_email(&form.email).await;
     }
 
     // create new token
     let mut token : Option<String> = None;  // need this option, because build fails when nesting new_email_login_token() and send_email()
-    if let Some(some_user_item) = user_item {
-        token = app_state.db_members.tbl_users.new_email_login_token(&some_user_item).await;
+    if let Some(mut some_user_item) = user_item {
+        token = some_user_item.update_email_login_token().await;
     }
 
     // send info email
@@ -133,16 +122,20 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
 
     // verify login
     let user_id: Option<i64>;
-    match app_state.db_members.tbl_users.from_email_token(email, token).await {
-        Some(row_user) => {
-            log::info!("Login with email, user {}:{}", row_user.rowid, row_user.name);
+    let user_item = app_state.db_members.user_from_email(&email).await;
+    if let Some(mut some_user_item) = user_item {
+        if some_user_item.redeem_email_token(token).await {
+            user_id = Some(some_user_item.rowid());
+            log::info!("Login with email, user {}:{}", some_user_item.rowid(), &email);
             html.message_success("Successfully logged in.".to_string());
-            user_id = Some(row_user.rowid);
-        },
-        None => {
+        } else {
             html.message_error("Login failed!".to_string());
             user_id = None;
         }
+    } else {
+        log::info!("Deny login with invalid email '{}'", email);
+        html.message_error("Login failed!".to_string());
+        user_id = None;
     }
 
     // prepare cookie

@@ -21,8 +21,8 @@ pub async fn handler(State(app_state): State<AppState>, Json(input): Json<Reques
 
     // create new token
     let mut token : Option<String> = None;  // need this option, because build fails when nesting new_email_login_token() and send_email()
-    if let Some(user_item) = app_state.db_members.tbl_users.from_email(&input.email).await {
-        token = app_state.db_members.tbl_users.new_email_login_token(&user_item).await;
+    if let Some(mut user_item) = app_state.db_members.user_from_email(&input.email).await {
+        token = user_item.update_email_login_token().await;
     }
 
     // send info email

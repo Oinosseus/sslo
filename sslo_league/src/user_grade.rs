@@ -102,14 +102,14 @@ pub struct UserGrade {
 impl UserGrade {
 
     pub async fn from_user(app_state: &AppState,
-                     user_item: &Option<db::members::users::Item>
+                           user_item: &Option<db::members::users::User>
     ) -> Self {
 
         // extract grade from database item
         if let Some(user_item) = user_item {
 
             // determine login activity
-            let login_activity = match app_state.db_members.tbl_cookie_logins.find_last_login(user_item.rowid).await {
+            let login_activity = match app_state.db_members.tbl_cookie_logins.find_last_login(user_item.rowid()).await {
                 None => LoginActivity::None,
                 Some(last_login) => {
                     let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(app_state.config.general.days_recent_activity)));
@@ -120,7 +120,7 @@ impl UserGrade {
             };
 
             // determine driving activity
-            let driving_activity = match user_item.last_lap {
+            let driving_activity = match user_item.last_lap() {
                 None => DrivingActivity::None,
                 Some(last_lap) => {
                     let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(app_state.config.general.days_recent_activity)));
@@ -132,14 +132,14 @@ impl UserGrade {
             // check for root
             let is_root: bool = match app_state.config.general.root_user_id {
                 None => false,
-                Some(root_user_id) => user_item.rowid == root_user_id
+                Some(root_user_id) => user_item.rowid() == root_user_id
             };
 
             Self {
                 login_activity,
                 driving_activity,
-                promotion: user_item.promotion.clone(),
-                promotion_authority: user_item.promotion_authority.clone(),
+                promotion: user_item.promotion(),
+                promotion_authority: user_item.promotion_authority(),
                 is_root,
             }
 
