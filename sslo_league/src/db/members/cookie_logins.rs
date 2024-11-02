@@ -5,13 +5,23 @@ use sslo_lib::token;
 
 /// A struct that represents a whole table row
 #[derive(sqlx::FromRow)]
-pub struct Item {
+struct DbRow {
     pub rowid: i64,
     pub user: i64,
     pub token: String,
     pub creation: DateTime<Utc>,
     pub last_user_agent: Option<String>,
     pub last_usage: Option<DateTime<Utc>>,
+}
+
+
+pub struct CookieLogin {
+    pool: SqlitePool,
+    row: DbRow,
+}
+
+impl CookieLogin {
+
 }
 
 
@@ -34,7 +44,7 @@ impl Table {
         let token_creation = chrono::DateTime::<chrono::Utc>::from(Utc::now());
 
         // save to DB
-        let res: Item = sqlx::query_as("INSERT INTO cookie_logins (user, token, creation) VALUES ($1, $2, $3) RETURNING rowid,*;")
+        let res: DbRow = sqlx::query_as("INSERT INTO cookie_logins (user, token, creation) VALUES ($1, $2, $3) RETURNING rowid,*;")
             .bind(user)
             .bind(token.encrypted)
             .bind(&token_creation)
@@ -50,7 +60,7 @@ impl Table {
 
 
     /// Delete cookie from database and returns a value for a SET-COOKIE http header value that shall be transmitted
-    pub async fn delete_cookie(self, item: &Item) -> Result<String, Box<dyn Error>> {
+    pub async fn delete_cookie(self, item: &DbRow) -> Result<String, Box<dyn Error>> {
         match sqlx::query("DELETE FROM cookie_logins WHERE rowid = $1;")
             .bind(item.rowid)
             .execute(&self.db_pool)
@@ -65,9 +75,9 @@ impl Table {
     }
 
 
-    pub async fn from_id(&self, id: i64) -> Option<Item> {
+    pub async fn from_id(&self, id: i64) -> Option<DbRow> {
 
-        let mut res : Vec<Item> = match sqlx::query_as("SELECT rowid, * FROM cookie_logins WHERE rowid=$1 LIMIT 2;")
+        let mut res : Vec<DbRow> = match sqlx::query_as("SELECT rowid, * FROM cookie_logins WHERE rowid=$1 LIMIT 2;")
             .bind(id)
             .fetch_all(&self.db_pool)
             .await {
@@ -89,7 +99,7 @@ impl Table {
 
 
     // this automatically updates usage info
-    pub async fn from_cookie(&self, user_agent: &str, cookie: &str) -> Option<Item> {
+    pub async fn from_cookie(&self, user_agent: &str, cookie: &str) -> Option<DbRow> {
 
         // quick chek
         if cookie.find("cookie_login=").is_none() {
@@ -133,7 +143,7 @@ impl Table {
 
 
     pub async fn find_last_login(&self, user_id: i64) -> Option<DateTime<Utc>> {
-        let item: Item = match sqlx::query_as("SELECT rowid,* FROM cookie_logins WHERE user=$1 ORDER BY last_login DESC LIMIT 1;")
+        let item: DbRow = match sqlx::query_as("SELECT rowid,* FROM cookie_logins WHERE user=$1 ORDER BY last_login DESC LIMIT 1;")
             .bind(user_id)
             .fetch_one(&self.db_pool)
             .await {

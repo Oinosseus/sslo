@@ -9,7 +9,7 @@ use crate::user_grade::UserGrade;
 pub struct HttpUser {
     pub user_item: Option<crate::db::members::users::User>,
     pub user_grade: UserGrade,
-    pub cookie_login_item: Option<crate::db::members::cookie_logins::Item>,
+    pub cookie_login_item: Option<crate::db::members::cookie_logins::BdRow>,
 }
 
 
@@ -44,7 +44,7 @@ where
 
         // try finding database user from cookies
         let mut user_item: Option<crate::db::members::users::User> = None;
-        let mut cookie_login_item: Option<crate::db::members::cookie_logins::Item> = None;
+        let mut cookie_login_item: Option<crate::db::members::cookie_logins::BdRow> = None;
         for cookie_header in parts.headers.get_all(header::COOKIE) {
             if let Ok(cookie_string) = cookie_header.to_str() {
                 if let Some(user_agent) = parts.headers.get(header::USER_AGENT) {
