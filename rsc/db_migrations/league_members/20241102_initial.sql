@@ -2,19 +2,14 @@ CREATE TABLE users (
     name TEXT NOT NULL,
     promotion INTEGER NOT NULL DEFAULT 0,
     promotion_authority INTEGER NOT NULL DEFAULT 0,
-    last_lap TEXT
-);
-
-CREATE TABLE emails (
-    email TEXT NOT NULL UNIQUE,
-    creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    token BLOB UNIQUE,
+    last_lap TEXT,
+    email TEXT,
+    email_token BLOB UNIQUE,
     token_creation TEXT,
-    token_last_usage TEXT,
-    password BLOB UNIQUE,
-    password_creation TEXT,
+    token_consumption TEXT,
+    password BLOB,
     password_last_usage TEXT,
-    user INTEGER DEFAULT NULL
+    password_last_user_agent BLOB
 );
 
 CREATE TABLE cookie_logins (
