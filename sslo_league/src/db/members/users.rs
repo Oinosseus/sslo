@@ -97,6 +97,7 @@ impl User {
             .fetch_one(&db_pool)
             .await {
                 Ok(db_row) => {
+                    log::info!("Creating user from email '{}'", email);
                     Some(Self { db_row, db_pool })
                 },
                 Err(e) => {
@@ -169,6 +170,7 @@ impl User {
         };
 
         // redeeming seem to be fine
+        log::info!("User email token redeemed: rowid={}, name={}", self.db_row.rowid, self.name_ref());
         true
     }
 
@@ -195,7 +197,7 @@ impl User {
         if let Some(token_creation) = self.db_row.email_token_creation {
             if token_creation > time_token_outdated {               // token is still valid
                 if self.db_row.email_token_consumption.is_none() {    // token is not used, yet
-                    log::warn!("Not generating new email login token for '{}' because last token is still active.", self.db_row.rowid);
+                    log::warn!("Not generating new email login token for user {}:'{}' because last token is still active.", self.db_row.rowid, self.name_ref());
                     return None;
                 }
             }

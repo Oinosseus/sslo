@@ -6,6 +6,7 @@ use rand::RngCore;
 use serde::Deserialize;
 use crate::app_state::AppState;
 use crate::http::HtmlTemplate;
+use crate::http::http_user::HttpUser;
 use super::super::http_user::HttpUserExtractor;
 
 
@@ -121,65 +122,38 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
     // verify login
-    let user_id: Option<i64>;
     let user_item = app_state.db_members.user_from_email(&email).await;
-    if let Some(mut some_user_item) = user_item {
-        if some_user_item.redeem_email_token(token).await {
-            user_id = Some(some_user_item.rowid());
-            log::info!("Login with email, user {}:{}", some_user_item.rowid(), &email);
-            html.message_success("Successfully logged in.".to_string());
-        } else {
-            html.message_error("Login failed!".to_string());
-            user_id = None;
-        }
-    } else {
-        log::info!("Deny login with invalid email '{}'", email);
-        html.message_error("Login failed!".to_string());
-        user_id = None;
+    todo!() // must verify token!!!!!!!!
+    let mut cookie: Option<String> = None;
+    if let Some(ref some_user) = user_item {
+        cookie = app_state.db_members.cookie_login_new(some_user).await;
     }
 
-    // prepare cookie
-    let cookie: Option<String> = match user_id {
-        None => None,
-        Some(id) => {
-            Some(app_state.db_members.tbl_cookie_logins.new_cookie(id).await.or_else(|e| {
-                log::error!("Failed to create login cookie: {}", e);
-                html.message_error("Internal Server Error!".to_string());
-                Err(StatusCode::INTERNAL_SERVER_ERROR)
-            })?)
-        },
-    };
+    // user info
+    if cookie.is_none() {
+        html.message_error("Login failed!".to_string());
+    }
 
     // done
     let mut response = html.into_response();
     if let Some(cookie) = cookie {
         response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
-        response.headers_mut().insert(REFRESH, "2; url=/".parse().unwrap());
+        response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
     }
     Ok(response)
 }
 
 
 pub async fn handler_logout(State(app_state): State<AppState>,
-                     HttpUserExtractor(http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
+                     HttpUserExtractor(mut http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
 
-    // deny when not logged in
-    if http_user.user_item.is_none() {
+    let mut cookie_value: Option<String> = None;
+    if let Some(cookie_login) = http_user.cookie_login {
+        cookie_value = Some(cookie_login.delete().await);  // invalidate login cookie
+        http_user = HttpUser::new_lowest();                // create new user
+    } else {
         return Err(StatusCode::UNAUTHORIZED);
     }
-
-    // invalidate token
-    let mut cookie_value: Option<String> = None;
-    if let Some(item) = http_user.cookie_login_item.as_ref() {
-        match app_state.db_members.tbl_cookie_logins.delete_cookie(item).await {
-            Ok(cookie) => {
-                cookie_value = Some(cookie);
-            },
-            Err(e) => {
-                log::error!("Failed to delete cookie login item[rowid={}]: {:?}", item.rowid, e)
-            },
-        };
-    };
 
     // generate html
     let name = http_user.name().to_string();
@@ -190,7 +164,7 @@ pub async fn handler_logout(State(app_state): State<AppState>,
     let mut response = html.into_response();
     if let Some(cookie_value) = cookie_value {
         response.headers_mut().insert(SET_COOKIE, cookie_value.parse().unwrap());
-        response.headers_mut().insert(REFRESH, "2; url=/".parse().unwrap());
+        response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
     }
     Ok(response)
 }

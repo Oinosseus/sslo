@@ -7,16 +7,25 @@ use crate::user_grade::UserGrade;
 
 /// Representing the current user of the http service
 pub struct HttpUser {
-    pub user_item: Option<crate::db::members::users::User>,
+    pub user: Option<crate::db::members::users::User>,
     pub user_grade: UserGrade,
-    pub cookie_login_item: Option<crate::db::members::cookie_logins::BdRow>,
+    pub cookie_login: Option<crate::db::members::cookie_logins::CookieLogin>,
 }
 
 
 impl HttpUser {
 
+    /// Crate a object with lowest permissions
+    pub fn new_lowest() -> Self {
+        Self {
+            user: None,
+            user_grade: UserGrade::new_lowest(),
+            cookie_login: None,
+        }
+    }
+
     pub fn name(&self) -> &str {
-        if let Some(item) = &self.user_item {
+        if let Some(item) = &self.user {
             &item.name_ref()
         } else {
             ""
@@ -43,16 +52,18 @@ where
         let app_state = AppState::from_ref(state);
 
         // try finding database user from cookies
-        let mut user_item: Option<crate::db::members::users::User> = None;
-        let mut cookie_login_item: Option<crate::db::members::cookie_logins::BdRow> = None;
+        let mut user: Option<crate::db::members::users::User> = None;
+        let mut cookie_login: Option<crate::db::members::cookie_logins::CookieLogin> = None;
         for cookie_header in parts.headers.get_all(header::COOKIE) {
             if let Ok(cookie_string) = cookie_header.to_str() {
                 if let Some(user_agent) = parts.headers.get(header::USER_AGENT) {
                     if let Ok(user_agent) = user_agent.to_str() {
-                        if let Some(cli) = app_state.db_members.tbl_cookie_logins.from_cookie(user_agent, cookie_string).await {
-                            user_item = app_state.db_members.user_from_id(cli.user).await;
-                            cookie_login_item = Some(cli);
-                            break;
+                        if let Some(cl) = app_state.db_members.cookie_login_from_cookie(user_agent.to_string(), cookie_string).await {
+                            if let Some(cl_user) = cl.user().await {
+                                user = Some(cl_user);
+                                cookie_login = Some(cl);
+                                break;
+                            }
                         }
                     }
                 }
@@ -60,9 +71,9 @@ where
         };
 
         let http_user = HttpUser {
-            user_grade: UserGrade::from_user(&app_state, &user_item).await,
-            user_item,
-            cookie_login_item,
+            user_grade: UserGrade::from_user(&app_state, &user).await,
+            user,
+            cookie_login,
         };
 
         // return

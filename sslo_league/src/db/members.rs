@@ -8,7 +8,6 @@ use sqlx::sqlite::SqlitePool;
 #[derive(Clone)]
 pub struct DbMembers {
     db_pool: SqlitePool,
-    pub tbl_cookie_logins: cookie_logins::Table,
 }
 
 
@@ -17,8 +16,28 @@ impl DbMembers {
     pub fn new(db_pool: SqlitePool) -> Self {
         Self {
             db_pool: db_pool.clone(),
-            tbl_cookie_logins: cookie_logins::Table::new(db_pool.clone()),
         }
+    }
+
+
+    /// Create a new login cookie
+    pub async fn cookie_login_new(&self, user: &users::User) -> Option<String> {
+        cookie_logins::CookieLogin::new(&self.db_pool, user).await
+    }
+
+    /// Get a CookieLogin from database
+    pub async fn cookie_login_from_id(&self, rowid: i64) -> Option<cookie_logins::CookieLogin> {
+        cookie_logins::CookieLogin::from_id(self.db_pool.clone(), rowid).await
+    }
+
+    /// Get a CookieLogin from database
+    pub async fn cookie_login_from_cookie(&self, user_agent: String, cookie: &str) -> Option<cookie_logins::CookieLogin> {
+        cookie_logins::CookieLogin::from_cookie(self.db_pool.clone(), user_agent, cookie).await
+    }
+
+    /// Gte a CookieLogin from database that was used for most recent login
+    pub async fn cookie_login_from_last_usage(&self, user: &users::User) -> Option<cookie_logins::CookieLogin> {
+        cookie_logins::CookieLogin::from_last_usage(self.db_pool.clone(), user).await
     }
 
 

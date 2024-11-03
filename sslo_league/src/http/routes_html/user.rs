@@ -11,7 +11,7 @@ pub async fn handler_settings(State(app_state): State<AppState>,
                               HttpUserExtractor(http_user): HttpUserExtractor) -> Result<impl IntoResponse, StatusCode> {
 
     // require login
-    if http_user.user_item.is_none() {
+    if http_user.user.is_none() {
         return Err(StatusCode::UNAUTHORIZED);
     }
 

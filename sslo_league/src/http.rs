@@ -111,7 +111,7 @@ impl IntoResponse for HtmlTemplate {
         html += "          <div class=\"NavbarNoDrop\">\n";
         html += "              <a href=\"/\" class=\"active\">Home</a>\n";
         html += "          </div>\n";
-        if self.http_user.user_item.is_some() {
+        if self.http_user.user.is_some() {
             html += "          <div class=\"NavbarDropdown\">\n";
             html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">🯅 User ⯆</a>\n";
             html += "              <div>\n";

@@ -101,26 +101,40 @@ pub struct UserGrade {
 
 impl UserGrade {
 
+    /// create a new object with lowest permissions
+    pub fn new_lowest() -> Self {
+        Self {
+            login_activity: LoginActivity::None,
+            driving_activity: DrivingActivity::None,
+            promotion: Promotion::None,
+            promotion_authority: PromotionAuthority::Executing,
+            is_root: false,
+        }
+    }
+
     pub async fn from_user(app_state: &AppState,
-                           user_item: &Option<db::members::users::User>
+                           user: &Option<db::members::users::User>
     ) -> Self {
 
         // extract grade from database item
-        if let Some(user_item) = user_item {
+        if let Some(some_user) = user {
 
             // determine login activity
-            let login_activity = match app_state.db_members.tbl_cookie_logins.find_last_login(user_item.rowid()).await {
-                None => LoginActivity::None,
-                Some(last_login) => {
-                    let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(app_state.config.general.days_recent_activity)));
-                    println!("HERE {} > {}", last_login, obsolescence_threshold);
-                    if last_login > obsolescence_threshold { LoginActivity::Obsolete }
-                    else { LoginActivity::Recent }
-                }
-            };
+            let mut login_activity = LoginActivity::None;
+            let last_cookie = app_state.db_members.cookie_login_from_last_usage(some_user).await;
+            if let Some(some_last_cookie) = last_cookie {
+                login_activity = match some_last_cookie.last_usage() {
+                    None => { LoginActivity::None },
+                    Some(last_login) => {
+                        let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(app_state.config.general.days_recent_activity)));
+                        if last_login > obsolescence_threshold { LoginActivity::Obsolete }
+                        else { LoginActivity::Recent }
+                    }
+                };
+            }
 
             // determine driving activity
-            let driving_activity = match user_item.last_lap() {
+            let driving_activity = match some_user.last_lap() {
                 None => DrivingActivity::None,
                 Some(last_lap) => {
                     let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(app_state.config.general.days_recent_activity)));
@@ -132,26 +146,20 @@ impl UserGrade {
             // check for root
             let is_root: bool = match app_state.config.general.root_user_id {
                 None => false,
-                Some(root_user_id) => user_item.rowid() == root_user_id
+                Some(root_user_id) => some_user.rowid() == root_user_id
             };
 
             Self {
                 login_activity,
                 driving_activity,
-                promotion: user_item.promotion(),
-                promotion_authority: user_item.promotion_authority(),
+                promotion: some_user.promotion(),
+                promotion_authority: some_user.promotion_authority(),
                 is_root,
             }
 
         // assume lowest grade if no database item is available
         } else {
-            Self {
-                login_activity: LoginActivity::None,
-                driving_activity: DrivingActivity::None,
-                promotion: Promotion::None,
-                promotion_authority: PromotionAuthority::Executing,
-                is_root: false,
-            }
+            Self::new_lowest()
         }
     }
 

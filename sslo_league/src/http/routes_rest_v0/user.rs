@@ -21,7 +21,7 @@ pub async fn handler_set_name(State(app_state): State<AppState>,
                               HttpUserExtractor(http_user): HttpUserExtractor,
                               Json(input): Json<ChangeNameRequest>) -> Response {
 
-    if let Some(mut user_item) = http_user.user_item {
+    if let Some(mut user_item) = http_user.user {
         match user_item.update_name(input.new_name).await {
             Ok(_) => {},
             Err(e) => {

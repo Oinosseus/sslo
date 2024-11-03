@@ -45,7 +45,9 @@ async fn main() {
 
     // initialize logging
     env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Info)
+        .filter_module("sslo_lib", log::LevelFilter::Debug)
+        .filter_module("sslo_league", log::LevelFilter::Debug)
+        .filter_module("sqlx_core", log::LevelFilter::Warn)
         .format(env_logger_format)
         .init();
 

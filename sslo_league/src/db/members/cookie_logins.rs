@@ -1,5 +1,6 @@
 use std::error::Error;
 use chrono::{DateTime, Utc};
+use sqlx::Error::RowNotFound;
 use sqlx::SqlitePool;
 use sslo_lib::token;
 
@@ -22,93 +23,109 @@ pub struct CookieLogin {
 
 impl CookieLogin {
 
-}
-
-
-#[derive(Clone)]
-pub struct Table {
-    db_pool: SqlitePool,
-}
-
-
-impl Table {
-    pub fn new(db_pool: SqlitePool) -> Self {
-        Self { db_pool }
-    }
 
     /// Returns a string that shall be used as SET-COOKIE http header value
-    pub async fn new_cookie(&self, user: i64) -> Result<String, Box<dyn Error>> {
+    /// The Id of the new CookieLogin object and the token is combined within the cookie value
+    pub async fn new(pool: &SqlitePool, user: &super::users::User) -> Option<String> {
 
         // generate token
-        let token= token::Token::generate(token::TokenType::Quick)?;
+        let token = match token::Token::generate(token::TokenType::Quick) {
+            Ok(t) => t,
+            Err(e) => {
+                log::error!("Failed to generate token: {}", e);
+                return None;
+            }
+        };
         let token_creation = chrono::DateTime::<chrono::Utc>::from(Utc::now());
 
         // save to DB
-        let res: DbRow = sqlx::query_as("INSERT INTO cookie_logins (user, token, creation) VALUES ($1, $2, $3) RETURNING rowid,*;")
-            .bind(user)
+        let res: DbRow = match sqlx::query_as("INSERT INTO cookie_logins (user, token, creation) VALUES ($1, $2, $3) RETURNING rowid,*;")
+            .bind(user.rowid())
             .bind(token.encrypted)
             .bind(&token_creation)
-            .fetch_one(&self.db_pool)
-            .await?;
+            .fetch_one(pool)
+            .await {
+            Ok(row) => row,
+            Err(e) => {
+                log::error!("Failed to insert into db.members.cookie_logins: {}", e);
+                return None;
+            }
+        };
 
         // create cookie
         let cookie = format!("cookie_login={}:{}; HttpOnly; Max-Age=31536000; SameSite=Strict; Partitioned; Secure; Path=/;",
                              res.rowid, token.decrypted);
 
-        Ok(cookie)
+        Some(cookie)
     }
 
 
-    /// Delete cookie from database and returns a value for a SET-COOKIE http header value that shall be transmitted
-    pub async fn delete_cookie(self, item: &DbRow) -> Result<String, Box<dyn Error>> {
-        match sqlx::query("DELETE FROM cookie_logins WHERE rowid = $1;")
-            .bind(item.rowid)
-            .execute(&self.db_pool)
+    /// Find an CookieLogin in the database that was most recently used for login
+    pub async fn from_last_usage(pool: SqlitePool, user: &super::users::User) -> Option<Self> {
+        let row: DbRow = match sqlx::query_as("SELECT rowid,* FROM cookie_logins WHERE user=$1 ORDER BY last_usage DESC LIMIT 1;")
+            .bind(user.rowid())
+            .fetch_one(&pool)
             .await {
-            Ok(_) => {},
+            Ok(x) => x,
+            Err(RowNotFound) => return None,
             Err(e) => {
-                log::error!("Failed to delete members.cookie_login.rowid={}", item.rowid);
-                return Err(format!("{}", e))?
-            }
-        }
-        Ok("cookie_login=\"\"; HttpOnly; Max-Age=-1; SameSite=Strict; Partitioned; Secure; Path=/;".to_string())
+                log::error!("Failed sql query: {}", e);
+                return None;
+            },
+        };
+
+        Some(Self{ pool, row })
     }
 
 
-    pub async fn from_id(&self, id: i64) -> Option<DbRow> {
+    /// Get an item from the database
+    pub async fn from_id(pool: SqlitePool, rowid: i64) -> Option<Self> {
 
-        let mut res : Vec<DbRow> = match sqlx::query_as("SELECT rowid, * FROM cookie_logins WHERE rowid=$1 LIMIT 2;")
-            .bind(id)
-            .fetch_all(&self.db_pool)
+        let mut rows : Vec<DbRow> = match sqlx::query_as("SELECT rowid, * FROM cookie_logins WHERE rowid=$1 LIMIT 2;")
+            .bind(rowid)
+            .fetch_all(&pool)
             .await {
             Ok(x) => x,
             Err(e) => {
-                log::error!("Failed to request database: {}", e);
+                log::error!("Failed to get db.members.cookie_logins.rowid={} from database: {}", rowid, e);
                 return None;
             },
         };
 
         // fail on multiple results
-        if res.len() > 1 {
-            log::error!("Multiple database entries={}", id);
+        if rows.len() > 1 {
+            log::error!("Multiple database entries for db.members.cookie_logins.rowid={}", rowid);
             return None;
         }
 
-        res.pop()
+        // return data
+        if let Some(row) = rows.pop() {
+            Some(Self{pool, row})
+        } else {
+            log::debug!("db.members.cookie_login.rowid={} not found", rowid);
+            None
+        }
     }
 
 
-    // this automatically updates usage info
-    pub async fn from_cookie(&self, user_agent: &str, cookie: &str) -> Option<DbRow> {
+    /// Get an item from the database
+    /// This verifies the token and automatically updates usage info
+    pub async fn from_cookie(pool: SqlitePool, user_agent: String, cookie: &str) -> Option<Self> {
 
-        // quick chek
+        // quick check
         if cookie.find("cookie_login=").is_none() {
             return None;
         };
 
         // chop cookie string
         let re = regex::Regex::new(r"^cookie_login=([0-9]+):(.*)$").unwrap();
-        let groups = re.captures(cookie)?;
+        let groups = match re.captures(cookie) {
+            Some(x) => x,
+            None => {
+                log::warn!("Invalid cookie format: '{}'", cookie);
+                return None;
+            }
+        };
         let id: i64 = match groups.get(1)?.as_str().parse::<i64>() {
             Ok(id) => id,
             Err(_) => return None,
@@ -116,41 +133,66 @@ impl Table {
         let token_decrypted: String = groups.get(2)?.as_str().into();
 
         // find id in database
-        let item = self.from_id(id).await?;
+        let mut item = Self::from_id(pool, id).await?;
 
         // verify token
-        let token = sslo_lib::token::Token::new(token_decrypted, item.token.clone());
+        let token = sslo_lib::token::Token::new(token_decrypted, item.row.token.clone());
         if !token.verify() {
             return None;
         }
 
         // update usage
-        let item = match sqlx::query_as("UPDATE cookie_logins SET last_user_agent=$1, last_usage=$2 WHERE rowid=$3 RETURNING rowid,*;")
-            .bind(user_agent)
-            .bind(chrono::Utc::now())
-            .bind(item.rowid)
-            .fetch_one(&self.db_pool)
-            .await {
-                Ok(item) => item,
-                Err(e) => {
-                    log::error!("Could not update db.members.cookie_login.rowid={}: {}", item.rowid, e);
-                    return None;
-                }
-        };
+        item.report_usage(user_agent).await;
 
         Some(item)
     }
 
 
-    pub async fn find_last_login(&self, user_id: i64) -> Option<DateTime<Utc>> {
-        let item: DbRow = match sqlx::query_as("SELECT rowid,* FROM cookie_logins WHERE user=$1 ORDER BY last_login DESC LIMIT 1;")
-            .bind(user_id)
-            .fetch_one(&self.db_pool)
+    /// Update usage info
+    pub async fn report_usage(&mut self, user_agent: String) {
+
+        // update db
+        let row = match sqlx::query_as("UPDATE cookie_logins SET last_user_agent=$1, last_usage=$2 WHERE rowid=$3 RETURNING rowid,*;")
+            .bind(user_agent)
+            .bind(Utc::now())
+            .bind(self.row.rowid)
+            .fetch_one(&self.pool)
             .await {
-            Ok(x) => x,
-            Err(_) => return None,
+            Ok(r) => r,
+            Err(e) => {
+                log::error!("Could not update db.members.cookie_login.rowid={}: {}", self.row.rowid, e);
+                return;
+            }
         };
 
-        item.last_usage
+        // store updated values
+        self.row = row;
+    }
+
+
+    /// Delete cookie from database and returns a value for a SET-COOKIE http header value that shall be transmitted
+    pub async fn delete(self) -> String {
+
+        match sqlx::query("DELETE FROM cookie_logins WHERE rowid = $1;")
+            .bind(self.row.rowid)
+            .execute(&self.pool)
+            .await {
+            Ok(_) => {},
+            Err(e) => {
+                log::error!("Failed to delete db.members.cookie_login.rowid={}: {}", self.row.rowid, e);
+            }
+        }
+
+        "cookie_login=\"\"; HttpOnly; Max-Age=-1; SameSite=Strict; Partitioned; Secure; Path=/;".to_string()
+    }
+
+
+    pub fn last_user_agent(&self) -> Option<&String> { self.row.last_user_agent.as_ref() }
+
+    pub fn last_usage(&self) -> Option<DateTime<Utc>> { self.row.last_usage }
+
+    /// get a users::User from the database
+    pub async fn user(&self) -> Option<super::users::User> {
+        super::users::User::from_id(self.pool.clone(), self.row.rowid).await
     }
 }
