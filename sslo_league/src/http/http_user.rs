@@ -49,6 +49,8 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
 
+        let process_duarion = std::time::Instant::now();
+
         let app_state = AppState::from_ref(state);
 
         // try finding database user from cookies

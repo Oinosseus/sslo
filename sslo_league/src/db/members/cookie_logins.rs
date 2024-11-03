@@ -111,11 +111,13 @@ impl CookieLogin {
     /// Get an item from the database
     /// This verifies the token and automatically updates usage info
     pub async fn from_cookie(pool: SqlitePool, user_agent: String, cookie: &str) -> Option<Self> {
+        let process_duration = std::time::Instant::now();
 
         // quick check
         if cookie.find("cookie_login=").is_none() {
             return None;
         };
+        println!("HERE1 {}ms", process_duration.elapsed().as_millis());
 
         // chop cookie string
         let re = regex::Regex::new(r"^cookie_login=([0-9]+):(.*)$").unwrap();

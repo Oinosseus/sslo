@@ -122,8 +122,7 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
     // verify login
-    let user_item = app_state.db_members.user_from_email(&email).await;
-    todo!() // must verify token!!!!!!!!
+    let user_item = app_state.db_members.user_from_email_token(&email, token).await;
     let mut cookie: Option<String> = None;
     if let Some(ref some_user) = user_item {
         cookie = app_state.db_members.cookie_login_new(some_user).await;

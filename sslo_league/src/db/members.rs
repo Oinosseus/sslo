@@ -52,6 +52,11 @@ impl DbMembers {
         users::User::from_email(self.db_pool.clone(), email).await
     }
 
+    /// Get an item from the user database, including token verification
+    pub async fn user_from_email_token(&self, email: &str, plain_token: String) -> Option<users::User> {
+        users::User::from_email_token(self.db_pool.clone(), email, plain_token).await
+    }
+
     /// create a new user from email address
     pub async fn user_new_from_email(&self, email: &str) -> Option<users::User> {
         users::User::new_from_email(self.db_pool.clone(), email).await

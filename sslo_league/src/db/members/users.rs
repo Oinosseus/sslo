@@ -108,8 +108,17 @@ impl User {
     }
 
 
-    /// Consume the email token and return true on success
-    pub async fn redeem_email_token(&mut self, plain_token: String) -> bool {
+    /// Create a new CookieLogin from an email token.
+    /// This is similar to from_email(), but additionally verifies and consumes the token
+    pub async fn from_email_token(db_pool: SqlitePool, email: &str, plain_token: String) -> Option<Self> {
+
+        // get self
+        let item: Self = match Self::from_email(db_pool.clone(), email).await {
+            Some(x) => x,
+            None => {
+                return None;
+            }
+        };
 
         // get some basics
         let time_now = &crate::helpers::now();
@@ -118,33 +127,34 @@ impl User {
             .unwrap();  // subtracting one hour cannot fail, technically
 
         // check if token is existing
-        let crypted_token: String = match &self.db_row.email_token {
+        let crypted_token: String = match item.db_row.email_token {
             Some(token_ref) => token_ref.clone(),
             None => {
-                log::warn!("No token set for db.members.users.rowid={}", self.db_row.rowid);
-                return false;
+                log::warn!("No token set for db.members.users.rowid={} ({})", item.db_row.rowid, email);
+                return None;
             },
         };
 
         // check if token was already used
-        if let Some(email_token_consumption) = self.db_row.email_token_consumption {
-            log::warn!("Deny redeeming token for db.members.users.rowid={}, because already consumed at {}",
-                self.db_row.rowid,
+        if let Some(email_token_consumption) = item.db_row.email_token_consumption {
+            log::warn!("Deny redeeming token for db.members.users.rowid={} ({}), because already consumed at {}",
+                item.db_row.rowid,
+                email,
                 email_token_consumption,
             );
-            return false;
+            return None;
         }
 
         // check if token is still valid
-        match self.db_row.email_token_creation {
+        match item.db_row.email_token_creation {
             None => {
-                log::error!("Invalid token creation time for db.members.users.rowid={}", self.db_row.rowid);
-                return false;
+                log::error!("Invalid token creation time for db.members.users.rowid={} ({})", item.db_row.rowid, email);
+                return None;
             },
             Some(token_creation) => {
                 if token_creation < time_token_outdated {  // token outdated
-                    log::warn!("Deny redeeming token for db.members.users rowid={}, because token outdated", self.db_row.rowid);
-                    return false;
+                    log::warn!("Deny redeeming token for db.members.users rowid={} ({}), because token outdated", item.db_row.rowid, email);
+                    return None;
                 }
             },
         };
@@ -152,26 +162,26 @@ impl User {
         // verify token
         let token = token::Token::new(plain_token, crypted_token);
         if !token.verify() {
-            log::warn!("Deny redeeming token for db.members.users.rowid={}, because token invalid!", self.db_row.rowid);
-            return false;
+            log::warn!("Deny redeeming token for db.members.users.rowid={} ({}), because token invalid!", item.db_row.rowid, email);
+            return None;
         }
 
         // redeem token
         match sqlx::query("UPDATE users SET email_token=NULL, email_token_consumption=$1 WHERE rowid=$2;")
             .bind(&time_now)
-            .bind(self.db_row.rowid)
-            .execute(&self.db_pool)
+            .bind(item.db_row.rowid)
+            .execute(&db_pool)
             .await {
             Ok(_) => {},
             Err(e) => {
-                log::warn!("Database error at redeeming token for db.members.users.rowid={}, because: {}", self.db_row.rowid, e);
-                return false;
+                log::error!("Database error at redeeming token for db.members.users.rowid={} ({}), because: {}", item.db_row.rowid, email, e);
+                return None;
             },
         };
 
         // redeeming seem to be fine
-        log::info!("User email token redeemed: rowid={}, name={}", self.db_row.rowid, self.name_ref());
-        true
+        log::info!("User email token redeemed: members.users.rowid={} ({})", item.db_row.rowid, email);
+        Self::from_id(db_pool, item.db_row.rowid).await
     }
 
 
@@ -218,6 +228,7 @@ impl User {
         }
 
         // save changes and return plain token
+        log::info!("Updating email login token for db.members.users.rowid={} ({})", self.db_row.rowid, self.name_ref());
         self.db_row.email_token = Some(token.encrypted);
         self.db_row.email_token_creation = Some(time_now);
         self.db_row.email_token_consumption = None;
