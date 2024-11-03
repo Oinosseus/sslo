@@ -25,11 +25,11 @@ pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor) -> Result<
     html.push_body("</div>");
 
     // Login with Password
-    html.push_body("<form id=\"TabLoginPassword\" class=\"ActiveTab\">");
+    html.push_body("<form id=\"TabLoginPassword\" action=\"/html/login_email_password\" method=\"post\" class=\"ActiveTab\">");
     html.push_body("<label>Login with SSLO Password</label>");
-    html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" name=\"LoginEmail\">");
-    html.push_body("<input required placeholder=\"password\" type=\"password\" name=\"LoginPassword\">");
-    html.push_body("<button type=\"button\">Login</button>");
+    html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" name=\"email\">");
+    html.push_body("<input required placeholder=\"password\" type=\"password\" name=\"password\">");
+    html.push_body("<button type=\"submit\">Login</button>");
     html.push_body("</form>");
 
     // Login with Email SSO
@@ -52,6 +52,45 @@ pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor) -> Result<
 #[derive(Deserialize)]
 pub struct LoginEmailRequestData {
     email: String,
+    password: Option<String>,
+}
+
+
+pub async fn handler_email_password(State(app_state): State<AppState>,
+                                    HttpUserExtractor(http_user): HttpUserExtractor,
+                                    axum::Form(form): axum::Form<LoginEmailRequestData>,
+) -> Result<Response, StatusCode> {
+    let mut html = HtmlTemplate::new(http_user);
+    html.include_css("/rsc/css/login.css");
+    html.include_js("/rsc/js/login.js");
+
+    // artificial slowdown
+    let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~2000 maximum
+    tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
+
+    // verify login
+    let mut cookie: Option<String> = None;
+    if let Some(password) = form.password {
+        let user = app_state.db_members.user_from_email_password(html.http_user.user_agent.clone(), &form.email, password).await;
+        if let Some(ref some_user) = user {
+            cookie = app_state.db_members.cookie_login_new(some_user).await;
+        }
+    }
+
+    // user info
+    if cookie.is_none() {
+        html.message_error("Login failed!".to_string());
+    } else {
+        html.message_success("Login successful!".to_string());
+    }
+
+    // done
+    let mut response = html.into_response();
+    if let Some(cookie) = cookie {
+        response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
+        response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
+    }
+    Ok(response)
 }
 
 
@@ -122,9 +161,9 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
     // verify login
-    let user_item = app_state.db_members.user_from_email_token(&email, token).await;
+    let user = app_state.db_members.user_from_email_token(&email, token).await;
     let mut cookie: Option<String> = None;
-    if let Some(ref some_user) = user_item {
+    if let Some(ref some_user) = user {
         cookie = app_state.db_members.cookie_login_new(some_user).await;
     }
 

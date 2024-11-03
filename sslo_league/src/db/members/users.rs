@@ -111,7 +111,7 @@ impl User {
     }
 
 
-    /// Create a new CookieLogin from an email token.
+    /// Retrieve a User object from database
     /// This is similar to from_email(), but additionally verifies and consumes the token
     pub async fn from_email_token(db_pool: SqlitePool, email: &str, plain_token: String) -> Option<Self> {
 
@@ -186,6 +186,53 @@ impl User {
         log::info!("User email token redeemed: members.users.rowid={} ({})", item.db_row.rowid, email);
         Self::from_id(db_pool, item.db_row.rowid).await
     }
+
+
+    /// Retrieve a User object from database
+    /// This is similar to from_email(), but additionally verifies a password
+    pub async fn from_email_password(db_pool: SqlitePool, user_agent: String, email: &str, plain_password: String) -> Option<Self> {
+
+        // get self
+        let item: Self = match Self::from_email(db_pool.clone(), email).await {
+            Some(x) => x,
+            None => {
+                return None;
+            }
+        };
+
+        // verify password
+        if let Some(password) = item.db_row.password {
+            match argon2::verify_encoded(&password, plain_password.as_bytes()) {
+                Ok(true) => {},
+                Ok(false) => {
+                    log::warn!("Deny invalid email password for db.members.users.rowid={} ({})", item.db_row.rowid, email);
+                    return None;
+                },
+                Err(e) => {
+                    log::error!("Failed to verify encoded password for db.members.users.rowid={}", item.db_row.rowid);
+                    return None;
+                }
+            }
+        }
+
+        // update DB
+        match sqlx::query("UPDATE users SET password_last_usage=$1, password_last_user_agent=$2 WHERE rowid=$3;")
+            .bind(Utc::now())
+            .bind(user_agent)
+            .bind(item.db_row.rowid)
+            .execute(&db_pool)
+            .await {
+                Ok(_) => {},
+                Err(e) => {
+                    log::error!("Failed to update db.members.users.rowid={}", item.db_row.rowid);
+                    return None;
+                }
+        }
+
+        // return fresh item
+        Self::from_id(db_pool, item.db_row.rowid).await
+    }
+
 
 
     /// Create a new token for email login
