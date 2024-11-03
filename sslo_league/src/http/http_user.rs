@@ -32,6 +32,9 @@ impl HttpUser {
         }
     }
 
+
+    pub fn user(&self) -> Option<&crate::db::members::users::User> { self.user.as_ref()}
+
 }
 
 

@@ -32,7 +32,7 @@ paths:
                 properties:
         '500':
           $ref: '#/components/responses/GeneralError'
-  /user/set_name:
+  /user/update_settings:
     post:
       summary: Change name of current user
       requestBody:
@@ -45,6 +45,10 @@ paths:
               properties:
                 new_name:
                   type: string
+                old_password:
+                  type: string
+                new_password:
+                  type: string
       responses:
         '200':
           description: "Name changed"
@@ -55,4 +59,4 @@ paths:
         '401':
           description: "Current user not valid"
         '500':
-          description: "Change failed"
+          $ref: '#/components/responses/GeneralError'

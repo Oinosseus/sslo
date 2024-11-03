@@ -117,7 +117,6 @@ impl CookieLogin {
         if cookie.find("cookie_login=").is_none() {
             return None;
         };
-        println!("HERE1 {}ms", process_duration.elapsed().as_millis());
 
         // chop cookie string
         let re = regex::Regex::new(r"^cookie_login=([0-9]+):(.*)$").unwrap();

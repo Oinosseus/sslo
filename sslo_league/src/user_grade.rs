@@ -127,8 +127,8 @@ impl UserGrade {
                     None => { LoginActivity::None },
                     Some(last_login) => {
                         let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(app_state.config.general.days_recent_activity)));
-                        if last_login > obsolescence_threshold { LoginActivity::Obsolete }
-                        else { LoginActivity::Recent }
+                        if last_login > obsolescence_threshold { LoginActivity::Recent }
+                        else { LoginActivity::Obsolete }
                     }
                 };
             }
@@ -138,8 +138,8 @@ impl UserGrade {
                 None => DrivingActivity::None,
                 Some(last_lap) => {
                     let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(app_state.config.general.days_recent_activity)));
-                    if last_lap > obsolescence_threshold { DrivingActivity::Obsolete }
-                    else { DrivingActivity::Recent }
+                    if last_lap > obsolescence_threshold { DrivingActivity::Recent }
+                    else { DrivingActivity::Obsolete }
                 }
             };
 

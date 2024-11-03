@@ -145,8 +145,9 @@ impl IntoResponse for HtmlTemplate {
         // footer
         html.push_str("    <footer>\n");
         html.push_str(self.http_user.name());
-        html.push_str(" ");
+        html.push_str(" <small>&lt;");
         html.push_str(&self.http_user.user_grade.label());
+        html.push_str("&gt;</small>");
         html.push_str("    </footer>\n");
 
         // html finish
@@ -172,7 +173,7 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/html/user_settings", routing::get(routes_html::user::handler_settings))
 
         .route("/api/v0/login/email", routing::post(routes_rest_v0::login_email::handler))
-        .route("/api/v0/user/set_name", routing::post(routes_rest_v0::user::handler_set_name))
+        .route("/api/v0/user/update_settings", routing::post(routes_rest_v0::user::handler_update_settings))
 
         .with_state(app_state);
     router

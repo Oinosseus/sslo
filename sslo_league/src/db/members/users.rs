@@ -1,5 +1,6 @@
 use std::error::Error;
 use chrono::{DateTime, Utc};
+use rand::RngCore;
 use sqlx::SqlitePool;
 use sslo_lib::token;
 use crate::user_grade;
@@ -84,6 +85,8 @@ impl User {
     pub fn promotion_authority(&self) -> user_grade::PromotionAuthority {
         self.db_row.promotion_authority.clone()
     }
+
+    pub fn has_password(&self) -> bool { self.db_row.password.is_some() }
 
     /// database rowid
     pub fn rowid(&self) -> i64 { self.db_row.rowid }
@@ -250,6 +253,64 @@ impl User {
             Err(e) => {
                 log::error!("Failed to update db.members.users.rowid={}", self.db_row.rowid);
                 Err(e)?
+            }
+        }
+    }
+
+
+    /// set new password
+    pub async fn update_password(&mut self, old_password: Option<String>, new_password: String) -> Result<(), ()> {
+
+        // check old password
+        if let Some(ref some_password) = self.db_row.password {
+            if let Some(some_old_password) = old_password {
+                match argon2::verify_encoded(some_password, &some_old_password.into_bytes()) {
+                    Ok(true) => {},
+                    Ok(false) => {
+                        log::warn!("Deny password change for db.members.users.rowid={} ({}), because old_password does not match!", self.db_row.rowid, self.name_ref());
+                        return Err(());
+                    },
+                    Err(e) => {
+                        log::error!("Argon2 failure at verifying passwords: {}", e);
+                        return Err(());
+                    }
+                }
+            } else {
+                log::warn!("Deny password change for db.members.users.rowid={} ({}), because no old_password presented!", self.db_row.rowid, self.name_ref());
+                return Err(());
+            }
+        }
+
+        // check new password strength
+        if new_password.len() < 8 {
+            log::warn!("Deny setting password for db.members.users.rowid={}, because new password too short!", self.db_row.rowid);
+            return Err(())
+        }
+
+        // encrypt new password
+        let mut salt: Vec<u8> = vec![0u8; 64];
+        rand::thread_rng().fill_bytes(&mut salt);
+        let password = match argon2::hash_encoded(&new_password.into_bytes(), &salt, &argon2::Config::default()) {
+            Ok(p) => p,
+            Err(e) => {
+                log::error!("Failed to encrypt password: {}", e);
+                return Err(());
+            }
+        };
+
+        // store to db, return
+        match sqlx::query("UPDATE users SET password=$1 WHERE rowid=$2;")
+            .bind(password)
+            .bind(self.db_row.rowid)
+            .execute(&self.db_pool)
+            .await {
+            Err(e) => {
+                log::error!("Failed to update db.members.users.rowid={}, because: {}", self.db_row.rowid, e);
+                Err(())
+            },
+            Ok(_) => {
+                log::info!("Changing password of db.members.users.rowid={} ({})", self.db_row.rowid, self.name_ref());
+                Ok(())
             }
         }
     }
