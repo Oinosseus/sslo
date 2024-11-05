@@ -9,13 +9,21 @@ CREATE TABLE users (
     email_token_consumption TEXT,
     password BLOB,
     password_last_usage TEXT,
-    password_last_user_agent BLOB
+    password_last_useragent BLOB
 );
 
 CREATE TABLE cookie_logins (
     user INTEGER NOT NULL,
     token BLOB NOT NULL UNIQUE,
     creation TEXT NOT NULL,
-    last_user_agent BLOB,
+    last_useragent BLOB,
     last_usage TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE steam_users (
+    steam_id TEXT NOT NULL UNIQUE,
+    creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    user INTEGER,
+    last_login_timestamp TEXT,
+    last_login_useragent BLOB
+)

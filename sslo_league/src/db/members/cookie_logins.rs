@@ -11,7 +11,7 @@ struct DbRow {
     pub user: i64,
     pub token: String,
     pub creation: DateTime<Utc>,
-    pub last_user_agent: Option<String>,
+    pub last_useragent: Option<String>,
     pub last_usage: Option<DateTime<Utc>>,
 }
 
@@ -110,7 +110,7 @@ impl CookieLogin {
 
     /// Get an item from the database
     /// This verifies the token and automatically updates usage info
-    pub async fn from_cookie(pool: SqlitePool, user_agent: String, cookie: &str) -> Option<Self> {
+    pub async fn from_cookie(pool: SqlitePool, useragent: String, cookie: &str) -> Option<Self> {
         let process_duration = std::time::Instant::now();
 
         // quick check
@@ -143,18 +143,18 @@ impl CookieLogin {
         }
 
         // update usage
-        item.report_usage(user_agent).await;
+        item.report_usage(useragent).await;
 
         Some(item)
     }
 
 
     /// Update usage info
-    pub async fn report_usage(&mut self, user_agent: String) {
+    pub async fn report_usage(&mut self, useragent: String) {
 
         // update db
-        let row = match sqlx::query_as("UPDATE cookie_logins SET last_user_agent=$1, last_usage=$2 WHERE rowid=$3 RETURNING rowid,*;")
-            .bind(user_agent)
+        let row = match sqlx::query_as("UPDATE cookie_logins SET last_useragent=$1, last_usage=$2 WHERE rowid=$3 RETURNING rowid,*;")
+            .bind(useragent)
             .bind(Utc::now())
             .bind(self.row.rowid)
             .fetch_one(&self.pool)
@@ -188,7 +188,7 @@ impl CookieLogin {
     }
 
 
-    pub fn last_user_agent(&self) -> Option<&String> { self.row.last_user_agent.as_ref() }
+    pub fn last_useragent(&self) -> Option<&String> { self.row.last_useragent.as_ref() }
 
     pub fn last_usage(&self) -> Option<DateTime<Utc>> { self.row.last_usage }
 

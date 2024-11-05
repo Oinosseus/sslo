@@ -18,22 +18,24 @@ struct DbRow {
     pub email_token_consumption: Option<DateTime<Utc>>,
     pub password: Option<String>,
     pub password_last_usage: Option<DateTime<Utc>>,
-    pub password_last_user_agent: Option<String>,
+    pub password_last_useragent: Option<String>,
 }
 
 
 pub struct User {
-    db_row: DbRow,
-    db_pool: SqlitePool,
+    row: DbRow,
+    pool: SqlitePool,
 }
 
 impl User {
 
     /// Retrieve a User object from database
-    pub async fn from_id(db_pool: SqlitePool, rowid: i64) -> Option<Self> {
-        let mut rows = match sqlx::query_as("SELECT rowid,* FROM users WHERE rowid = $1")
+    pub async fn from_id(pool: SqlitePool, rowid: i64) -> Option<Self> {
+
+        // query
+        let mut rows = match sqlx::query_as("SELECT rowid,* FROM sers WHERE rowid = $1 LIMIT 2;")
             .bind(rowid)
-            .fetch_all(&db_pool)
+            .fetch_all(&pool)
             .await {
             Ok(r) => r,
             Err(e) => {
@@ -41,11 +43,16 @@ impl User {
                 return None;
             }
         };
-        if let Some(db_row) = rows.pop() {
-            Some(Self {db_row, db_pool})
-        } else {
-            None
+
+        // ambiguity check
+        if rows.len() > 1 {
+            log::error!("Ambiguous rowid for db.members.users.rowid={}", rowid);
+            return None;
         }
+
+        // return
+        if let Some(row) = rows.pop() { Some(Self {row, pool}) }
+        else { None }
     }
 
 
@@ -67,7 +74,7 @@ impl User {
             return None;
         }
         if let Some(db_row) = rows.pop() {
-            Some(Self {db_row, db_pool})
+            Some(Self { row: db_row, pool: db_pool })
         } else {
             None
         }
@@ -75,21 +82,21 @@ impl User {
 
 
     /// datetime of last driven lap
-    pub fn last_lap(&self) -> Option<DateTime<Utc>> { self.db_row.last_lap }
+    pub fn last_lap(&self) -> Option<DateTime<Utc>> { self.row.last_lap }
 
     /// name of the user
-    pub fn name_ref(&self) -> &str { &self.db_row.name }
+    pub fn name_ref(&self) -> &str { &self.row.name }
 
-    pub fn promotion(&self) -> user_grade::Promotion { self.db_row.promotion.clone() }
+    pub fn promotion(&self) -> user_grade::Promotion { self.row.promotion.clone() }
 
     pub fn promotion_authority(&self) -> user_grade::PromotionAuthority {
-        self.db_row.promotion_authority.clone()
+        self.row.promotion_authority.clone()
     }
 
-    pub fn has_password(&self) -> bool { self.db_row.password.is_some() }
+    pub fn has_password(&self) -> bool { self.row.password.is_some() }
 
     /// database rowid
-    pub fn rowid(&self) -> i64 { self.db_row.rowid }
+    pub fn rowid(&self) -> i64 { self.row.rowid }
 
 
     /// Insert new entry into users table
@@ -101,7 +108,7 @@ impl User {
             .await {
                 Ok(db_row) => {
                     log::info!("Creating user from email '{}'", email);
-                    Some(Self { db_row, db_pool })
+                    Some(Self { row: db_row, pool: db_pool })
                 },
                 Err(e) => {
                     log::error!("Unable to create new row into db.members.users: {}", e);
@@ -130,18 +137,18 @@ impl User {
             .unwrap();  // subtracting one hour cannot fail, technically
 
         // check if token is existing
-        let crypted_token: String = match item.db_row.email_token {
+        let crypted_token: String = match item.row.email_token {
             Some(token_ref) => token_ref.clone(),
             None => {
-                log::warn!("No token set for db.members.users.rowid={} ({})", item.db_row.rowid, email);
+                log::warn!("No token set for db.members.users.rowid={} ({})", item.row.rowid, email);
                 return None;
             },
         };
 
         // check if token was already used
-        if let Some(email_token_consumption) = item.db_row.email_token_consumption {
+        if let Some(email_token_consumption) = item.row.email_token_consumption {
             log::warn!("Deny redeeming token for db.members.users.rowid={} ({}), because already consumed at {}",
-                item.db_row.rowid,
+                item.row.rowid,
                 email,
                 email_token_consumption,
             );
@@ -149,14 +156,14 @@ impl User {
         }
 
         // check if token is still valid
-        match item.db_row.email_token_creation {
+        match item.row.email_token_creation {
             None => {
-                log::error!("Invalid token creation time for db.members.users.rowid={} ({})", item.db_row.rowid, email);
+                log::error!("Invalid token creation time for db.members.users.rowid={} ({})", item.row.rowid, email);
                 return None;
             },
             Some(token_creation) => {
                 if token_creation < time_token_outdated {  // token outdated
-                    log::warn!("Deny redeeming token for db.members.users rowid={} ({}), because token outdated", item.db_row.rowid, email);
+                    log::warn!("Deny redeeming token for db.members.users rowid={} ({}), because token outdated", item.row.rowid, email);
                     return None;
                 }
             },
@@ -165,32 +172,32 @@ impl User {
         // verify token
         let token = token::Token::new(plain_token, crypted_token);
         if !token.verify() {
-            log::warn!("Deny redeeming token for db.members.users.rowid={} ({}), because token invalid!", item.db_row.rowid, email);
+            log::warn!("Deny redeeming token for db.members.users.rowid={} ({}), because token invalid!", item.row.rowid, email);
             return None;
         }
 
         // redeem token
         match sqlx::query("UPDATE users SET email_token=NULL, email_token_consumption=$1 WHERE rowid=$2;")
             .bind(&time_now)
-            .bind(item.db_row.rowid)
+            .bind(item.row.rowid)
             .execute(&db_pool)
             .await {
             Ok(_) => {},
             Err(e) => {
-                log::error!("Database error at redeeming token for db.members.users.rowid={} ({}), because: {}", item.db_row.rowid, email, e);
+                log::error!("Database error at redeeming token for db.members.users.rowid={} ({}), because: {}", item.row.rowid, email, e);
                 return None;
             },
         };
 
         // redeeming seem to be fine
-        log::info!("User email token redeemed: members.users.rowid={} ({})", item.db_row.rowid, email);
-        Self::from_id(db_pool, item.db_row.rowid).await
+        log::info!("User email token redeemed: members.users.rowid={} ({})", item.row.rowid, email);
+        Self::from_id(db_pool, item.row.rowid).await
     }
 
 
     /// Retrieve a User object from database
     /// This is similar to from_email(), but additionally verifies a password
-    pub async fn from_email_password(db_pool: SqlitePool, user_agent: String, email: &str, plain_password: String) -> Option<Self> {
+    pub async fn from_email_password(db_pool: SqlitePool, useragent: String, email: &str, plain_password: String) -> Option<Self> {
 
         // get self
         let item: Self = match Self::from_email(db_pool.clone(), email).await {
@@ -201,36 +208,36 @@ impl User {
         };
 
         // verify password
-        if let Some(password) = item.db_row.password {
+        if let Some(password) = item.row.password {
             match argon2::verify_encoded(&password, plain_password.as_bytes()) {
                 Ok(true) => {},
                 Ok(false) => {
-                    log::warn!("Deny invalid email password for db.members.users.rowid={} ({})", item.db_row.rowid, email);
+                    log::warn!("Deny invalid email password for db.members.users.rowid={} ({})", item.row.rowid, email);
                     return None;
                 },
                 Err(e) => {
-                    log::error!("Failed to verify encoded password for db.members.users.rowid={}", item.db_row.rowid);
+                    log::error!("Failed to verify encoded password for db.members.users.rowid={}", item.row.rowid);
                     return None;
                 }
             }
         }
 
         // update DB
-        match sqlx::query("UPDATE users SET password_last_usage=$1, password_last_user_agent=$2 WHERE rowid=$3;")
+        match sqlx::query("UPDATE users SET password_last_usage=$1, password_last_useragent=$2 WHERE rowid=$3;")
             .bind(Utc::now())
-            .bind(user_agent)
-            .bind(item.db_row.rowid)
+            .bind(useragent)
+            .bind(item.row.rowid)
             .execute(&db_pool)
             .await {
                 Ok(_) => {},
                 Err(e) => {
-                    log::error!("Failed to update db.members.users.rowid={}", item.db_row.rowid);
+                    log::error!("Failed to update db.members.users.rowid={}", item.row.rowid);
                     return None;
                 }
         }
 
         // return fresh item
-        Self::from_id(db_pool, item.db_row.rowid).await
+        Self::from_id(db_pool, item.row.rowid).await
     }
 
 
@@ -254,10 +261,10 @@ impl User {
             .unwrap();  // subtracting one hour cannot fail, technically
 
         // check last token
-        if let Some(token_creation) = self.db_row.email_token_creation {
+        if let Some(token_creation) = self.row.email_token_creation {
             if token_creation > time_token_outdated {               // token is still valid
-                if self.db_row.email_token_consumption.is_none() {    // token is not used, yet
-                    log::warn!("Not generating new email login token for user {}:'{}' because last token is still active.", self.db_row.rowid, self.name_ref());
+                if self.row.email_token_consumption.is_none() {    // token is not used, yet
+                    log::warn!("Not generating new email login token for user {}:'{}' because last token is still active.", self.row.rowid, self.name_ref());
                     return None;
                 }
             }
@@ -267,8 +274,8 @@ impl User {
         match sqlx::query("UPDATE users SET email_token=$1, email_token_creation=$2, email_token_consumption=NULL WHERE rowid=$3;")
             .bind(&token.encrypted)
             .bind(&time_now)
-            .bind(self.db_row.rowid)
-            .execute(&self.db_pool)
+            .bind(self.row.rowid)
+            .execute(&self.pool)
             .await {
             Ok(_) => {},
             Err(e) => {
@@ -278,10 +285,10 @@ impl User {
         }
 
         // save changes and return plain token
-        log::info!("Updating email login token for db.members.users.rowid={} ({})", self.db_row.rowid, self.name_ref());
-        self.db_row.email_token = Some(token.encrypted);
-        self.db_row.email_token_creation = Some(time_now);
-        self.db_row.email_token_consumption = None;
+        log::info!("Updating email login token for db.members.users.rowid={} ({})", self.row.rowid, self.name_ref());
+        self.row.email_token = Some(token.encrypted);
+        self.row.email_token_creation = Some(time_now);
+        self.row.email_token_consumption = None;
         Some(token.decrypted)
     }
 
@@ -290,15 +297,15 @@ impl User {
     pub async fn update_name(&mut self, name: String) -> Result<(), Box<dyn Error>> {
         match sqlx::query("UPDATE users SET name = $1 WHERE rowid = $2;")
             .bind(&name)
-            .bind(self.db_row.rowid)
-            .execute(&self.db_pool)
+            .bind(self.row.rowid)
+            .execute(&self.pool)
             .await {
             Ok(_) => {
-                self.db_row.name = name;
+                self.row.name = name;
                 Ok(())
             },
             Err(e) => {
-                log::error!("Failed to update db.members.users.rowid={}", self.db_row.rowid);
+                log::error!("Failed to update db.members.users.rowid={}", self.row.rowid);
                 Err(e)?
             }
         }
@@ -309,12 +316,12 @@ impl User {
     pub async fn update_password(&mut self, old_password: Option<String>, new_password: String) -> Result<(), ()> {
 
         // check old password
-        if let Some(ref some_password) = self.db_row.password {
+        if let Some(ref some_password) = self.row.password {
             if let Some(some_old_password) = old_password {
                 match argon2::verify_encoded(some_password, &some_old_password.into_bytes()) {
                     Ok(true) => {},
                     Ok(false) => {
-                        log::warn!("Deny password change for db.members.users.rowid={} ({}), because old_password does not match!", self.db_row.rowid, self.name_ref());
+                        log::warn!("Deny password change for db.members.users.rowid={} ({}), because old_password does not match!", self.row.rowid, self.name_ref());
                         return Err(());
                     },
                     Err(e) => {
@@ -323,14 +330,14 @@ impl User {
                     }
                 }
             } else {
-                log::warn!("Deny password change for db.members.users.rowid={} ({}), because no old_password presented!", self.db_row.rowid, self.name_ref());
+                log::warn!("Deny password change for db.members.users.rowid={} ({}), because no old_password presented!", self.row.rowid, self.name_ref());
                 return Err(());
             }
         }
 
         // check new password strength
         if new_password.len() < 8 {
-            log::warn!("Deny setting password for db.members.users.rowid={}, because new password too short!", self.db_row.rowid);
+            log::warn!("Deny setting password for db.members.users.rowid={}, because new password too short!", self.row.rowid);
             return Err(())
         }
 
@@ -348,15 +355,15 @@ impl User {
         // store to db, return
         match sqlx::query("UPDATE users SET password=$1 WHERE rowid=$2;")
             .bind(password)
-            .bind(self.db_row.rowid)
-            .execute(&self.db_pool)
+            .bind(self.row.rowid)
+            .execute(&self.pool)
             .await {
             Err(e) => {
-                log::error!("Failed to update db.members.users.rowid={}, because: {}", self.db_row.rowid, e);
+                log::error!("Failed to update db.members.users.rowid={}, because: {}", self.row.rowid, e);
                 Err(())
             },
             Ok(_) => {
-                log::info!("Changing password of db.members.users.rowid={} ({})", self.db_row.rowid, self.name_ref());
+                log::info!("Changing password of db.members.users.rowid={} ({})", self.row.rowid, self.name_ref());
                 Ok(())
             }
         }

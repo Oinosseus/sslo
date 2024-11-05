@@ -1,6 +1,7 @@
 pub mod emails;
 pub mod users;
 pub mod cookie_logins;
+mod steam_users;
 
 use std::error::Error;
 use sqlx::sqlite::SqlitePool;
