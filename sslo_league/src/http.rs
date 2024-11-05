@@ -32,6 +32,11 @@ impl HtmlTemplate {
     }
 
 
+    pub fn http_user(&self) -> &http_user::HttpUser {
+        &self.http_user
+    }
+
+
     /// Adding a string to the HTML body
     pub fn push_body(&mut self, body: &str) {
         self.html_body += body;
@@ -106,7 +111,7 @@ impl IntoResponse for HtmlTemplate {
         html += "          <div class=\"NavbarNoDrop\">\n";
         html += "              <a href=\"/\" class=\"active\">Home</a>\n";
         html += "          </div>\n";
-        if self.http_user.currently_logged_in {
+        if self.http_user.user.is_some() {
             html += "          <div class=\"NavbarDropdown\">\n";
             html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">🯅 User ⯆</a>\n";
             html += "              <div>\n";
@@ -140,8 +145,9 @@ impl IntoResponse for HtmlTemplate {
         // footer
         html.push_str("    <footer>\n");
         html.push_str(self.http_user.name());
-        html.push_str(" ");
+        html.push_str(" <small>&lt;");
         html.push_str(&self.http_user.user_grade.label());
+        html.push_str("&gt;</small>");
         html.push_str("    </footer>\n");
 
         // html finish
@@ -158,12 +164,18 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/rsc/*filepath", routing::get(static_resources::route_handler))
 
         .route("/", routing::get(routes_html::home::handler))
+
         .route("/html/login", routing::get(routes_html::login::handler))
+        .route("/html/login_email_password", routing::post(routes_html::login::handler_email_password))
         .route("/html/login_email_generate", routing::post(routes_html::login::handler_email_generate))
         .route("/html/login_email_verify/:email/:token", routing::get(routes_html::login::handler_email_verify))
         .route("/html/logout", routing::get(routes_html::login::handler_logout))
 
+        .route("/html/user_settings", routing::get(routes_html::user::handler_settings))
+
         .route("/api/v0/login/email", routing::post(routes_rest_v0::login_email::handler))
+        .route("/api/v0/user/update_settings", routing::post(routes_rest_v0::user::handler_update_settings))
+
         .with_state(app_state);
     router
 }

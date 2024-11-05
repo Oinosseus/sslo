@@ -7,16 +7,35 @@ use crate::user_grade::UserGrade;
 
 /// Representing the current user of the http service
 pub struct HttpUser {
-    pub name: String,
+    pub user: Option<crate::db::members::users::User>,
     pub user_grade: UserGrade,
-    pub currently_logged_in: bool,
-    pub cookie_login_item: Option<crate::db::members::cookie_logins::Item>,
+    pub cookie_login: Option<crate::db::members::cookie_logins::CookieLogin>,
+    pub user_agent: String,
 }
 
 
 impl HttpUser {
 
-    pub fn name(&self) -> &str { &self.name }
+    /// Crate a object with lowest permissions
+    pub fn new_lowest() -> Self {
+        Self {
+            user: None,
+            user_grade: UserGrade::new_lowest(),
+            cookie_login: None,
+            user_agent: "".to_string(),
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        if let Some(item) = &self.user {
+            &item.name_ref()
+        } else {
+            ""
+        }
+    }
+
+
+    pub fn user(&self) -> Option<&crate::db::members::users::User> { self.user.as_ref()}
 
 }
 
@@ -37,32 +56,34 @@ where
 
         let app_state = AppState::from_ref(state);
 
+        // extract user agent
+        let mut user_agent = String::new();
+        if let Some(some_user_agent) = parts.headers.get(header::USER_AGENT) {
+            if let Ok(some_user_agent_string) = some_user_agent.to_str() {
+                user_agent = some_user_agent_string.to_string();
+            }
+        }
 
         // try finding database user from cookies
-        let mut user_item: Option<crate::db::members::users::Item> = None;
-        let mut cookie_login_item: Option<crate::db::members::cookie_logins::Item> = None;
+        let mut user: Option<crate::db::members::users::User> = None;
+        let mut cookie_login: Option<crate::db::members::cookie_logins::CookieLogin> = None;
         for cookie_header in parts.headers.get_all(header::COOKIE) {
             if let Ok(cookie_string) = cookie_header.to_str() {
-                if let Some(user_agent) = parts.headers.get(header::USER_AGENT) {
-                    if let Ok(user_agent) = user_agent.to_str() {
-                        if let Some(cli) = app_state.db_members.tbl_cookie_logins.from_cookie(user_agent, cookie_string).await {
-                            user_item = app_state.db_members.tbl_users.from_id(cli.user).await;
-                            cookie_login_item = Some(cli);
-                            break;
-                        }
+                if let Some(cl) = app_state.db_members.cookie_login_from_cookie(user_agent.to_string(), cookie_string).await {
+                    if let Some(cl_user) = cl.user().await {
+                        user = Some(cl_user);
+                        cookie_login = Some(cl);
+                        break;
                     }
                 }
             }
         };
 
         let http_user = HttpUser {
-            name: match user_item {
-                Some(ref item) => item.name.clone(),
-                None => String::from("-"),
-            },
-            currently_logged_in: user_item.is_some(),
-            user_grade: UserGrade::from_user(&app_state, user_item).await,
-            cookie_login_item,
+            user_grade: UserGrade::from_user(&app_state, &user).await,
+            user,
+            cookie_login,
+            user_agent,
         };
 
         // return

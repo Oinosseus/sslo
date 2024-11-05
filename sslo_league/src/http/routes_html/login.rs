@@ -6,6 +6,7 @@ use rand::RngCore;
 use serde::Deserialize;
 use crate::app_state::AppState;
 use crate::http::HtmlTemplate;
+use crate::http::http_user::HttpUser;
 use super::super::http_user::HttpUserExtractor;
 
 
@@ -24,11 +25,11 @@ pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor) -> Result<
     html.push_body("</div>");
 
     // Login with Password
-    html.push_body("<form id=\"TabLoginPassword\" class=\"ActiveTab\">");
+    html.push_body("<form id=\"TabLoginPassword\" action=\"/html/login_email_password\" method=\"post\" class=\"ActiveTab\">");
     html.push_body("<label>Login with SSLO Password</label>");
-    html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" name=\"LoginEmail\">");
-    html.push_body("<input required placeholder=\"password\" type=\"password\" name=\"LoginPassword\">");
-    html.push_body("<button type=\"button\">Login</button>");
+    html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" name=\"email\">");
+    html.push_body("<input required placeholder=\"password\" type=\"password\" name=\"password\">");
+    html.push_body("<button type=\"submit\">Login</button>");
     html.push_body("</form>");
 
     // Login with Email SSO
@@ -51,6 +52,45 @@ pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor) -> Result<
 #[derive(Deserialize)]
 pub struct LoginEmailRequestData {
     email: String,
+    password: Option<String>,
+}
+
+
+pub async fn handler_email_password(State(app_state): State<AppState>,
+                                    HttpUserExtractor(http_user): HttpUserExtractor,
+                                    axum::Form(form): axum::Form<LoginEmailRequestData>,
+) -> Result<Response, StatusCode> {
+    let mut html = HtmlTemplate::new(http_user);
+    html.include_css("/rsc/css/login.css");
+    html.include_js("/rsc/js/login.js");
+
+    // artificial slowdown
+    let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~2000 maximum
+    tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
+
+    // verify login
+    let mut cookie: Option<String> = None;
+    if let Some(password) = form.password {
+        let user = app_state.db_members.user_from_email_password(html.http_user.user_agent.clone(), &form.email, password).await;
+        if let Some(ref some_user) = user {
+            cookie = app_state.db_members.cookie_login_new(some_user).await;
+        }
+    }
+
+    // user info
+    if cookie.is_none() {
+        html.message_error("Login failed!".to_string());
+    } else {
+        html.message_success("Login successful!".to_string());
+    }
+
+    // done
+    let mut response = html.into_response();
+    if let Some(cookie) = cookie {
+        response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
+        response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
+    }
+    Ok(response)
 }
 
 
@@ -67,12 +107,16 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
     let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~2000 maximum
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
+    // get user
+    let mut user_item = app_state.db_members.user_from_email(&form.email).await;
+    if user_item.is_none() {  // create new user from email
+        user_item = app_state.db_members.user_new_from_email(&form.email).await;
+    }
+
     // create new token
     let mut token : Option<String> = None;  // need this option, because build fails when nesting new_email_login_token() and send_email()
-    if let Ok(t) = app_state.db_members.tbl_emails.new_email_login_token(&form.email).await {
-        token = Some(t);
-    } else {
-        log::warn!("Could not generate email login token for {}", form.email);
+    if let Some(mut some_user_item) = user_item {
+        token = some_user_item.update_email_login_token().await;
     }
 
     // send info email
@@ -117,65 +161,40 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
     // verify login
-    let user_id: Option<i64>;
-    match app_state.db_members.tbl_emails.from_email_token(email, token).await {
-        Ok(row_user) => {
-            log::info!("Login with email, user {}:{}", row_user.rowid, row_user.name);
-            html.message_success("Successfully logged in.".to_string());
-            user_id = Some(row_user.rowid);
-        },
-        Err(e) => {
-            log::warn!("Could not login by email: {}", e);
-            html.message_error("Login failed!".to_string());
-            user_id = None;
-        }
+    let user = app_state.db_members.user_from_email_token(&email, token).await;
+    let mut cookie: Option<String> = None;
+    if let Some(ref some_user) = user {
+        cookie = app_state.db_members.cookie_login_new(some_user).await;
     }
 
-    // prepare cookie
-    let cookie: Option<String> = match user_id {
-        None => None,
-        Some(id) => {
-            Some(app_state.db_members.tbl_cookie_logins.new_cookie(id).await.or_else(|e| {
-                log::error!("Failed to create login cookie: {}", e);
-                html.message_error("Internal Server Error!".to_string());
-                Err(StatusCode::INTERNAL_SERVER_ERROR)
-            })?)
-        },
-    };
+    // user info
+    if cookie.is_none() {
+        html.message_error("Login failed!".to_string());
+    }
 
     // done
     let mut response = html.into_response();
     if let Some(cookie) = cookie {
         response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
-        response.headers_mut().insert(REFRESH, "2; url=/".parse().unwrap());
+        response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
     }
     Ok(response)
 }
 
 
 pub async fn handler_logout(State(app_state): State<AppState>,
-                     HttpUserExtractor(http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
+                     HttpUserExtractor(mut http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
 
-    // deny when not logged in
-    if !http_user.currently_logged_in {
+    let mut cookie_value: Option<String> = None;
+    if let Some(cookie_login) = http_user.cookie_login {
+        cookie_value = Some(cookie_login.delete().await);  // invalidate login cookie
+        http_user = HttpUser::new_lowest();                // create new user
+    } else {
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    // invalidate token
-    let mut cookie_value: Option<String> = None;
-    if let Some(item) = http_user.cookie_login_item.as_ref() {
-        match app_state.db_members.tbl_cookie_logins.delete_cookie(item).await {
-            Ok(cookie) => {
-                cookie_value = Some(cookie);
-            },
-            Err(e) => {
-                log::error!("Failed to delete cookie login item[rowid={}]: {:?}", item.rowid, e)
-            },
-        };
-    };
-
     // generate html
-    let name = http_user.name.clone();
+    let name = http_user.name().to_string();
     let mut html = HtmlTemplate::new(http_user);
     html.message_success(format!("Logged out '{}' ...", name));
 
@@ -183,7 +202,7 @@ pub async fn handler_logout(State(app_state): State<AppState>,
     let mut response = html.into_response();
     if let Some(cookie_value) = cookie_value {
         response.headers_mut().insert(SET_COOKIE, cookie_value.parse().unwrap());
-        response.headers_mut().insert(REFRESH, "2; url=/".parse().unwrap());
+        response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
     }
     Ok(response)
 }

@@ -11,7 +11,7 @@
     /*--color-light-text: #bbb;*/
 
     /* New Color Scheme */
-    --color-white: #ddd;
+    --color-white: #dde;
     --color-black: #666;
     --color-green: #3d1;
 }
@@ -104,7 +104,7 @@ nav a {
 nav > div#NavbarMenu > div > a:hover {
     background-color: var(--color-white);
     color: var(--color-dark-bg);
-    border-radius: 0.5em;
+    border-radius: 0.2em;
 }
 
 nav > div#NavbarMenu > div.NavbarDropdown > div {
@@ -124,7 +124,7 @@ nav > div#NavbarMenu > div.NavbarDropdown > div > a:hover {
 nav > div#NavbarMenu > div.NavbarDropdownActive a {
     background-color: var(--color-white);
     color: var(--color-dark-bg);
-    border-radius: 0.5em;
+    border-radius: 0.2em;
     border-bottom-right-radius: 0;
     border-bottom-left-radius: 0;
 }
@@ -133,13 +133,13 @@ nav > div#NavbarMenu > div.NavbarDropdownActive > div {
     display: block;
 
     /* Unfortunately, does not work :-/  */
-    border-bottom-right-radius: 0.5em;
-    border-bottom-left-radius: 0.5em;
+    border-bottom-right-radius: 0.2em;
+    border-bottom-left-radius: 0.2em;
 }
 
 nav > div > div.NavbarLogin > a {
     background-color: var(--color-green);
-    border-radius: 0.5em;
+    border-radius: 0.2em;
 }
 
 nav > div > div.NavbarLogin > a:hover {
@@ -256,4 +256,23 @@ main {
 footer {
     padding-bottom: 3em;
     background-color: var(--color-dark-bg);
+}
+
+
+
+/*****************************************************************************
+                                Form
+ *****************************************************************************/
+
+form.GridForm {
+    display: grid;
+    grid-template-columns: auto auto;
+}
+
+form.GridForm label {
+    margin-right: 1em;
+}
+
+form.GridForm > * {
+    margin-bottom: 0.5em;
 }
