@@ -241,22 +241,41 @@ pub async fn handler_steam_verify(State(app_state): State<AppState>,
     if let Some(query) = uri.query() {
         let openid_string = format!("?{}", query);
         if let Ok(params) = steamopenid::kv::decode_keyvalues(&openid_string) {
-            // for (key, value) in &params {
-            //     html.message_warning(format!("param[{}] = {}", key, value));
-            // }
+
+            // get steam-id
+            let steam_id : Option<String> = match params.get("openid.claimed_id") {
+                None => None,
+                Some(claimed_id) => {
+                    let re = regex::Regex::new(r"^https://steamcommunity.com/openid/id/([0-9]+)$").unwrap();
+                    match re.captures(claimed_id) {
+                        Some(x) => match x.get(1) {
+                            Some(y) => Some(y.as_str().to_string()),
+                            None => None,
+                        },
+                        None => None,
+                    }
+                },
+            };
 
             // verify
             let mut steam_result : Option<bool> = None;
             match steamopenid::verify_auth_keyvalues(&params).await {
-                Ok(result) => steam_result = Some(result),
+                Ok(result) => {
+                    steam_result = Some(result);
+                },
                 Err(e) => {
                     log::error!("Could not verify steam openid parameters {}", e);
                     html.message_error("Could not verify steam openid parameters".to_string());
                 }
             }
-            if let Some(steam_result) = steam_result {
-                if steam_result {
-                    html.message_success("Steam successfully verified".to_string());
+
+            // output success
+            if let Some(some_steam_id) = steam_id {
+                html.message_warning(format!("Unverified Steam ID: {}", some_steam_id));
+                if let Some(steam_result) = steam_result {
+                    if steam_result {
+                        html.message_success(format!("Verifed Steam ID: {}", some_steam_id));
+                    }
                 }
             }
         }
