@@ -1,4 +1,4 @@
-use axum::extract::{OriginalUri, Path, State};
+use axum::extract::{OriginalUri, Path, RawPathParams, State};
 use axum::http::header::{SET_COOKIE, REFRESH};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -10,7 +10,9 @@ use crate::http::http_user::HttpUser;
 use super::super::http_user::HttpUserExtractor;
 
 
-pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor) -> Result<impl IntoResponse, StatusCode> {
+pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor,
+                     OriginalUri(uri): OriginalUri,
+) -> Result<impl IntoResponse, StatusCode> {
 
     let mut html = HtmlTemplate::new(http_user);
     html.include_css("/rsc/css/login.css");
@@ -42,7 +44,28 @@ pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor) -> Result<
     // Login with Steam SSO
     html.push_body("<form id=\"TabLoginSteam\">");
     html.push_body("<label>Login via Steam</label>");
-    html.push_body("<button type=\"button\">Forward to Steam Login</button>");
+    if let Some(uri_scheme) = uri.scheme() {
+        if let Some(uri_authority) = uri.authority() {
+            let steam_return_link = format!("{}://{}/html/login_steam_verify/",
+                                            uri_scheme,
+                                            uri_authority);
+            html.push_body("<a href=\"");
+            html.push_body("https://steamcommunity.com/openid/login");
+            html.push_body("?openid.ns=http://specs.openid.net/auth/2.0");
+            html.push_body("&openid.identity=http://specs.openid.net/auth/2.0/identifier_select");
+            html.push_body("&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select");
+            html.push_body("&openid.mode=checkid_setup");
+            html.push_body("&openid.return_to=");
+            html.push_body(&steam_return_link);
+            html.push_body("\" target=\"_top\"><img src=\"https://community.fastly.steamstatic.com/public/images/signinthroughsteam/sits_01.png\"></a>");
+        } else {
+            log::warn!("COuld not extract URI authority from: {}", uri);
+            html.push_body("<span>Steam Login Unavailable</span>");
+        }
+    } else {
+        log::warn!("COuld not extract URI scheme from: {}", uri);
+        html.push_body("<span>Steam Login Unavailable</span>");
+    }
     html.push_body("</form>");
 
     return Ok(html);
@@ -205,4 +228,40 @@ pub async fn handler_logout(State(app_state): State<AppState>,
         response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
     }
     Ok(response)
+}
+
+
+pub async fn handler_steam_verify(State(app_state): State<AppState>,
+                                  HttpUserExtractor(http_user): HttpUserExtractor,
+                                  OriginalUri(uri): OriginalUri,
+) -> Result<Response, StatusCode> {
+    let mut html = HtmlTemplate::new(http_user);
+    html.include_css("/rsc/css/login.css");
+
+    if let Some(query) = uri.query() {
+        let openid_string = format!("?{}", query);
+        if let Ok(params) = steamopenid::kv::decode_keyvalues(&openid_string) {
+            // for (key, value) in &params {
+            //     html.message_warning(format!("param[{}] = {}", key, value));
+            // }
+
+            // verify
+            let mut steam_result : Option<bool> = None;
+            match steamopenid::verify_auth_keyvalues(&params).await {
+                Ok(result) => steam_result = Some(result),
+                Err(e) => {
+                    log::error!("Could not verify steam openid parameters {}", e);
+                    html.message_error("Could not verify steam openid parameters".to_string());
+                }
+            }
+            if let Some(steam_result) = steam_result {
+                if steam_result {
+                    html.message_success("Steam successfully verified".to_string());
+                }
+            }
+        }
+    }
+
+
+    Ok(html.into_response())
 }
