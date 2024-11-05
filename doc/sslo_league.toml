@@ -1,0 +1,15 @@
+[general]
+database_dir="."
+days_recent_activity=70
+
+[http]
+port_http=8080
+port_https=8443
+tls_cert="tls/cert.pem"
+tls_key="tls/key.pem"
+
+[smtp]
+email="sslo@myprovider.tld"
+host="smtp.myprovider.tld"
+username="my_stmp_username"
+password="my_smtp_password"
