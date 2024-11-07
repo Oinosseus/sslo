@@ -1,0 +1,3 @@
+target/*
+*.dia~
+*.dia.autosave
