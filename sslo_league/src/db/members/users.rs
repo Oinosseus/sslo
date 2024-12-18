@@ -33,7 +33,7 @@ impl User {
     pub async fn from_id(pool: SqlitePool, rowid: i64) -> Option<Self> {
 
         // query
-        let mut rows = match sqlx::query_as("SELECT rowid,* FROM sers WHERE rowid = $1 LIMIT 2;")
+        let mut rows = match sqlx::query_as("SELECT rowid,* FROM users WHERE rowid = $1 LIMIT 2;")
             .bind(rowid)
             .fetch_all(&pool)
             .await {

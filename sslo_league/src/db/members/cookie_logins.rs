@@ -53,7 +53,7 @@ impl CookieLogin {
         };
 
         // create cookie
-        log::info!("Creeating new login cookie for db.members.users.rowid={} ({})", user.rowid(), user.name_ref());
+        log::info!("Creating new login cookie for db.members.users.rowid={} ({})", user.rowid(), user.name_ref());
         let cookie = format!("cookie_login={}:{}; HttpOnly; Max-Age=31536000; SameSite=Strict; Partitioned; Secure; Path=/;",
                              res.rowid, token.decrypted);
         Some(cookie)
