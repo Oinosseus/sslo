@@ -12,6 +12,7 @@ mod app_state;
 mod db;
 mod helpers;
 mod user_grade;
+mod db2;
 
 #[derive(Parser)]
 struct CliArgs {

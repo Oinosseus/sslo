@@ -12,3 +12,4 @@ log = "0.4.22"
 rand = "0.8.5"
 rust-argon2 = "2.1.0"
 rust-embed = { version = "8.5.0", features = ["interpolate-folder-path"] }
+sqlx = { version = "0.8.2", features = ["runtime-tokio", "sqlite", "chrono"] }

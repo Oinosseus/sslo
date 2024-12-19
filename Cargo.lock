@@ -2508,6 +2508,7 @@ dependencies = [
  "rand",
  "rust-argon2",
  "rust-embed",
+ "sqlx",
 ]
 
 [[package]]
