@@ -1,12 +1,12 @@
 use std::sync::{Arc, Weak};
 use sslo_lib::db::PoolPassing;
 
-pub struct UserItem {
+pub struct Item {
     pool_ref_2parent: Weak<dyn PoolPassing>,
     row: super::row::Row,
 }
 
-impl UserItem {
+impl Item {
 
     fn id(&self) -> i64 { self.row.rowid}
 
@@ -20,7 +20,13 @@ impl UserItem {
         // get pool
         let pool = match table.clone().upgrade() {
             None => return None,
-            Some(tbl) => tbl.pool()
+            Some(tbl) => match tbl.pool() {
+                Some(pool) => pool,
+                None => {
+                    log::error!("No pool from Table!");
+                    return None;
+                }
+            }
         };
 
         // query
@@ -83,7 +89,7 @@ mod tests {
         }
     }
     impl PoolPassing for ItemTestTable {
-        fn pool(&self) -> SqlitePool {self.pool.clone()}
+        fn pool(&self) -> Option<SqlitePool> {Some(self.pool.clone())}
     }
 
     #[tokio::test]
@@ -94,11 +100,11 @@ mod tests {
         tbl.init().await;
 
         // test failed retrieval
-        let i = UserItem::from_db_by_id(tbl.pool_ref_2me.clone(), 999).await;
+        let i = Item::from_db_by_id(tbl.pool_ref_2me.clone(), 999).await;
         assert!(i.is_none());
 
         // test retrieval
-        let i = UserItem::from_db_by_id(tbl.pool_ref_2me.clone(), 1).await.unwrap();
+        let i = Item::from_db_by_id(tbl.pool_ref_2me.clone(), 1).await.unwrap();
         assert_eq!(i.id(), 1);
     }
 }

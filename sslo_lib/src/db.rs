@@ -1,5 +1,5 @@
 use sqlx::SqlitePool;
 
 pub trait PoolPassing {
-    fn pool(&self) -> SqlitePool;
+    fn pool(&self) -> Option<SqlitePool>;
 }
