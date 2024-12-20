@@ -8,50 +8,13 @@ pub struct Item {
 
 impl Item {
 
-    fn id(&self) -> i64 { self.row.rowid}
+    pub fn id(&self) -> i64 { self.row.rowid}
 
     /// Set up an object from a data row (assumed to be clean retrieved from db)
-    fn from_row(pool_ref: Weak<dyn PoolPassing>, row: super::row::Row) -> Arc<Self> {
+    pub(super) fn from_row(pool_ref: Weak<dyn PoolPassing>, row: super::row::Row) -> Arc<Self> {
         Arc::new(Self { pool_ref_2parent: pool_ref, row } )
     }
 
-    async fn from_db_by_id(table: Weak<dyn PoolPassing>, id: i64) -> Option<Arc<Self>> {
-
-        // get pool
-        let pool = match table.clone().upgrade() {
-            None => return None,
-            Some(tbl) => match tbl.pool() {
-                Some(pool) => pool,
-                None => {
-                    log::error!("No pool from Table!");
-                    return None;
-                }
-            }
-        };
-
-        // query
-        let mut rows = match sqlx::query_as(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE rowid = $1 LIMIT 2;"))
-            .bind(id)
-            .fetch_all(&pool)
-            .await {
-            Ok(r) => r,
-            Err(e) => {
-                log::error!("Failed to query database: {}", e);
-                return None;
-            }
-        };
-
-        // ambiguity check
-        #[cfg(debug_assertions)]
-        if rows.len() > 1 {
-            log::error!("Ambiguous rowid for db.members.users.rowid={}", id);
-            return None;
-        }
-
-        // return
-        if let Some(row) = rows.pop() { Some(Self::from_row(table, row)) }
-        else { None }
-    }
 }
 
 
@@ -100,11 +63,11 @@ mod tests {
         tbl.init().await;
 
         // test failed retrieval
-        let i = Item::from_db_by_id(tbl.pool_ref_2me.clone(), 999).await;
-        assert!(i.is_none());
+        // let i = Item::from_db_by_id(tbl.pool_ref_2me.clone(), 999).await;
+        // assert!(i.is_none());
 
         // test retrieval
-        let i = Item::from_db_by_id(tbl.pool_ref_2me.clone(), 1).await.unwrap();
-        assert_eq!(i.id(), 1);
+        // let i = Item::from_db_by_id(tbl.pool_ref_2me.clone(), 1).await.unwrap();
+        // assert_eq!(i.id(), 1);
     }
 }
