@@ -2,7 +2,6 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
 use axum::response::{IntoResponse, Response};
-use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use crate::app_state::AppState;
 use crate::http::http_user::HttpUserExtractor;
@@ -20,7 +19,7 @@ pub struct SetNameRequest {
     new_password: Option<String>,
 }
 
-pub async fn handler_update_settings(State(app_state): State<AppState>,
+pub async fn handler_update_settings(State(_app_state): State<AppState>,
                                      HttpUserExtractor(http_user): HttpUserExtractor,
                                      Json(input): Json<SetNameRequest>) -> Response {
 

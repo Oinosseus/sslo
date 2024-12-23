@@ -1,5 +1,5 @@
 use axum::extract::State;
-use axum::http::header::{REFRESH, SET_COOKIE};
+use axum::http::header::{SET_COOKIE};
 use axum::response::Response;
 use axum::Json;
 use axum::response::IntoResponse;

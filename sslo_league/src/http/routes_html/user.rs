@@ -6,8 +6,8 @@ use crate::http::HtmlTemplate;
 use crate::http::http_user::HttpUserExtractor;
 
 
-pub async fn handler_settings(State(app_state): State<AppState>,
-                              OriginalUri(uri): OriginalUri,
+pub async fn handler_settings(State(_app_state): State<AppState>,
+                              OriginalUri(_uri): OriginalUri,
                               HttpUserExtractor(http_user): HttpUserExtractor) -> Result<impl IntoResponse, StatusCode> {
 
     if http_user.user.is_none() {

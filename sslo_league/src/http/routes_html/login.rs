@@ -1,4 +1,4 @@
-use axum::extract::{OriginalUri, Path, RawPathParams, State};
+use axum::extract::{OriginalUri, Path, State};
 use axum::http::header::{SET_COOKIE, REFRESH};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -205,7 +205,7 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
 }
 
 
-pub async fn handler_logout(State(app_state): State<AppState>,
+pub async fn handler_logout(State(_app_state): State<AppState>,
                      HttpUserExtractor(mut http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
 
     let mut cookie_value: Option<String> = None;
@@ -231,7 +231,7 @@ pub async fn handler_logout(State(app_state): State<AppState>,
 }
 
 
-pub async fn handler_steam_verify(State(app_state): State<AppState>,
+pub async fn handler_steam_verify(State(_app_state): State<AppState>,
                                   HttpUserExtractor(http_user): HttpUserExtractor,
                                   OriginalUri(uri): OriginalUri,
 ) -> Result<Response, StatusCode> {

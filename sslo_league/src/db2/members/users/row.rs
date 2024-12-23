@@ -102,7 +102,7 @@ impl Row {
         }
 
         // get from DB
-        if let Some(mut db_row) = Self::from_db_by_id(pool, self.rowid).await {
+        if let Some(db_row) = Self::from_db_by_id(pool, self.rowid).await {
             db_row.clone_into(self);
         }
     }
@@ -114,7 +114,7 @@ impl Row {
     pub(super) async fn store(&mut self, pool: &SqlitePool) {
 
         // update
-        if (self.rowid > 0) {
+        if self.rowid > 0 {
             match sqlx::query("UPDATE users SET name=$1,\
                                                     promotion_authority=$2,\
                                                     promotion=$3,\

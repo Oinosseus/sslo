@@ -216,7 +216,7 @@ impl User {
                     return None;
                 },
                 Err(e) => {
-                    log::error!("Failed to verify encoded password for db.members.users.rowid={}", item.row.rowid);
+                    log::error!("Failed to verify encoded password for db.members.users.rowid={}, with error: {}", item.row.rowid, e);
                     return None;
                 }
             }
@@ -231,7 +231,7 @@ impl User {
             .await {
                 Ok(_) => {},
                 Err(e) => {
-                    log::error!("Failed to update db.members.users.rowid={}", item.row.rowid);
+                    log::error!("Failed to update db.members.users.rowid={}, with error {}", item.row.rowid, e);
                     return None;
                 }
         }

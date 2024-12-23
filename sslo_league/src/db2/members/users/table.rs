@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 use sqlx::SqlitePool;
-use crate::db2::members::Members;
 use sslo_lib::db::PoolPassing;
 use crate::db2::members::users::row::Row;
 use super::item::Item;

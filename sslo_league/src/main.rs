@@ -1,9 +1,8 @@
-use std::error::Error;
 use clap::Parser;
 use std::net::{Ipv4Addr, SocketAddr};
 use env_logger::fmt::Formatter;
 use std::io::Write;
-use log::{error, Level, Record};
+use log::{Level, Record};
 use app_state::AppState;
 
 mod http;

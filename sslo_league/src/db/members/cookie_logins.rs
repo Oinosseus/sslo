@@ -1,4 +1,3 @@
-use std::error::Error;
 use chrono::{DateTime, Utc};
 use sqlx::Error::RowNotFound;
 use sqlx::SqlitePool;
