@@ -1,5 +1,7 @@
 use std::sync::{Arc, Weak};
+use chrono::{DateTime, Utc};
 use sslo_lib::db::PoolPassing;
+use crate::user_grade;
 
 pub struct Item {
     pool_ref_2parent: Weak<dyn PoolPassing>,
@@ -15,59 +17,32 @@ impl Item {
         Arc::new(Self { pool_ref_2parent: pool_ref, row } )
     }
 
-}
-
-
-#[cfg(test)]
-mod tests {
-    use std::str::FromStr;
-    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-    use sqlx::SqlitePool;
-    use super::*;
-
-    struct ItemTestTable {
-        pub pool: SqlitePool,
-        pub pool_ref_2me: Weak<dyn PoolPassing>,
-    }
-    impl ItemTestTable {
-        fn new() -> Arc<Self> {
-            let sqlite_opts = SqliteConnectOptions::from_str(":memory:").unwrap();
-            let pool = SqlitePoolOptions::new()
-                .min_connections(1)
-                .max_connections(1)  // default is 10
-                .idle_timeout(None)
-                .max_lifetime(None)
-                .connect_lazy_with(sqlite_opts);
-            Arc::new_cyclic(|me: &Weak<Self>| {
-                Self{pool, pool_ref_2me: me.clone()}
-            })
-        }
-        async fn init(&self) {
-            sqlx::migrate!("../rsc/db_migrations/league_members").run(&self.pool).await.unwrap();
-            sqlx::query(concat!("INSERT INTO ", super::super::tablename!(), " (name, email) VALUES ($1, $2);"))
-                .bind("username")
-                .bind("user@email.tld")
-                .execute(&self.pool)
-                .await.unwrap();
-        }
-    }
-    impl PoolPassing for ItemTestTable {
-        fn pool(&self) -> Option<SqlitePool> {Some(self.pool.clone())}
+    /// datetime of last driven lap
+    pub fn last_lap(&self) -> Option<DateTime<Utc>> {
+        self.row.last_lap
     }
 
-    #[tokio::test]
-    async fn test_item() {
-
-        // create test table
-        let tbl = ItemTestTable::new();
-        tbl.init().await;
-
-        // test failed retrieval
-        // let i = Item::from_db_by_id(tbl.pool_ref_2me.clone(), 999).await;
-        // assert!(i.is_none());
-
-        // test retrieval
-        // let i = Item::from_db_by_id(tbl.pool_ref_2me.clone(), 1).await.unwrap();
-        // assert_eq!(i.id(), 1);
+    /// name of the user
+    pub fn name_ref(&self) -> &str {
+        &self.row.name
     }
+
+    pub fn promotion(&self) -> user_grade::Promotion {
+        self.row.promotion.clone()
+    }
+
+    pub fn promotion_authority(&self) -> user_grade::PromotionAuthority {
+        self.row.promotion_authority.clone()
+    }
+
+    /// Test if the user has a password set
+    pub fn has_password(&self) -> bool {
+        self.row.password.is_some()
+    }
+
+    /// database rowid
+    pub fn rowid(&self) -> i64 {
+        self.row.rowid
+    }
+
 }
