@@ -24,3 +24,4 @@ hex = "0.4.3"
 regex = "1.11.1"
 rust-argon2 = "2.1.0"
 steamopenid = "0.3.0"
+test-log = { version = "0.2.16", features = ["trace", "color"] }

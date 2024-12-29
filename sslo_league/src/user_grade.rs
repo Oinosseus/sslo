@@ -41,6 +41,7 @@ impl DrivingActivity {
 
 #[derive(PartialEq, Clone)]
 #[derive(sqlx::Type)]
+#[derive(Debug)]
 #[repr(u32)]
 pub enum PromotionAuthority {
 
@@ -63,6 +64,7 @@ impl PromotionAuthority {
 
 #[derive(PartialEq, Clone)]
 #[derive(sqlx::Type)]
+#[derive(Debug)]
 #[repr(u32)]
 pub enum Promotion {
     None = 0,         // no further user rights
