@@ -39,6 +39,30 @@ impl TableInterface {
         Self(data)
     }
 
+    /// Create a new user
+    pub async fn new_item(&self) -> Option<item::ItemInterface> {
+
+        // insert new item into DB
+        let mut row = row::ItemDbRow::new(0);
+        {
+            let pool = self.0.read().await.pool.clone();
+            match row.store(&pool).await {
+                Ok(_) => {}
+                Err(e) => {
+                    log::error!("Could not create a new user: {}", e);
+                    return None;
+                }
+            }
+        }
+
+        // update cache
+        let mut tbl_data = self.0.write().await;
+        let item_data = item::ItemData::new(&tbl_data.pool, row);
+        let item = item::ItemInterface::new(item_data.clone());
+        tbl_data.item_cache.insert(item.id().await, item_data);
+        return Some(item);
+    }
+
     /// Get an item
     /// This first tries to load the item from cache,
     /// and secondly load it from the database.
@@ -124,51 +148,49 @@ mod tests {
         return pool;
     }
 
-    #[test(tokio::test)]
-    async fn new() {
+    async fn get_table_interface() -> TableInterface {
         let pool = get_pool().await;
         let tbl_data = TableData::new(&pool);
-        let tbl = TableInterface::new(tbl_data.clone());
+        TableInterface::new(tbl_data.clone())
+    }
+
+    #[test(tokio::test)]
+    async fn new_item() {
+        let tbl = get_table_interface().await;
+        assert_eq!(tbl.0.read().await.item_cache.len(), 0);
+        let item = tbl.new_item().await.unwrap();
+        assert_eq!(tbl.0.read().await.item_cache.len(), 1);
+        assert_eq!(item.id().await, 1);
     }
 
     #[test(tokio::test)]
     async fn item_by_id_from_db() {
-        let pool = get_pool().await;
-        let tbl_data = TableData::new(&pool);
-        let tbl = TableInterface::new(tbl_data.clone());
-
-        // append item to db
-        {
-            let mut row = row::ItemDbRow::new(0);
-            row.name = "Bob".to_string();
-            row.store(&pool).await.unwrap();
-            assert_eq!(row.rowid, 1);
-        }
-
-        // append item to db
-        {
-            let mut row = row::ItemDbRow::new(0);
-            row.name = "Dylan".to_string();
-            row.store(&pool).await.unwrap();
-            assert_eq!(row.rowid, 2);
-        }
+        let tbl = get_table_interface().await;
 
         // check if cache is empty
         {
-            let cache = tbl_data.read().await;
+            let cache = tbl.0.read().await;
             assert_eq!(cache.item_cache.len(), 0);
+        }
+
+        // append items to db
+        let mut item = tbl.new_item().await.unwrap();
+        item.set_name("Bob".to_string()).await.unwrap();
+        let mut item = tbl.new_item().await.unwrap();
+        item.set_name("Dylan".to_string()).await.unwrap();
+
+        // check if cache is filled
+        {
+            let cache = tbl.0.read().await;
+            assert_eq!(cache.item_cache.len(), 2);
         }
 
         // retrieve item
         let item1 = tbl.item_by_id(1).await.unwrap();
         assert_eq!(item1.id().await, 1);
+        assert_eq!(item1.name().await, "Bob");
         let item2 = tbl.item_by_id(2).await.unwrap();
         assert_eq!(item2.id().await, 2);
-
-        // check if cache is filled
-        {
-            let cache = tbl_data.read().await;
-            assert_eq!(cache.item_cache.len(), 2);
-        }
+        assert_eq!(item2.name().await, "Dylan");
     }
 }

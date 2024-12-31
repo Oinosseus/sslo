@@ -1,8 +1,10 @@
 use std::sync::Arc;
+use chrono::{DateTime, Utc};
 use tokio::sync::RwLock;
 use sqlx::SqlitePool;
 use super::row::ItemDbRow;
 use sslo_lib::db::DatabaseError;
+use crate::user_grade::{Promotion, PromotionAuthority};
 
 /// The actual data of an item that is shared by Arc<RwLock<ItemData>>
 pub(super) struct ItemData {
@@ -45,26 +47,28 @@ impl ItemInterface {
         data.row.store(&pool).await
     }
 
-    // pub fn promotion_authority(&self) -> &PromotionAuthority { &self.row.promotion_authority }
-    // pub fn promotion(&self) -> &Promotion { &self.row.promotion }
-    // pub async fn set_promotion(&mut self, promotion: Promotion, authority: PromotionAuthority) {
-    //     self.row.promotion = promotion;
-    //     self.row.promotion_authority = authority;
-    //     if self.row.store(self.pool_ref_2parent.clone()).await.is_err() {
-    //         log::error!("Failed to set promotion: {}", self.row.rowid);
-    //     };
-    // }
-    //
-    // pub fn last_lap(&self) -> Option<DateTime<Utc>> {
-    //     self.row.last_lap
-    // }
-    // pub async fn set_last_lap(self: &mut Self, last_lap: DateTime<Utc>) {
-    //     self.row.last_lap = Some(last_lap);
-    //     if self.row.store(self.pool_ref_2parent.clone()).await.is_err() {
-    //         log::error!("Failed to store last lap: {}", self.row.rowid);
-    //     };
-    // }
-    //
+    pub async fn promotion_authority(&self) -> PromotionAuthority { self.0.read().await.row.promotion_authority.clone() }
+    pub async fn promotion(&self) -> Promotion { self.0.read().await.row.promotion.clone() }
+    pub async fn set_promotion(&mut self, promotion: Promotion, authority: PromotionAuthority) {
+        let mut item_data = self.0.write().await;
+        item_data.row.promotion = promotion;
+        item_data.row.promotion_authority = authority;
+        let pool = item_data.pool.clone();
+        if let Err(e) = item_data.row.store(&pool).await {
+            log::error!("Failed to set promotion: {}", e);
+        };
+    }
+
+    pub async fn last_lap(&self) -> Option<DateTime<Utc>> { self.0.read().await.row.last_lap }
+    pub async fn set_last_lap(self: &mut Self, last_lap: DateTime<Utc>) {
+        let mut data = self.0.write().await;
+        data.row.last_lap = Some(last_lap);
+        let pool = data.pool.clone();
+        if let Err(e) = data.row.store(&pool).await {
+            log::error!("Failed to set last lap: {}", e);
+        };
+    }
+
     // /// Returns email address (if correctly confirmed)
     // pub fn email(&self) -> Option<&str> {
     //     let now = Utc::now();
@@ -138,6 +142,19 @@ mod tests {
         return pool;
     }
 
+    async fn create_new_item(pool: &SqlitePool) -> ItemInterface {
+        let row = ItemDbRow::new(0);
+        let data = ItemData::new(pool, row);
+        ItemInterface::new(data)
+    }
+
+    async fn load_item_from_db(id: i64, pool: &SqlitePool) -> ItemInterface {
+        let mut row = ItemDbRow::new(id);
+        row.load(pool).await.unwrap();
+        let data = ItemData::new(&pool, row);
+        ItemInterface::new(data)
+    }
+
     /// test item generation and property access
     #[test(tokio::test)]
     async fn new_item() {
@@ -156,9 +173,7 @@ mod tests {
         let pool = get_pool().await;
 
         // create item
-        let row = ItemDbRow::new(0);
-        let data = ItemData::new(&pool, row);
-        let mut item = ItemInterface::new(data);
+        let mut item = create_new_item(&pool.clone()).await;
         assert_eq!(item.id().await, 0);
 
         // modify item
@@ -167,12 +182,49 @@ mod tests {
         assert_eq!(item.id().await, 1);
         assert_eq!(item.name().await, "Ronny");
 
-        // reload
-        let mut row = ItemDbRow::new(1);
-        row.load(&pool).await.unwrap();
-        let data = ItemData::new(&pool, row);
-        let mut item = ItemInterface::new(data);
+        // check if arrived in database
+        let mut item = load_item_from_db(1, &pool).await;
         assert_eq!(item.id().await, 1);
         assert_eq!(item.name().await, "Ronny");
+    }
+
+    #[test(tokio::test)]
+    async fn promotion() {
+
+        // create item
+        let pool = get_pool().await;
+        let mut item = create_new_item(&pool.clone()).await;
+
+        // modify item (ne before, eq after)
+        assert_ne!(item.promotion().await, Promotion::Marshal);
+        assert_ne!(item.promotion_authority().await, PromotionAuthority::Chief);
+        item.set_promotion(Promotion::Marshal, PromotionAuthority::Chief).await;
+        assert_eq!(item.promotion().await, Promotion::Marshal);
+        assert_eq!(item.promotion_authority().await, PromotionAuthority::Chief);
+
+        // check if stored into db correctly
+        let item = load_item_from_db(item.id().await, &pool).await;
+        assert_eq!(item.promotion().await, Promotion::Marshal);
+        assert_eq!(item.promotion_authority().await, PromotionAuthority::Chief);
+    }
+
+    #[test(tokio::test)]
+    async fn last_lap() {
+
+        // create item
+        let pool = get_pool().await;
+        let mut item = create_new_item(&pool.clone()).await;
+
+        // prepare test data
+        let dt: DateTime<Utc> = DateTime::parse_from_rfc3339("1001-01-01T01:01:01.1111+01:00").unwrap().into();
+
+        // modify item (ne before, eq after)
+        assert_eq!(item.last_lap().await, None);
+        item.set_last_lap(dt).await;
+        assert_eq!(item.last_lap().await, Some(dt));
+
+        // check if stored into db correctly
+        let item = load_item_from_db(item.id().await, &pool).await;
+        assert_eq!(item.last_lap().await, Some(dt));
     }
 }
