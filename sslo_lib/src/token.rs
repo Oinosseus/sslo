@@ -39,7 +39,7 @@ pub struct Token {
 
 impl Token {
 
-    pub fn new(decrypted: String, encrypted: String) -> Token {
+    pub fn new(decrypted: String, encrypted: String) -> Self {
         Self{ decrypted, encrypted }
     }
 

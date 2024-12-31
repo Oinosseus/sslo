@@ -11,9 +11,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 pub(self) use tablename;
 
-use sqlx::{Row, SqlitePool};
+use sqlx::SqlitePool;
 use tokio::sync::RwLock;
-use sslo_lib::db::DatabaseError;
 
 struct TableData {
     pool: SqlitePool,
@@ -131,9 +130,8 @@ impl TableInterface {
 mod tests {
     use std::str::FromStr;
     use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-    use sqlx::{query, SqlitePool};
+    use sqlx::SqlitePool;
     use super::*;
-    use env_logger;
     use test_log::test;
 
     async fn get_pool() -> SqlitePool {

@@ -1,4 +1,3 @@
-use std::error::Error;
 use chrono::{DateTime, Utc};
 use sqlx::{Sqlite, SqlitePool};
 use sslo_lib::db::DatabaseError;
@@ -135,7 +134,6 @@ mod tests {
     use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
     use sqlx::SqlitePool;
     use super::*;
-    use env_logger;
     use test_log::test;
 
     async fn get_pool() -> SqlitePool {
@@ -152,7 +150,7 @@ mod tests {
 
     #[test(tokio::test)]
     async fn new_defaults() {
-        let mut row = ItemDbRow::new(33);
+        let row = ItemDbRow::new(33);
         assert_eq!(row.rowid, 33);
         assert_eq!(row.name, "".to_string());
         assert_eq!(row.promotion_authority, PromotionAuthority::Executing);
