@@ -40,18 +40,16 @@ impl CookieLoginInterface {
 
     pub async fn id(&self) -> i64 { self.0.read().await.row.rowid }
 
-    pub async fn user(&self) -> Result<super::super::users::item::UserInterface, DatabaseError> {
+    pub async fn user(&self) -> Option<super::super::users::item::UserInterface> {
         let data = self.0.read().await;
         let db_members = match data.db_members.upgrade() {
             Some(db_data) => MembersDbInterface::new(db_data),
             None => {
-                return Err(DatabaseError::WeakUpgradeProblem(format!("rowid={}", data.row.rowid)));
+                log::error!("cannot upgrade weak pointer for rowid={}, user={}", data.row.rowid, data.row.user);
+                return None;
             }
         };
-        return match db_members.tbl_users().await.user_by_id(data.row.rowid).await {
-            Some(user) => Ok(user),
-            None => Err(DatabaseError::RowidNotFound(tablename!(), data.row.rowid)),
-        };
+        db_members.tbl_users().await.user_by_id(data.row.rowid).await
     }
 
     /// returns the cookie which can be directly send as http header

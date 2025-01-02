@@ -9,12 +9,14 @@ use sslo_lib::db::DatabaseError;
 use users::{UserTableData, UserTableInterface};
 use cookie_logins::CookieLoginTableData;
 use crate::db2::members::cookie_logins::CookieLoginTableInterface;
+use crate::db2::members::steam_users::SteamUserTableData;
 
 /// The members database
 pub struct MembersDbData {
     // pool: SqlitePool,
     tbl_users: Arc<RwLock<UserTableData>>,
-    tbl_cookie_logins: Arc<RwLock<CookieLoginTableData>>
+    tbl_cookie_logins: Arc<RwLock<CookieLoginTableData>>,
+    tbl_steam_user: Arc<RwLock<SteamUserTableData>>,
 }
 
 impl MembersDbData {
@@ -31,6 +33,7 @@ impl MembersDbData {
                 // pool: pool.clone(),
                 tbl_users: UserTableData::new(pool.clone()),
                 tbl_cookie_logins: CookieLoginTableData::new(pool.clone(), me.clone()),
+                tbl_steam_user: SteamUserTableData::new(pool.clone(), me.clone()),
             })
         }))
     }
