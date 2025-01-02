@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use chrono::{DateTime, Utc};
+use rand::RngCore;
 use tokio::sync::RwLock;
 use sqlx::SqlitePool;
 use super::row::ItemDbRow;
@@ -205,21 +206,93 @@ impl ItemInterface {
         }
     }
 
-    // /// Consume a cleartext password, and store encrypted
-    // pub async fn set_password(&mut self, password: String, user_agent: String) -> bool {
-    //     // update password -> ENCRYPTED!!!
-    //     // update last_usage
-    //     // update last_useragent
-    //     todo!()
-    // }
-    //
-    // /// Consumes a cleartext password
-    // pub async fn verify_password(&self, password: String, user_agent: String) -> bool {
-    //     // update last_usage
-    //     // update last_useragent
-    //     // verify password -> warn if mismatch
-    //     todo!()
-    // }
+    /// Consume a cleartext password, and store encrypted
+    /// This checks if the current password is valid
+    pub async fn update_password(&mut self, old_password: Option<String>, new_password: Option<String>) -> bool {
+        let mut data = self.0.write().await;
+
+        // verify old password
+        if let Some(old_password_encrypted) = data.row.password.as_ref() {
+            if let Some(old_password_decrypted) = old_password {
+                match argon2::verify_encoded(old_password_encrypted, &old_password_decrypted.into_bytes()) {
+                    Ok(true) => {},
+                    Ok(false) => {
+                        log::warn!("deny update password, because invalid old password given for rowid={}", data.row.rowid);
+                        return false;
+                    },
+                    Err(e) => {
+                        log::error!("Argon2 failure at verifying passwords: {}", e);
+                        return false;
+                    }
+                }
+            } else {
+                log::warn!("deny update password, because no old password given for rowid={}", data.row.rowid);
+                return false;
+            }
+        }
+
+        // encrypt new password
+        let mut new_password_encrypted: Option<String> = None;
+        if let Some(some_new_password) = new_password {
+            let mut salt: Vec<u8> = vec![0u8; 64];
+            rand::thread_rng().fill_bytes(&mut salt);
+            new_password_encrypted = match argon2::hash_encoded(&some_new_password.into_bytes(), &salt, &argon2::Config::default()) {
+                Ok(p) => Some(p),
+                Err(e) => {
+                    log::error!("Argon2 failed to encrypt password: {}", e);
+                    return false;
+                }
+            };
+        }
+
+        // update password
+        data.row.password = new_password_encrypted;
+        data.row.password_last_usage = None;
+        data.row.password_last_useragent = None;
+        let pool = data.pool.clone();
+        if let Err(e) = data.row.store(&pool).await {
+            log::error!("failed to store updated password for rowid={}: {}", data.row.rowid, e);
+            return false;
+        }
+
+        log::info!("password updated for rowid={}", data.row.rowid);
+        return true;
+    }
+
+    /// Consumes a cleartext password
+    pub async fn verify_password(&self, password: String, user_agent: String) -> bool {
+
+        {   // separate scope with read-lock for quick return at verification fail
+            let data = self.0.read().await;
+            if let Some(old_password_encrypted) = data.row.password.as_ref() {
+                match argon2::verify_encoded(old_password_encrypted, &password.into_bytes()) {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        return false;
+                    }
+                    Err(e) => {
+                        log::error!("Argon2 failure at verifying passwords: {}", e);
+                        return false;
+                    }
+                }
+            } else {
+                log::warn!("deny verifying password, because no password set for rowid={}", data.row.rowid);
+                return false;
+            }
+        }
+
+        // update usage
+        let mut data = self.0.write().await;
+        data.row.password_last_usage = Some(Utc::now());
+        data.row.password_last_useragent = Some(user_agent);
+        let pool = data.pool.clone();
+        if let Err(e) = data.row.store(&pool).await {
+            log::error!("failed to update password usage for rowid={}", data.row.rowid);
+            return false;
+        }
+
+        return true;
+    }
 }
 
 
@@ -357,7 +430,7 @@ mod tests {
         let mut item = create_new_item(&pool.clone()).await;
         assert_eq!(item.email().await, None);
 
-        // set email (expect to be transformed into lower-case)
+        // set email
         let email_token = item.set_email("a.b@c.de".to_string()).await.unwrap();
         assert_eq!(item.email().await, None);
         assert!(item.verify_email(email_token).await);
@@ -366,5 +439,35 @@ mod tests {
         // check if stored into db correctly
         let item = load_item_from_db(item.id().await, &pool).await;
         assert_eq!(item.email().await, Some("a.b@c.de".to_string()));
+    }
+
+    #[test(tokio::test)]
+    async fn password() {
+
+        // create item
+        let pool = get_pool().await;
+        let mut item = create_new_item(&pool.clone()).await;
+        assert_eq!(item.email().await, None);
+
+        // set password
+        assert!(item.update_password(None, Some("unsecure_test_password".to_string())).await);
+        assert!(item.verify_password("unsecure_test_password".to_string(), "unit test".to_string()).await);
+
+        // check if stored into db correctly
+        let mut item = load_item_from_db(item.id().await, &pool).await;
+        assert!(item.verify_password("unsecure_test_password".to_string(), "unit test".to_string()).await);
+
+        // update without old password must fail
+        assert!(!item.update_password(None, Some("unsecure_updated_test_password".to_string())).await);
+
+        // update password
+        assert!(item.update_password(Some("unsecure_test_password".to_string()), Some("unsecure_updated_test_password".to_string())).await);
+
+        // check if stored into db correctly
+        let item = load_item_from_db(item.id().await, &pool).await;
+        assert!(item.verify_password("unsecure_updated_test_password".to_string(), "unit test".to_string()).await);
+
+        // verify wrong password must fail
+        assert!(!item.verify_password("foobar".to_string(), "unit test".to_string()).await);
     }
 }
