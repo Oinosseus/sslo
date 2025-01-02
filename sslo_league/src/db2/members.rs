@@ -1,5 +1,6 @@
 pub mod users;
 mod cookie_logins;
+mod steam_users;
 
 use std::path::Path;
 use std::sync::Arc;
