@@ -6,8 +6,11 @@ use std::str::FromStr;
 #[derive(Error, Debug)]
 pub enum DatabaseError {
 
-    #[error("sqlx database pool cannot be retrieved")]
-    PoolUnavailable(),
+    // #[error("sqlx database pool cannot be retrieved")]
+    // PoolUnavailable(),
+
+    #[error("Cannot upgrade weak pointer: {0}")]
+    WeakUpgradeProblem(String),
 
     #[error("no data in table {0} at rowid={1}")]
     RowidNotFound(&'static str, i64),

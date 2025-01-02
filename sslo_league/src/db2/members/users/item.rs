@@ -287,7 +287,7 @@ impl UserInterface {
         data.row.password_last_useragent = Some(user_agent);
         let pool = data.pool.clone();
         if let Err(e) = data.row.store(&pool).await {
-            log::error!("failed to update password usage for rowid={}", data.row.rowid);
+            log::error!("failed to update password usage for rowid={}: {}", data.row.rowid, e);
             return false;
         }
 
@@ -392,26 +392,6 @@ mod tests {
         // check if stored into db correctly
         let item = load_item_from_db(item.id().await, &pool).await;
         assert_eq!(item.last_lap().await, Some(dt));
-
-        #[test(tokio::test)]
-        async fn last_lap() {
-
-            // create item
-            let pool = get_pool().await;
-            let mut item = create_new_item(&pool.clone()).await;
-
-            // prepare test data
-            let dt: DateTime<Utc> = DateTime::parse_from_rfc3339("1001-01-01T01:01:01.1111+01:00").unwrap().into();
-
-            // modify item (ne before, eq after)
-            assert_eq!(item.last_lap().await, None);
-            item.set_last_lap(dt).await;
-            assert_eq!(item.last_lap().await, Some(dt));
-
-            // check if stored into db correctly
-            let item = load_item_from_db(item.id().await, &pool).await;
-            assert_eq!(item.last_lap().await, Some(dt));
-        }
     }
 
     #[test(tokio::test)]

@@ -1,5 +1,5 @@
 mod row;
-mod item;
+pub mod item;
 
 /// This is the central defined name of the table in this module,
 /// used to allow copy&paste of the code for other tables.
@@ -21,9 +21,9 @@ pub(super) struct UserTableData {
 }
 
 impl UserTableData {
-    pub(super) fn new(pool: &SqlitePool) -> Arc<RwLock<Self>> {
+    pub(super) fn new(pool: SqlitePool) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(Self {
-            pool: pool.clone(),
+            pool,
             item_cache: HashMap::new(),
         }))
     }
@@ -35,7 +35,7 @@ pub struct UserTableInterface(
 
 impl UserTableInterface {
 
-    pub fn new(data: Arc<RwLock<UserTableData>>) -> Self {
+    pub(super) fn new(data: Arc<RwLock<UserTableData>>) -> Self {
         Self(data)
     }
 
@@ -143,7 +143,7 @@ mod tests {
 
     async fn get_table_interface() -> UserTableInterface {
         let pool = get_pool().await;
-        let tbl_data = UserTableData::new(&pool);
+        let tbl_data = UserTableData::new(pool);
         UserTableInterface::new(tbl_data.clone())
     }
 
