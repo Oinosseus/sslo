@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use sqlx::{Sqlite, SqlitePool};
 use sslo_lib::db::DatabaseError;
-use sslo_lib::token;
 use super::tablename;
 
 /// Data structure that is used for database interaction (only module internal use)

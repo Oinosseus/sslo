@@ -16,3 +16,4 @@ rust-argon2 = "2.1.0"
 rust-embed = { version = "8.5.0", features = ["interpolate-folder-path"] }
 sqlx = { version = "0.8.2", features = ["runtime-tokio", "sqlite", "chrono"] }
 thiserror = "2.0.9"
+tokio = "1.42.0"

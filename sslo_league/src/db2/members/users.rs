@@ -14,7 +14,7 @@ pub(self) use tablename;
 use sqlx::SqlitePool;
 use tokio::sync::RwLock;
 
-struct TableData {
+pub(super) struct TableData {
     pool: SqlitePool,
     item_cache: HashMap<i64, Arc<RwLock<item::ItemData>>>
 }
@@ -28,7 +28,7 @@ impl TableData {
     }
 }
 
-struct TableInterface (
+pub struct TableInterface (
     Arc<RwLock<TableData>>
 );
 

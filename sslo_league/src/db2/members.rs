@@ -4,11 +4,13 @@ mod cookie_logins;
 use std::sync::Arc;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::SqlitePool;
-
+use tokio::sync::RwLock;
+use crate::db::members::users::User;
 
 /// The members database
 pub struct Members {
     pool: SqlitePool,
+    tbl_users: Arc<RwLock<users::TableData>>,
 }
 
 
@@ -31,12 +33,20 @@ impl Members {
             .analysis_limit(Some(400));
         let pool = pool_opts.connect_lazy_with(conn_opts);
 
+        // create tables
+        let tbl_users = users::TableData::new(&pool);
+
         // setup database object
         Arc::new(Self {
-            pool
+            pool,
+            tbl_users,
         })
     }
 
     /// returning a pool object (only used for submodules)
     fn pool(&self) -> SqlitePool { self.pool.clone() }
+
+    fn tbl_users(&self) -> users::TableInterface {
+        users::TableInterface::new(self.tbl_users.clone())
+    }
 }
