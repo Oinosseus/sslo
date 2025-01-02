@@ -15,9 +15,9 @@ CREATE TABLE users (
 CREATE TABLE cookie_logins (
     user INTEGER NOT NULL,
     token BLOB NOT NULL UNIQUE,
-    creation TEXT NOT NULL,
+    creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_useragent BLOB,
-    last_usage TEXT DEFAULT CURRENT_TIMESTAMP
+    last_usage TEXT
 );
 
 CREATE TABLE steam_users (

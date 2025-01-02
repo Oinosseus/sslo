@@ -1,4 +1,5 @@
 mod users;
+mod cookie_logins;
 
 use std::sync::Arc;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
@@ -16,7 +17,7 @@ impl Members {
     /// Connecting to the database file
     pub fn new(db_path: &str) -> Arc<Self> {
 
-        // setup a db pool
+        // set up a db pool
         let pool_opts = SqlitePoolOptions::new()
             .max_connections(1)
             .acquire_time_level(log::LevelFilter::Debug)
