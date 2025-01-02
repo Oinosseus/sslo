@@ -6,7 +6,7 @@ use super::tablename;
 
 /// Data structure that is used for database interaction (only module internal use)
 #[derive(sqlx::FromRow, Clone)]
-pub(super) struct ItemDbRow {
+pub(super) struct UserDbRow {
     pub(super) rowid: i64,
     pub(super) name: String,
     pub(super) promotion_authority: PromotionAuthority,
@@ -21,7 +21,7 @@ pub(super) struct ItemDbRow {
     pub(super) password_last_useragent: Option<String>,
 }
 
-impl ItemDbRow {
+impl UserDbRow {
 
     /// Create a new (empty/default) data row
     pub(super) fn new(rowid: i64) -> Self {
@@ -43,10 +43,28 @@ impl ItemDbRow {
         }
     }
 
+    /// directly retrieve an item from database by email address
+    pub(super) async fn from_email(email: &str, pool: &SqlitePool) -> Result<Self, DatabaseError> {
+        return match sqlx::query_as::<Sqlite, UserDbRow>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE email LIKE $1 LIMIT 2;"))
+            .bind(email)
+            .fetch_one(pool)
+            .await {
+            Ok(row) => {
+                Ok(row)
+            },
+            Err(sqlx::Error::RowNotFound) => {
+                Err(DatabaseError::DataNotFound(tablename!(), format!("email={}", email)))
+            },
+            Err(e) => {
+                return Err(DatabaseError::SqlxLowLevelError(e));
+            }
+        };
+    }
+
     /// Read the data from the database
     /// This consumes a Row object and returns a new row object on success
     pub(super) async fn load(self: &mut Self, pool: &SqlitePool) -> Result<(), DatabaseError> {
-        match sqlx::query_as::<Sqlite, ItemDbRow>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE rowid = $1 LIMIT 2;"))
+        match sqlx::query_as::<Sqlite, UserDbRow>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE rowid = $1 LIMIT 2;"))
             .bind(self.rowid)
             .fetch_one(pool)
             .await {
@@ -130,27 +148,19 @@ impl ItemDbRow {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
     use sqlx::SqlitePool;
     use super::*;
     use test_log::test;
 
     async fn get_pool() -> SqlitePool {
-        let sqlite_opts = SqliteConnectOptions::from_str(":memory:").unwrap();
-        let pool = SqlitePoolOptions::new()
-            .min_connections(1)
-            .max_connections(1)  // default is 10
-            .idle_timeout(None)
-            .max_lifetime(None)
-            .connect_lazy_with(sqlite_opts);
+        let pool = sslo_lib::db::get_pool(None);
         sqlx::migrate!("../rsc/db_migrations/league_members").run(&pool).await.unwrap();
         return pool;
     }
 
     #[test(tokio::test)]
     async fn new_defaults() {
-        let row = ItemDbRow::new(33);
+        let row = UserDbRow::new(33);
         assert_eq!(row.rowid, 33);
         assert_eq!(row.name, "".to_string());
         assert_eq!(row.promotion_authority, PromotionAuthority::Executing);
@@ -177,7 +187,7 @@ mod tests {
         let dt4: DateTime<Utc> = DateTime::parse_from_rfc3339("4004-04-04T04:04:04.4444+04:00").unwrap().into();
 
         // store (insert)
-        let mut row = ItemDbRow::new(0);
+        let mut row = UserDbRow::new(0);
         row.name = "RowName".to_string();
         row.promotion_authority = PromotionAuthority::Chief;
         row.promotion = Promotion::Commissar;
@@ -192,7 +202,7 @@ mod tests {
         row.store(&pool).await.unwrap();
 
         // load
-        let mut row = ItemDbRow::new(1);
+        let mut row = UserDbRow::new(1);
         row.load(&pool).await.unwrap();
         assert_eq!(row.rowid, 1);
         assert_eq!(row.name, "RowName".to_string());
@@ -208,7 +218,7 @@ mod tests {
         assert_eq!(row.password_last_useragent, Some("IAmTheUserAgent".to_string()));
 
         // store (update)
-        let mut row = ItemDbRow::new(1);
+        let mut row = UserDbRow::new(1);
         row.name = "RowNameNew".to_string();
         row.promotion_authority = PromotionAuthority::Executing;
         row.promotion = Promotion::Admin;
@@ -223,7 +233,7 @@ mod tests {
         row.store(&pool).await.unwrap();
 
         // load
-        let mut row = ItemDbRow::new(1);
+        let mut row = UserDbRow::new(1);
         row.load(&pool).await.unwrap();
         assert_eq!(row.rowid, 1);
         assert_eq!(row.name, "RowNameNew".to_string());

@@ -5,7 +5,7 @@ use super::tablename;
 
 /// Data structure that is used for database interaction (only module internal use)
 #[derive(sqlx::FromRow, Clone)]
-pub(super) struct ItemDbRow {
+pub(super) struct CookieLoginDbRow {
     pub(super) rowid: i64,
     pub(super) user: i64,
     pub(super) token: String,
@@ -14,7 +14,7 @@ pub(super) struct ItemDbRow {
     pub(super) last_usage: Option<DateTime<Utc>>,
 }
 
-impl ItemDbRow {
+impl CookieLoginDbRow {
 
     /// Create a new (empty/default) data row
     pub(super) fn new(rowid: i64) -> Self {
@@ -32,7 +32,7 @@ impl ItemDbRow {
     /// Read the data from the database
     /// This consumes a Row object and returns a new row object on success
     pub(super) async fn load(self: &mut Self, pool: &SqlitePool) -> Result<(), DatabaseError> {
-        return match sqlx::query_as::<Sqlite, ItemDbRow>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE rowid = $1 LIMIT 2;"))
+        return match sqlx::query_as::<Sqlite, CookieLoginDbRow>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE rowid = $1 LIMIT 2;"))
             .bind(self.rowid)
             .fetch_one(pool)
             .await {
@@ -118,7 +118,7 @@ mod tests {
 
     #[test(tokio::test)]
     async fn new_defaults() {
-        let row = ItemDbRow::new(33);
+        let row = CookieLoginDbRow::new(33);
         assert_eq!(row.rowid, 33);
         assert_eq!(row.user, 0);
         assert_eq!(row.token, String::new());
@@ -137,7 +137,7 @@ mod tests {
         let dt3: DateTime<Utc> = DateTime::parse_from_rfc3339("3003-03-03T03:03:03.3333+03:00").unwrap().into();
 
         // store (insert)
-        let mut row = ItemDbRow::new(0);
+        let mut row = CookieLoginDbRow::new(0);
         row.user = 44;
         row.token = "MyInsecureTestToken".to_string();
         row.creation = dt1;
@@ -146,7 +146,7 @@ mod tests {
         row.store(&pool).await.unwrap();
 
         // load
-        let mut row = ItemDbRow::new(1);
+        let mut row = CookieLoginDbRow::new(1);
         row.load(&pool).await.unwrap();
         assert_eq!(row.rowid, 1);
         assert_eq!(row.user, 44);
@@ -156,7 +156,7 @@ mod tests {
         assert_eq!(row.last_useragent, Some("unit test".to_string()));
 
         // store (update)
-        let mut row = ItemDbRow::new(1);
+        let mut row = CookieLoginDbRow::new(1);
         row.user = 46;
         row.token = "MyNewInsecureTestToken".to_string();
         row.creation = dt2;
@@ -165,7 +165,7 @@ mod tests {
         row.store(&pool).await.unwrap();
 
         // load
-        let mut row = ItemDbRow::new(1);
+        let mut row = CookieLoginDbRow::new(1);
         row.load(&pool).await.unwrap();
         assert_eq!(row.rowid, 1);
         assert_eq!(row.user, 46);

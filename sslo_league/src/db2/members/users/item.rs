@@ -3,19 +3,19 @@ use chrono::{DateTime, Utc};
 use rand::RngCore;
 use tokio::sync::RwLock;
 use sqlx::SqlitePool;
-use super::row::ItemDbRow;
+use super::row::UserDbRow;
 use sslo_lib::db::DatabaseError;
 use sslo_lib::token;
 use crate::user_grade::{Promotion, PromotionAuthority};
 
 /// The actual data of an item that is shared by Arc<RwLock<ItemData>>
-pub(super) struct ItemData {
+pub(super) struct UserData {
     pool: SqlitePool,
-    row: ItemDbRow,
+    row: UserDbRow,
 }
 
-impl ItemData {
-    pub fn new(pool: &SqlitePool, row: ItemDbRow) -> Arc<RwLock<ItemData>> {
+impl UserData {
+    pub fn new(pool: &SqlitePool, row: UserDbRow) -> Arc<RwLock<UserData>> {
         Arc::new(RwLock::new(Self {
             pool: pool.clone(),
             row,
@@ -24,12 +24,12 @@ impl ItemData {
 }
 
 /// This abstracts data access to shared items
-pub struct ItemInterface(Arc<RwLock<ItemData>>);
+pub struct UserInterface(Arc<RwLock<UserData>>);
 
-impl ItemInterface {
+impl UserInterface {
 
     /// Set up an object from shared data (assumed to be retrieved from database)
-    pub(super) fn new(item_data: Arc<RwLock<ItemData>>) -> Self {
+    pub(super) fn new(item_data: Arc<RwLock<UserData>>) -> Self {
         Self(item_data)
     }
 
@@ -298,35 +298,27 @@ impl ItemInterface {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
     use sqlx::SqlitePool;
     use super::*;
     use test_log::test;
 
     async fn get_pool() -> SqlitePool {
-        let sqlite_opts = SqliteConnectOptions::from_str(":memory:").unwrap();
-        let pool = SqlitePoolOptions::new()
-            .min_connections(1)
-            .max_connections(1)  // default is 10
-            .idle_timeout(None)
-            .max_lifetime(None)
-            .connect_lazy_with(sqlite_opts);
+        let pool = sslo_lib::db::get_pool(None);
         sqlx::migrate!("../rsc/db_migrations/league_members").run(&pool).await.unwrap();
         return pool;
     }
 
-    async fn create_new_item(pool: &SqlitePool) -> ItemInterface {
-        let row = ItemDbRow::new(0);
-        let data = ItemData::new(pool, row);
-        ItemInterface::new(data)
+    async fn create_new_item(pool: &SqlitePool) -> UserInterface {
+        let row = UserDbRow::new(0);
+        let data = UserData::new(pool, row);
+        UserInterface::new(data)
     }
 
-    async fn load_item_from_db(id: i64, pool: &SqlitePool) -> ItemInterface {
-        let mut row = ItemDbRow::new(id);
+    async fn load_item_from_db(id: i64, pool: &SqlitePool) -> UserInterface {
+        let mut row = UserDbRow::new(id);
         row.load(pool).await.unwrap();
-        let data = ItemData::new(&pool, row);
-        ItemInterface::new(data)
+        let data = UserData::new(&pool, row);
+        UserInterface::new(data)
     }
 
     /// test item generation and property access
@@ -335,9 +327,9 @@ mod tests {
         let pool = get_pool().await;
 
         // create item
-        let row = ItemDbRow::new(0);
-        let data = ItemData::new(&pool, row);
-        let item = ItemInterface::new(data);
+        let row = UserDbRow::new(0);
+        let data = UserData::new(&pool, row);
+        let item = UserInterface::new(data);
         assert_eq!(item.id().await, 0);
         assert_eq!(item.name().await, "");
     }

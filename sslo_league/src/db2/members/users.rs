@@ -13,13 +13,14 @@ pub(self) use tablename;
 
 use sqlx::SqlitePool;
 use tokio::sync::RwLock;
+use item::UserInterface;
 
-pub(super) struct TableData {
+pub(super) struct UserTableData {
     pool: SqlitePool,
-    item_cache: HashMap<i64, Arc<RwLock<item::ItemData>>>
+    item_cache: HashMap<i64, Arc<RwLock<item::UserData>>>
 }
 
-impl TableData {
+impl UserTableData {
     pub(super) fn new(pool: &SqlitePool) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(Self {
             pool: pool.clone(),
@@ -28,21 +29,21 @@ impl TableData {
     }
 }
 
-pub struct TableInterface (
-    Arc<RwLock<TableData>>
+pub struct UserTableInterface(
+    Arc<RwLock<UserTableData>>
 );
 
-impl TableInterface {
+impl UserTableInterface {
 
-    pub fn new(data: Arc<RwLock<TableData>>) -> Self {
+    pub fn new(data: Arc<RwLock<UserTableData>>) -> Self {
         Self(data)
     }
 
     /// Create a new user
-    pub async fn new_item(&self) -> Option<item::ItemInterface> {
+    pub async fn create_new_user(&self) -> Option<UserInterface> {
 
         // insert new item into DB
-        let mut row = row::ItemDbRow::new(0);
+        let mut row = row::UserDbRow::new(0);
         {
             let pool = self.0.read().await.pool.clone();
             match row.store(&pool).await {
@@ -56,8 +57,8 @@ impl TableInterface {
 
         // update cache
         let mut tbl_data = self.0.write().await;
-        let item_data = item::ItemData::new(&tbl_data.pool, row);
-        let item = item::ItemInterface::new(item_data.clone());
+        let item_data = item::UserData::new(&tbl_data.pool, row);
+        let item = UserInterface::new(item_data.clone());
         tbl_data.item_cache.insert(item.id().await, item_data);
         return Some(item);
     }
@@ -65,13 +66,13 @@ impl TableInterface {
     /// Get an item
     /// This first tries to load the item from cache,
     /// and secondly load it from the database.
-    pub async fn item_by_id(&self, id: i64) -> Option<item::ItemInterface> {
+    pub async fn user_by_id(&self, id: i64) -> Option<UserInterface> {
 
         // try cache hit
         {
             let tbl_data = self.0.read().await;
             if let Some(item_data) = tbl_data.item_cache.get(&id) {
-                return Some(item::ItemInterface::new(item_data.clone()));
+                return Some(UserInterface::new(item_data.clone()));
             }
         }
 
@@ -80,11 +81,11 @@ impl TableInterface {
             let mut tbl_data = self.0.write().await;
 
             // load from db
-            let mut row = row::ItemDbRow::new(id);
+            let mut row = row::UserDbRow::new(id);
             match row.load(&tbl_data.pool).await {
                 Ok(_) => { },
                 Err(e) => {
-                    if e.is_rowid_not_found() {
+                    if e.is_not_found_type() {
                         log::warn!("{}", e);
                     } else {
                         log::error!("{}", e.to_string());
@@ -95,74 +96,68 @@ impl TableInterface {
             debug_assert_eq!(row.rowid, id);
 
             // create item
-            let item_data = item::ItemData::new(&tbl_data.pool, row);
-            let item = item::ItemInterface::new(item_data.clone());
+            let item_data = item::UserData::new(&tbl_data.pool, row);
+            let item = item::UserInterface::new(item_data.clone());
             tbl_data.item_cache.insert(id, item_data);
             return Some(item);
         }
     }
 
 
-    // /// Search the database for an email and then return the item
-    // /// The search is case-insensitive
-    // pub async fn item_by_email(&self, email: &str) -> Option<Arc<Item>> {
-    //
-    //     // get pool
-    //     let pool = match self.pool() {
-    //         Some(pool) => pool,
-    //         None => {
-    //             log::error!("No pool!");
-    //             return None;
-    //         }
-    //     };
-    //
-    //     // find item in database
-    //     let row = Row::from_db_by_email(&pool, email).await.or_else(||{
-    //         log::warn!("No item with email={} found!", email);
-    //         None
-    //     })?;
-    //     self.item_by_id(row.rowid).await
-    // }
+    /// Search the database for an email and then return the item
+    /// The search is case-insensitive,
+    /// this is not cached -> expensive
+    pub async fn user_by_email(&self, email: &str) -> Option<UserInterface> {
+        let pool: SqlitePool;
+        {   // scoped lock to call user_by_id() later
+            let data = self.0.read().await;
+            pool = data.pool.clone();
+        }
+        let row = match row::UserDbRow::from_email(email, &pool).await {
+            Ok(row) => {row},
+            Err(e) => {
+                if e.is_not_found_type() {
+                    log::warn!("{}", e);
+                } else {
+                    log::error!("{}", e.to_string());
+                }
+                return None;
+            },
+        };
+        return self.user_by_id(row.rowid).await;
+    }
 
 }
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
     use sqlx::SqlitePool;
     use super::*;
     use test_log::test;
 
     async fn get_pool() -> SqlitePool {
-        let sqlite_opts = SqliteConnectOptions::from_str(":memory:").unwrap();
-        let pool = SqlitePoolOptions::new()
-            .min_connections(1)
-            .max_connections(1)  // default is 10
-            .idle_timeout(None)
-            .max_lifetime(None)
-            .connect_lazy_with(sqlite_opts);
+        let pool = sslo_lib::db::get_pool(None);
         sqlx::migrate!("../rsc/db_migrations/league_members").run(&pool).await.unwrap();
         return pool;
     }
 
-    async fn get_table_interface() -> TableInterface {
+    async fn get_table_interface() -> UserTableInterface {
         let pool = get_pool().await;
-        let tbl_data = TableData::new(&pool);
-        TableInterface::new(tbl_data.clone())
+        let tbl_data = UserTableData::new(&pool);
+        UserTableInterface::new(tbl_data.clone())
     }
 
     #[test(tokio::test)]
-    async fn new_item() {
+    async fn create_new_user() {
         let tbl = get_table_interface().await;
         assert_eq!(tbl.0.read().await.item_cache.len(), 0);
-        let item = tbl.new_item().await.unwrap();
+        let item = tbl.create_new_user().await.unwrap();
         assert_eq!(tbl.0.read().await.item_cache.len(), 1);
         assert_eq!(item.id().await, 1);
     }
 
     #[test(tokio::test)]
-    async fn item_by_id_from_db() {
+    async fn user_by_id() {
         let tbl = get_table_interface().await;
 
         // check if cache is empty
@@ -172,9 +167,9 @@ mod tests {
         }
 
         // append items to db
-        let mut item = tbl.new_item().await.unwrap();
+        let mut item = tbl.create_new_user().await.unwrap();
         item.set_name("Bob".to_string()).await.unwrap();
-        let mut item = tbl.new_item().await.unwrap();
+        let mut item = tbl.create_new_user().await.unwrap();
         item.set_name("Dylan".to_string()).await.unwrap();
 
         // check if cache is filled
@@ -184,11 +179,27 @@ mod tests {
         }
 
         // retrieve item
-        let item1 = tbl.item_by_id(1).await.unwrap();
+        let item1 = tbl.user_by_id(1).await.unwrap();
         assert_eq!(item1.id().await, 1);
         assert_eq!(item1.name().await, "Bob");
-        let item2 = tbl.item_by_id(2).await.unwrap();
+        let item2 = tbl.user_by_id(2).await.unwrap();
         assert_eq!(item2.id().await, 2);
         assert_eq!(item2.name().await, "Dylan");
+    }
+
+    #[test(tokio::test)]
+    async fn user_by_email() {
+        let tbl = get_table_interface().await;
+        let mut user = tbl.create_new_user().await.unwrap();
+        let token = user.set_email("a.B@c.de".to_string()).await.unwrap();
+        assert!(user.verify_email(token).await);
+
+        // retrieve item
+        let user = tbl.user_by_email("a.B@c.de").await.unwrap();
+        assert_eq!(user.email().await.unwrap(), "a.B@c.de".to_string());
+
+        // check case insensitivity
+        let user = tbl.user_by_email("a.b@c.de").await.unwrap();
+        assert_eq!(user.email().await.unwrap(), "a.B@c.de".to_string());
     }
 }

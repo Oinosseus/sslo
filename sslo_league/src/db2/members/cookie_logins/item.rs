@@ -3,18 +3,18 @@ use chrono::{DateTime, Utc};
 use rand::RngCore;
 use tokio::sync::RwLock;
 use sqlx::SqlitePool;
-use super::row::ItemDbRow;
+use super::row::CookieLoginDbRow;
 use sslo_lib::db::DatabaseError;
 use sslo_lib::token;
 
 /// The actual data of an item that is shared by Arc<RwLock<ItemData>>
-pub(super) struct ItemData {
+pub(super) struct CookieLoginData {
     pool: SqlitePool,
-    row: ItemDbRow,
+    row: CookieLoginDbRow,
 }
 
-impl ItemData {
-    pub fn new(pool: &SqlitePool, row: ItemDbRow) -> Arc<RwLock<ItemData>> {
+impl CookieLoginData {
+    pub fn new(pool: &SqlitePool, row: CookieLoginDbRow) -> Arc<RwLock<CookieLoginData>> {
         Arc::new(RwLock::new(Self {
             pool: pool.clone(),
             row,
@@ -23,42 +23,36 @@ impl ItemData {
 }
 
 /// This abstracts data access to shared items
-pub struct ItemInterface(Arc<RwLock<ItemData>>);
+pub struct CookieLoginInterface(Arc<RwLock<CookieLoginData>>);
 
-impl ItemInterface {
+impl CookieLoginInterface {
     /// Set up an object from shared data (assumed to be retrieved from database)
-    pub(super) fn new(item_data: Arc<RwLock<ItemData>>) -> Self {
+    pub(super) fn new(item_data: Arc<RwLock<CookieLoginData>>) -> Self {
         Self(item_data)
     }
 
-    pub async fn id(&self) -> i64 {
-        self.0.read().await.row.rowid
-    }
+    // pub async fn id(&self) -> i64 {
+    //     self.0.read().await.row.rowid
+    // }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
     use sqlx::SqlitePool;
     use super::*;
     use test_log::test;
 
     async fn get_pool() -> SqlitePool {
-        let sqlite_opts = SqliteConnectOptions::from_str(":memory:").unwrap();
-        let pool = SqlitePoolOptions::new()
-            .min_connections(1)
-            .max_connections(1)  // default is 10
-            .idle_timeout(None)
-            .max_lifetime(None)
-            .connect_lazy_with(sqlite_opts);
+        let pool = sslo_lib::db::get_pool(None);
         sqlx::migrate!("../rsc/db_migrations/league_members").run(&pool).await.unwrap();
         return pool;
     }
 
-    async fn create_new_item(pool: &SqlitePool) -> ItemInterface {
-        let row = ItemDbRow::new(0);
-        let data = ItemData::new(pool, row);
-        ItemInterface::new(data)
+    #[test(tokio::test)]
+    async fn new() {
+        let pool = get_pool().await;
+        let row = CookieLoginDbRow::new(0);
+        let data = CookieLoginData::new(&pool, row);
+        CookieLoginInterface::new(data);
     }
 }

@@ -2,51 +2,60 @@ mod users;
 mod cookie_logins;
 
 use std::sync::Arc;
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::SqlitePool;
 use tokio::sync::RwLock;
-use crate::db::members::users::User;
+use sslo_lib::db::DatabaseError;
+use users::{UserTableData, UserTableInterface};
 
 /// The members database
-pub struct Members {
+pub struct MembersDbData {
     pool: SqlitePool,
-    tbl_users: Arc<RwLock<users::TableData>>,
+    tbl_users: Arc<RwLock<UserTableData>>,
 }
 
+impl MembersDbData {
 
-impl Members {
+    /// When db_path is None, the pool is generated in memory
+    pub(super) async fn new(db_path: Option<&str>) -> Result<Arc<RwLock<Self>>, DatabaseError> {
 
-    /// Connecting to the database file
-    pub fn new(db_path: &str) -> Arc<Self> {
+        // set up db
+        let pool = sslo_lib::db::get_pool(db_path);
+        sqlx::migrate!("../rsc/db_migrations/league_members").run(&pool).await?;
 
-        // set up a db pool
-        let pool_opts = SqlitePoolOptions::new()
-            .max_connections(1)
-            .acquire_time_level(log::LevelFilter::Debug)
-            .acquire_slow_level(log::LevelFilter::Warn)
-            .max_lifetime(Some(std::time::Duration::from_secs(600)));
-        let conn_opts = SqliteConnectOptions::new()
-            .filename(db_path)
-            .locking_mode(sqlx::sqlite::SqliteLockingMode::Exclusive)
-            .create_if_missing(true)
-            .optimize_on_close(true, 400)
-            .analysis_limit(Some(400));
-        let pool = pool_opts.connect_lazy_with(conn_opts);
+        // set up tables
+        let tbl_users = UserTableData::new(&pool);
 
-        // create tables
-        let tbl_users = users::TableData::new(&pool);
-
-        // setup database object
-        Arc::new(Self {
+        // create data object
+        Ok(Arc::new(RwLock::new(Self {
             pool,
             tbl_users,
-        })
+        })))
+    }
+}
+
+struct MembersDbInterface(Arc<RwLock<MembersDbData>>);
+
+impl MembersDbInterface {
+
+    pub(super) fn new(data: Arc<RwLock<MembersDbData>>) -> Self {
+        Self(data)
     }
 
-    /// returning a pool object (only used for submodules)
-    fn pool(&self) -> SqlitePool { self.pool.clone() }
+    pub async fn tbl_users(&self) -> users::UserTableInterface {
+        let data = self.0.read().await;
+        UserTableInterface::new(data.tbl_users.clone())
+    }
+}
 
-    fn tbl_users(&self) -> users::TableInterface {
-        users::TableInterface::new(self.tbl_users.clone())
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test_log::test;
+
+    #[test(tokio::test)]
+    async fn create_new() {
+        let data = MembersDbData::new(None).await.unwrap();
+        let db = MembersDbInterface::new(data);
+        let _ = db.tbl_users().await;
     }
 }
