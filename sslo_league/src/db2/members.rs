@@ -1,8 +1,8 @@
 pub mod users;
 mod cookie_logins;
 
+use std::path::Path;
 use std::sync::Arc;
-use sqlx::SqlitePool;
 use tokio::sync::RwLock;
 use sslo_lib::db::DatabaseError;
 use users::{UserTableData, UserTableInterface};
@@ -18,7 +18,7 @@ pub struct MembersDbData {
 
 impl MembersDbData {
     /// When db_path is None, the pool is generated in memory
-    pub(super) async fn new(db_path: Option<&str>) -> Result<Arc<RwLock<Self>>, DatabaseError> {
+    pub(super) async fn new(db_path: Option<&Path>) -> Result<Arc<RwLock<Self>>, DatabaseError> {
 
         // set up db
         let pool = sslo_lib::db::get_pool(db_path);
@@ -35,7 +35,7 @@ impl MembersDbData {
     }
 }
 
-struct MembersDbInterface(Arc<RwLock<MembersDbData>>);
+pub struct MembersDbInterface(Arc<RwLock<MembersDbData>>);
 
 impl MembersDbInterface {
 

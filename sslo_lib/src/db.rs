@@ -1,3 +1,4 @@
+use std::path::Path;
 use sqlx::SqlitePool;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use thiserror::Error;
@@ -39,7 +40,7 @@ impl DatabaseError {
 }
 
 /// When db_path is None, the pool is generated in memory
-pub fn get_pool(db_path: Option<&str>) -> SqlitePool {
+pub fn get_pool(db_path: Option<&Path>) -> SqlitePool {
 
     match db_path {
         None => {
