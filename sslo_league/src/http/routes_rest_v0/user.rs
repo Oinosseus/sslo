@@ -27,7 +27,7 @@ pub async fn handler_update_settings(State(_app_state): State<AppState>,
 
         // name
         if let Some(new_name) = input.new_name {
-            match some_user.update_name(new_name).await {
+            match some_user.set_name(new_name).await {
                 Ok(_) => {},
                 Err(e) => {
                     log::error!("Could not update username: {}", e);
@@ -38,12 +38,9 @@ pub async fn handler_update_settings(State(_app_state): State<AppState>,
 
         // password
         if let Some(new_password) = input.new_password {
-            match some_user.update_password(input.old_password, new_password).await {
-                Ok(_) => {},
-                Err(e) => {
-                    log::error!("Failed to update password!");
-                    return GeneralError::new("Updating password failed".to_string(), "".to_string()).into_response();
-                }
+            if !some_user.update_password(input.old_password, Some(new_password)).await {
+                log::error!("Failed to update password!");
+                return GeneralError::new("Updating password failed".to_string(), "".to_string()).into_response();
             }
         }
 

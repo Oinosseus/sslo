@@ -1,6 +1,6 @@
 use std::ops::Sub;
 use crate::app_state::AppState;
-use crate::db;
+use crate::db2::members::users::UserInterface;
 
 
 #[derive(PartialEq)]
@@ -115,7 +115,7 @@ impl UserGrade {
     }
 
     pub async fn from_user(app_state: &AppState,
-                           user: &Option<db::members::users::User>
+                           user: &Option<UserInterface>
     ) -> Self {
 
         // extract grade from database item
@@ -123,9 +123,11 @@ impl UserGrade {
 
             // determine login activity
             let mut login_activity = LoginActivity::None;
-            let last_cookie = app_state.db_members.cookie_login_from_last_usage(some_user).await;
-            if let Some(some_last_cookie) = last_cookie {
-                login_activity = match some_last_cookie.last_usage() {
+            let last_cookie_item = app_state.database.db_members().await
+                .tbl_cookie_logins().await
+                .item_from_latest_usage(&some_user).await;
+            if let Some(some_last_cookie_item) = last_cookie_item {
+                login_activity = match some_last_cookie_item.last_usage().await {
                     None => { LoginActivity::None },
                     Some(last_login) => {
                         let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(app_state.config.general.days_recent_activity)));
@@ -136,7 +138,7 @@ impl UserGrade {
             }
 
             // determine driving activity
-            let driving_activity = match some_user.last_lap() {
+            let driving_activity = match some_user.last_lap().await {
                 None => DrivingActivity::None,
                 Some(last_lap) => {
                     let obsolescence_threshold = chrono::Utc::now().sub(chrono::Duration::days(i64::from(app_state.config.general.days_recent_activity)));
@@ -148,18 +150,18 @@ impl UserGrade {
             // check for root
             let is_root: bool = match app_state.config.general.root_user_id {
                 None => false,
-                Some(root_user_id) => some_user.rowid() == root_user_id
+                Some(root_user_id) => some_user.id().await == root_user_id
             };
 
             Self {
                 login_activity,
                 driving_activity,
-                promotion: some_user.promotion(),
-                promotion_authority: some_user.promotion_authority(),
+                promotion: some_user.promotion().await,
+                promotion_authority: some_user.promotion_authority().await,
                 is_root,
             }
 
-        // assume lowest grade if no database item is available
+        // assume the lowest grade if no database item is available
         } else {
             Self::new_lowest()
         }

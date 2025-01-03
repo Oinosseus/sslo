@@ -4,14 +4,14 @@ use chrono::{DateTime, Utc};
 use tokio::sync::RwLock;
 use sqlx::SqlitePool;
 use super::row::CookieLoginDbRow;
-use sslo_lib::db::DatabaseError;
-use crate::db2::members::{MembersDbData, MembersDbInterface};
+use super::super::super::members::{MembersDbData, MembersDbInterface};
+use super::super::users::UserInterface;
 use super::tablename;
 
 /// The actual data of an item that is shared by Arc<RwLock<ItemData>>
 pub(super) struct CookieLoginData {
     pool: SqlitePool,
-    row: CookieLoginDbRow,
+    pub(super) row: CookieLoginDbRow,
     db_members: Weak<RwLock<MembersDbData>>,
 
     /// only available after new item is created, unset after calling get_cookie()
@@ -40,7 +40,7 @@ impl CookieLoginInterface {
 
     pub async fn id(&self) -> i64 { self.0.read().await.row.rowid }
 
-    pub async fn user(&self) -> Option<super::super::users::item::UserInterface> {
+    pub async fn user(&self) -> Option<UserInterface> {
         let data = self.0.read().await;
         let db_members = match data.db_members.upgrade() {
             Some(db_data) => MembersDbInterface::new(db_data),
@@ -92,4 +92,15 @@ impl CookieLoginInterface {
 
     pub async fn last_useragent(&self) -> Option<String> { self.0.read().await.row.last_useragent.clone() }
     pub async fn last_usage(&self) -> Option<DateTime<Utc>> { self.0.read().await.row.last_usage.clone() }
+
+    /// returns a http header to unset cookie
+    pub(super) async fn delete(self) -> String {
+        let mut data = self.0.write().await;
+        let id = data.row.rowid;
+        let pool = data.pool.clone();
+        if let Err(e) = data.row.delete(&pool).await {
+            log::error!("failed to delete cookie rowid={}: {}", id, e);
+        }
+        "cookie_login=\"\"; HttpOnly; Max-Age=-1; SameSite=Strict; Partitioned; Secure; Path=/;".to_string()
+    }
 }

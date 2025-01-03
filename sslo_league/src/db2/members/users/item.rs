@@ -3,8 +3,8 @@ use chrono::{DateTime, Utc};
 use rand::RngCore;
 use tokio::sync::RwLock;
 use sqlx::SqlitePool;
+use sslo_lib::error::SsloError;
 use super::row::UserDbRow;
-use sslo_lib::db::DatabaseError;
 use sslo_lib::token;
 use crate::user_grade::{Promotion, PromotionAuthority};
 
@@ -24,6 +24,7 @@ impl UserData {
 }
 
 /// This abstracts data access to shared items
+#[derive(Clone)]
 pub struct UserInterface(Arc<RwLock<UserData>>);
 
 impl UserInterface {
@@ -42,7 +43,7 @@ impl UserInterface {
         self.0.read().await.row.name.clone()
     }
 
-    pub async fn set_name(self: &mut Self, name: String) -> Result<(), DatabaseError> {
+    pub async fn set_name(self: &mut Self, name: String) -> Result<(), SsloError> {
         let mut data = self.0.write().await;
         data.row.name = name;
         let pool = data.pool.clone();
@@ -121,6 +122,22 @@ impl UserInterface {
             }
         }
 
+        // check for unique email
+        let pool = item_data.pool.clone();
+        match UserDbRow::from_email(&email, &pool).await {
+            Ok(row) => {
+                if row.rowid != item_data.row.rowid {
+                    log::warn!("reject assigning email '{}' because duplicate at rowid={}", &email, row.rowid);
+                    return None;
+                }
+            },
+            Err(e) if e.is_db_not_found_type() => {},
+            Err(e) => {
+                log::error!("failed to email uniqueness for email = '{}': {}", &email, e);
+                return None;
+            },
+        }
+
         // generate new email_token
         let token = match token::Token::generate(token::TokenType::Strong) {
             Ok(t) => t,
@@ -135,7 +152,6 @@ impl UserInterface {
         item_data.row.email_token = Some(token.encrypted);
         item_data.row.email_token_creation = Some(time_now);
         item_data.row.email_token_consumption = None;
-        let pool = item_data.pool.clone();
         return match item_data.row.store(&pool).await {
             Ok(_) => Some(token.decrypted),
             Err(e) => {

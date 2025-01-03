@@ -1,5 +1,9 @@
 mod row;
-pub mod item;
+
+mod item;
+pub use item::UserInterface;
+
+
 
 /// This is the central defined name of the table in this module,
 /// used to allow copy&paste of the code for other tables.
@@ -13,7 +17,6 @@ pub(self) use tablename;
 
 use sqlx::SqlitePool;
 use tokio::sync::RwLock;
-use item::UserInterface;
 
 pub(super) struct UserTableData {
     pool: SqlitePool,
@@ -85,7 +88,7 @@ impl UserTableInterface {
             match row.load(&tbl_data.pool).await {
                 Ok(_) => { },
                 Err(e) => {
-                    if e.is_not_found_type() {
+                    if e.is_db_not_found_type() {
                         log::warn!("{}", e);
                     } else {
                         log::error!("{}", e.to_string());
@@ -116,7 +119,7 @@ impl UserTableInterface {
         let row = match row::UserDbRow::from_email(email, &pool).await {
             Ok(row) => {row},
             Err(e) => {
-                if e.is_not_found_type() {
+                if e.is_db_not_found_type() {
                     log::warn!("{}", e);
                 } else {
                     log::error!("{}", e.to_string());
@@ -201,5 +204,18 @@ mod tests {
         // check case insensitivity
         let user = tbl.user_by_email("a.b@c.de").await.unwrap();
         assert_eq!(user.email().await.unwrap(), "a.B@c.de".to_string());
+    }
+
+    #[test(tokio::test)]
+    async fn duplicated_email() {
+        let tbl = get_table_interface().await;
+
+        // create a user, set email
+        let mut user = tbl.create_new_user().await.unwrap();
+        let token = user.set_email("a.B@c.de".to_string()).await.unwrap();
+
+        // create another user, with same email -> should fail
+        let mut user = tbl.create_new_user().await.unwrap();
+        assert!(user.set_email("a.b@c.de".to_string()).await.is_none());
     }
 }

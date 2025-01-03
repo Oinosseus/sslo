@@ -24,14 +24,22 @@ pub async fn handler(State(app_state): State<AppState>,
 ) -> Response {
 
     // artificial slowdown
-    let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~2000 maximum
+    let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~1..3s
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
+
+    // get db tables
+    let tbl_usr = app_state.database.db_members().await.tbl_users().await;
+    let tbl_cookie = app_state.database.db_members().await.tbl_cookie_logins().await;
 
     // create new token
     let mut cookie : Option<String> = None;
     if let Some(password) = input.password {
-        if let Some(some_user) = app_state.db_members.user_from_email_password(http_user.user_agent.clone(), &input.email, password).await {
-            cookie = app_state.db_members.cookie_login_new(&some_user).await;
+        if let Some(some_user) = tbl_usr.user_by_email(&input.email).await {
+            if some_user.verify_password(password, http_user.user_agent.clone()).await {
+                if let Some(login_cookie_item) = tbl_cookie.create_new_cookie(&some_user).await {
+                    cookie = login_cookie_item.get_cookie().await;
+                }
+            }
         }
     }
 

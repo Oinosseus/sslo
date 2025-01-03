@@ -94,9 +94,20 @@ pub async fn handler_email_password(State(app_state): State<AppState>,
     // verify login
     let mut cookie: Option<String> = None;
     if let Some(password) = form.password {
-        let user = app_state.db_members.user_from_email_password(html.http_user.user_agent.clone(), &form.email, password).await;
-        if let Some(ref some_user) = user {
-            cookie = app_state.db_members.cookie_login_new(some_user).await;
+        if let Some(user) = app_state.database.db_members().await
+            .tbl_users().await
+            .user_by_email(&form.email).await {
+            if user.verify_password(password, html.http_user.user_agent.clone()).await {
+                if let Some(cookie_login) = app_state.database.db_members().await
+                    .tbl_cookie_logins().await
+                    .create_new_cookie(&user).await {
+                    cookie = cookie_login.get_cookie().await;
+                }
+            } else {
+                log::warn!("password verification failed for email '{}'", &form.email);
+            }
+        } else {
+            log::warn!("could not find user from email: '{}'", &form.email);
         }
     }
 
@@ -130,16 +141,17 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
     let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~2000 maximum
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
-    // get user
-    let mut user_item = app_state.db_members.user_from_email(&form.email).await;
-    if user_item.is_none() {  // create new user from email
-        user_item = app_state.db_members.user_new_from_email(&form.email).await;
-    }
+    // get user db table
+    let tbl_usr = app_state.database.db_members().await.tbl_users().await;
 
-    // create new token
+    // get user
     let mut token : Option<String> = None;  // need this option, because build fails when nesting new_email_login_token() and send_email()
-    if let Some(mut some_user_item) = user_item {
-        token = some_user_item.update_email_login_token().await;
+    let mut user_item = tbl_usr.user_by_email(&form.email).await;
+    if user_item.is_none() {
+        if let Some(mut new_user_item) = tbl_usr.create_new_user().await {
+            token = new_user_item.set_email(form.email.clone()).await;
+            user_item = Some(new_user_item);
+        }
     }
 
     // send info email
@@ -183,11 +195,20 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~2000 maximum
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
+    // get db tables
+    let tbl_usr = app_state.database.db_members().await.tbl_users().await;
+    let tbl_cookie = app_state.database.db_members().await.tbl_cookie_logins().await;
+
     // verify login
-    let user = app_state.db_members.user_from_email_token(&email, token).await;
     let mut cookie: Option<String> = None;
-    if let Some(ref some_user) = user {
-        cookie = app_state.db_members.cookie_login_new(some_user).await;
+    if let Some(user) = tbl_usr.user_by_email(&email).await {
+        if user.verify_email(token).await {
+            if let Some(login_cookie_item) = tbl_cookie.create_new_cookie(&user).await {
+                cookie = login_cookie_item.get_cookie().await;
+            }
+        }
+    } else {
+        log::warn!("could not find user from email: '{}'", &email);
     }
 
     // user info
@@ -205,19 +226,22 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
 }
 
 
-pub async fn handler_logout(State(_app_state): State<AppState>,
+pub async fn handler_logout(State(app_state): State<AppState>,
                      HttpUserExtractor(mut http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
 
+    // get tables
+    let tbl_cookie = app_state.database.db_members().await.tbl_cookie_logins().await;
+
     let mut cookie_value: Option<String> = None;
-    if let Some(cookie_login) = http_user.cookie_login {
-        cookie_value = Some(cookie_login.delete().await);  // invalidate login cookie
-        http_user = HttpUser::new_lowest();                // create new user
+    if let Some(cookie_login) = http_user.cookie_login.take() {
+        cookie_value = Some(tbl_cookie.delete_cookie(cookie_login).await);  // invalidate login cookie
+        http_user = HttpUser::new_lowest();  // downgrade http user
     } else {
         return Err(StatusCode::UNAUTHORIZED);
     }
 
     // generate html
-    let name = http_user.name().to_string();
+    let name = http_user.name().await;
     let mut html = HtmlTemplate::new(http_user);
     html.message_success(format!("Logged out '{}' ...", name));
 

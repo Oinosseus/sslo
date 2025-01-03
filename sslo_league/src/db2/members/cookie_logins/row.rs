@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use sqlx::{Sqlite, SqlitePool};
-use sslo_lib::db::DatabaseError;
+use sslo_lib::error::SsloError;
 use super::tablename;
 
 /// Data structure that is used for database interaction (only module internal use)
@@ -31,7 +31,7 @@ impl CookieLoginDbRow {
 
     /// Read the data from the database
     /// This consumes a Row object and returns a new row object on success
-    pub(super) async fn load(self: &mut Self, pool: &SqlitePool) -> Result<(), DatabaseError> {
+    pub(super) async fn load(self: &mut Self, pool: &SqlitePool) -> Result<(), SsloError> {
         return match sqlx::query_as::<Sqlite, CookieLoginDbRow>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE rowid = $1 LIMIT 2;"))
             .bind(self.rowid)
             .fetch_one(pool)
@@ -41,10 +41,27 @@ impl CookieLoginDbRow {
                 Ok(())
             },
             Err(sqlx::Error::RowNotFound) => {
-                Err(DatabaseError::RowidNotFound(tablename!(), self.rowid))
+                Err(SsloError::DatabaseIdNotFound(tablename!(), "rowid", self.rowid))
             },
             Err(e) => {
-                Err(DatabaseError::SqlxLowLevelError(e))
+                Err(SsloError::DatabaseSqlx(e))
+            }
+        };
+    }
+
+    pub(super) async fn from_user_latest_usage(pool: &SqlitePool, user_id: i64) -> Result<Self, SsloError> {
+        return match sqlx::query_as::<Sqlite, Self>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE user = $1 ORDER BY last_usage DESC LIMIT 1;"))
+            .bind(user_id)
+            .fetch_one(pool)
+            .await {
+            Ok(row) => {
+                Ok(row)
+            },
+            Err(sqlx::Error::RowNotFound) => {
+                Err(SsloError::DatabaseIdNotFound(tablename!(), "user", user_id))
+            },
+            Err(e) => {
+                Err(SsloError::DatabaseSqlx(e))
             }
         };
     }
@@ -53,7 +70,7 @@ impl CookieLoginDbRow {
     /// When rowid is unequal to '0', an UPDATE is executed,
     /// When rowid is zero, an insert is executed and rowid is updated
     /// When INSERT fails, rowid will stay at zero
-    pub(super) async fn store(self: &mut Self, pool: &SqlitePool) -> Result<(), DatabaseError> {
+    pub(super) async fn store(self: &mut Self, pool: &SqlitePool) -> Result<(), SsloError> {
 
         // define query
         let mut query = match self.rowid {
@@ -94,6 +111,27 @@ impl CookieLoginDbRow {
         }
         return Ok(())
     }
+
+    pub(super) async fn delete(self: &mut Self, pool: &SqlitePool) -> Result<(), SsloError> {
+        return match sqlx::query(concat!("DELETE FROM ", tablename!(), " WHERE rowid = $1;"))
+            .bind(self.rowid)
+            .execute(pool)
+            .await {
+            Ok(_) => {
+                self.rowid = 0;
+                self.token = "".to_string();
+                self.user = 0;
+                Ok(())
+            },
+            Err(sqlx::Error::RowNotFound) => {
+                Err(SsloError::DatabaseIdNotFound(tablename!(), "rowid", self.rowid))
+            },
+            Err(e) => {
+                Err(SsloError::DatabaseSqlx(e))
+            }
+        };
+
+    }
 }
 
 #[cfg(test)]
@@ -120,7 +158,7 @@ mod tests {
 
     /// Testing load and store (insert+update)
     #[test(tokio::test)]
-    async fn load_store() {
+    async fn load_store_delete() {
         let pool = get_pool().await;
 
         // define some UTC times
@@ -165,5 +203,11 @@ mod tests {
         assert_eq!(row.creation, dt2.clone());
         assert_eq!(row.last_usage, Some(dt3.clone()));
         assert_eq!(row.last_useragent, Some("new unit test".to_string()));
+
+        // delete
+        row.delete(&pool).await.unwrap();
+        assert_eq!(row.rowid, 0);
+        assert_eq!(row.user, 0);
+        assert_eq!(row.token, "".to_string());
     }
 }

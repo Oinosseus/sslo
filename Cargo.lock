@@ -2563,6 +2563,7 @@ dependencies = [
  "sqlx",
  "thiserror 2.0.9",
  "tokio",
+ "toml",
 ]
 
 [[package]]

@@ -2,10 +2,8 @@ use std::sync::{Arc, Weak};
 use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
 use tokio::sync::RwLock;
-use sslo_lib::db::DatabaseError;
-use crate::db2::members::MembersDbInterface;
-use crate::db2::members::steam_users::tablename;
-use super::super::MembersDbData;
+use super::super::{MembersDbInterface, MembersDbData};
+use super::super::users::UserInterface;
 
 /// The actual data of an item that is shared by Arc<RwLock<ItemData>>
 pub(super) struct SteamUserData {
@@ -42,7 +40,7 @@ impl SteamUserInterface {
     pub async fn steam_id(&self) -> String { self.0.read().await.row.steam_id.clone() }
     pub async fn creation(&self) -> DateTime<Utc> { self.0.read().await.row.creation.clone() }
 
-    pub async fn user(&self) -> Option<super::super::users::item::UserInterface> {
+    pub async fn user(&self) -> Option<UserInterface> {
         let data = self.0.read().await;
         let db_members = match data.db_members.upgrade() {
             Some(db_data) => MembersDbInterface::new(db_data),

@@ -1,17 +1,10 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use axum_server::tls_rustls::RustlsConfig;
-use crate::db;
+use sslo_lib::error::SsloError;
+use crate::{db, db2};
 use crate::db::Database;
 use super::config::Config;
-
-
-fn ensure_dir_exists(dir_path: &Path) -> Result<(), Box<dyn Error>> {
-    if !dir_path.exists() {
-        std::fs::create_dir_all(dir_path)?;
-    }
-    Ok(())
-}
 
 
 #[derive(Clone)]
@@ -24,41 +17,45 @@ pub struct AppState {
     database_dir: PathBuf,
 
     /// databases
-    pub db_members: db::members::DbMembers,
+    pub database: db2::DatabaseManager,
+    // pub db_members: db::members::DbMembers,
 }
 
 
 impl AppState {
 
-    pub fn new(config_file_path: &PathBuf) -> Result<Self, Box<dyn Error>> {
+    pub async fn new(config_file_path: &PathBuf) -> Result<Self, SsloError> {
 
         // config
         let config_toml_path = config_file_path.clone();
-        let config = Config::from_file(config_file_path).or_else(|e|{
-            log::error!("Could not create config: {}", e);
-            Err(e)
-        })?;
+        let config = Config::from_file(config_file_path)?;
 
         // sslo database directory
         let mut database_dir = config_toml_path.clone();
         database_dir.pop();
         database_dir.push(&config.general.database_dir);
-        if !database_dir.is_dir() {  // check if db exists
-            let msg = format!("Config database_dir is not a valid directory path: '{}!", database_dir.display());
-            return Err(std::io::Error::new(std::io::ErrorKind::NotFound, msg).into());
+        if !database_dir.is_dir() {
+            return Err(SsloError::ConfigDatabaseDirInvalid(database_dir.display().to_string()));
         }
 
         // sqlite databases
         let sqlite_dir = database_dir.join("sqlite");
-        ensure_dir_exists(sqlite_dir.as_path())?;
-        let pool_members = db::create_db_pool(sqlite_dir.join("members.db").to_str().unwrap());
-        let db_members = db::members::DbMembers::new(pool_members);
+        if !sqlite_dir.exists() {
+            if let Err(e) = std::fs::create_dir_all(&sqlite_dir) {
+                return Err(SsloError::ConfigCannotCreateSqliteDirectories(e));
+            };
+        }
+        // let pool_members = db::create_db_pool(sqlite_dir.join("members.db").to_str().unwrap());
+        // let db_members = db::members::DbMembers::new(pool_members);
+
+        let database = db2::DatabaseManager::new(&sqlite_dir).await?;
 
         // compile app state
         Ok(AppState {
             database_dir,
             config,
-            db_members,
+            database,
+            // db_members,
         })
     }
 
@@ -82,10 +79,10 @@ impl AppState {
     }
 
 
-    pub async fn init(&mut self) -> Result<(), Box<dyn Error>> {
-        self.db_members.init().await?;
-        Ok(())
-    }
+    // pub async fn init(&mut self) -> Result<(), Box<dyn Error>> {
+    //     self.db_members.init().await?;
+    //     Ok(())
+    // }
 
 
     /// Relate a path to the sslo database directory and return.

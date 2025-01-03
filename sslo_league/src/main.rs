@@ -52,20 +52,20 @@ async fn main() {
         .init();
 
     // create app state
-    let mut app_state: AppState = match AppState::new(&cli_args.config_file) {
+    let mut app_state: AppState = match AppState::new(&cli_args.config_file).await {
         Ok(x) => x,
         Err(err) => {
             log::error!("Failed to create AppState: {}", err);
             return;
         }
     };
-    match app_state.init().await {
-        Ok(_) => {},
-        Err(err) => {
-            log::error!("Failed to initialize AppState: {}", err);
-            return;
-        }
-    };
+    // match app_state.init().await {
+    //     Ok(_) => {},
+    //     Err(err) => {
+    //         log::error!("Failed to initialize AppState: {}", err);
+    //         return;
+    //     }
+    // };
 
     // user info
     log::info!("initialization complete");

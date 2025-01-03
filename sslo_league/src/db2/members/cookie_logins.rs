@@ -1,5 +1,6 @@
 mod row;
 mod item;
+pub use item::CookieLoginInterface;
 
 /// This is the central defined name of the table in this module,
 /// used to allow copy&paste of the code for other tables.
@@ -13,12 +14,13 @@ use chrono::Utc;
 use regex::Regex;
 use sqlx::SqlitePool;
 use tokio::sync::RwLock;
+use sslo_lib::error::SsloError;
 use sslo_lib::token::{Token, TokenType};
 pub(self) use tablename;
-use super::cookie_logins::item::{CookieLoginData, CookieLoginInterface};
-use super::cookie_logins::row::CookieLoginDbRow;
+use item::CookieLoginData;
+use row::CookieLoginDbRow;
 use super::MembersDbData;
-use super::users::item::UserInterface;
+use super::users::UserInterface;
 
 pub(super) struct CookieLoginTableData {
     pool: SqlitePool,
@@ -36,7 +38,7 @@ impl CookieLoginTableData {
     }
 }
 
-pub(super) struct CookieLoginTableInterface(Arc<RwLock<CookieLoginTableData>>);
+pub struct CookieLoginTableInterface(Arc<RwLock<CookieLoginTableData>>);
 
 impl CookieLoginTableInterface {
     pub fn new(data: Arc<RwLock<CookieLoginTableData>>) -> Self { Self(data) }
@@ -61,7 +63,7 @@ impl CookieLoginTableInterface {
             match row.load(&tbl_data.pool).await {
                 Ok(_) => { },
                 Err(e) => {
-                    if e.is_not_found_type() {
+                    if e.is_db_not_found_type() {
                         log::warn!("{}", e);
                     } else {
                         log::error!("{}", e.to_string());
@@ -121,7 +123,7 @@ impl CookieLoginTableInterface {
         Some(item)
     }
 
-    pub async fn create_new_cookie(&mut self, user: &UserInterface) -> Option<CookieLoginInterface> {
+    pub async fn create_new_cookie(&self, user: &UserInterface) -> Option<CookieLoginInterface> {
         let mut tbl_data = self.0.write().await;
         let user_id = user.id().await;
 
@@ -157,5 +159,43 @@ impl CookieLoginTableInterface {
 
         // return interface
         Some(CookieLoginInterface::new(item_data))
+    }
+
+    pub async fn item_from_latest_usage(&self, user: &UserInterface) -> Option<CookieLoginInterface> {
+        let mut row : Option<CookieLoginDbRow> = None;
+
+        {   // find item in db, with local lock-scope
+            let data = self.0.read().await;
+            let pool = data.pool.clone();
+            if let Ok(r) = CookieLoginDbRow::from_user_latest_usage(&pool, user.id().await).await {
+                row = Some(r);
+            }
+        }
+
+        return match row {
+            None => {None}
+            Some(row) => {
+                self.from_id(row.rowid).await
+            }
+        }
+    }
+
+    /// returns a http header to unset cookie
+    pub async fn delete_cookie(&self, cookie_login: CookieLoginInterface) -> String {
+        let id = cookie_login.id().await;
+
+        {   // remove from cache
+            let mut data = self.0.write().await;
+            data.item_cache.remove(&id);
+        }
+
+        // delete item
+        if let Some(user) = cookie_login.user().await {
+            log::info!("logout user {}, from cookie {}", user.id().await, cookie_login.id().await);
+        } else {
+            log::warn!("cookie deletion without associated user");
+            log::info!("logout from cookie {}", cookie_login.id().await);
+        }
+        cookie_login.delete().await
     }
 }

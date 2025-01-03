@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use sqlx::{Sqlite, SqlitePool};
-use sslo_lib::db::DatabaseError;
+use sslo_lib::error::SsloError;
 use crate::user_grade::{Promotion, PromotionAuthority};
 use super::tablename;
 
@@ -44,7 +44,7 @@ impl UserDbRow {
     }
 
     /// directly retrieve an item from database by email address
-    pub(super) async fn from_email(email: &str, pool: &SqlitePool) -> Result<Self, DatabaseError> {
+    pub(super) async fn from_email(email: &str, pool: &SqlitePool) -> Result<Self, SsloError> {
         return match sqlx::query_as::<Sqlite, UserDbRow>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE email LIKE $1 LIMIT 2;"))
             .bind(email)
             .fetch_one(pool)
@@ -53,17 +53,17 @@ impl UserDbRow {
                 Ok(row)
             },
             Err(sqlx::Error::RowNotFound) => {
-                Err(DatabaseError::DataNotFound(tablename!(), format!("email={}", email)))
+                Err(SsloError::DatabaseDataNotFound(tablename!(), "email", email.to_string()))
             },
             Err(e) => {
-                return Err(DatabaseError::SqlxLowLevelError(e));
+                return Err(SsloError::DatabaseSqlx(e));
             }
         };
     }
 
     /// Read the data from the database
     /// This consumes a Row object and returns a new row object on success
-    pub(super) async fn load(self: &mut Self, pool: &SqlitePool) -> Result<(), DatabaseError> {
+    pub(super) async fn load(self: &mut Self, pool: &SqlitePool) -> Result<(), SsloError> {
         match sqlx::query_as::<Sqlite, UserDbRow>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE rowid = $1 LIMIT 2;"))
             .bind(self.rowid)
             .fetch_one(pool)
@@ -73,10 +73,10 @@ impl UserDbRow {
                 return Ok(());
             },
             Err(sqlx::Error::RowNotFound) => {
-                return Err(DatabaseError::RowidNotFound(tablename!(), self.rowid));
+                return Err(SsloError::DatabaseIdNotFound(tablename!(), "rowid", self.rowid));
             },
             Err(e) => {
-                return Err(DatabaseError::SqlxLowLevelError(e));
+                return Err(SsloError::DatabaseSqlx(e));
             }
         };
     }
@@ -85,7 +85,7 @@ impl UserDbRow {
     /// When rowid is unequal to '0', an UPDATE is executed,
     /// When rowid is zero, an insert is executed and rowid is updated
     /// When INSERT fails, rowid will stay at zero
-    pub(super) async fn store(self: &mut Self, pool: &SqlitePool) -> Result<(), DatabaseError> {
+    pub(super) async fn store(self: &mut Self, pool: &SqlitePool) -> Result<(), SsloError> {
 
         // define query
         let mut query = match self.rowid {

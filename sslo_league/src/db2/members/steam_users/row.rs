@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use sqlx::{Sqlite, SqlitePool};
-use sslo_lib::db::DatabaseError;
+use sslo_lib::error::SsloError;
 use super::tablename;
 
 /// Data structure that is used for database interaction (only module internal use)
@@ -31,7 +31,7 @@ impl SteamUserDbRow {
 
     /// Read the data from the database
     /// This consumes a Row object and returns a new row object on success
-    pub(super) async fn load(self: &mut Self, pool: &SqlitePool) -> Result<(), DatabaseError> {
+    pub(super) async fn load(self: &mut Self, pool: &SqlitePool) -> Result<(), SsloError> {
         return match sqlx::query_as::<Sqlite, SteamUserDbRow>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE rowid = $1 LIMIT 2;"))
             .bind(self.rowid)
             .fetch_one(pool)
@@ -41,10 +41,10 @@ impl SteamUserDbRow {
                 Ok(())
             },
             Err(sqlx::Error::RowNotFound) => {
-                Err(DatabaseError::RowidNotFound(tablename!(), self.rowid))
+                Err(SsloError::DatabaseIdNotFound(tablename!(), "rowid", self.rowid))
             },
             Err(e) => {
-                Err(DatabaseError::SqlxLowLevelError(e))
+                Err(SsloError::DatabaseSqlx(e))
             }
         };
     }
@@ -53,7 +53,7 @@ impl SteamUserDbRow {
     /// When rowid is unequal to '0', an UPDATE is executed,
     /// When rowid is zero, an insert is executed and rowid is updated
     /// When INSERT fails, rowid will stay at zero
-    pub(super) async fn store(self: &mut Self, pool: &SqlitePool) -> Result<(), DatabaseError> {
+    pub(super) async fn store(self: &mut Self, pool: &SqlitePool) -> Result<(), SsloError> {
 
         // define query
         let mut query = match self.rowid {
