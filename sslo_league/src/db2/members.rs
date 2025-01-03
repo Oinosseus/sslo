@@ -5,16 +5,16 @@ pub mod steam_users;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use users::{TableData, UserTable};
+use users::{UserTableData, UserTable};
 use cookie_logins::CookieLoginTableData;
 use sslo_lib::error::SsloError;
 use crate::db2::members::cookie_logins::CookieLoginTable;
-use crate::db2::members::steam_users::SteamUserTableData;
+use crate::db2::members::steam_users::{SteamUserTable, SteamUserTableData};
 
 /// The members database
 pub struct MembersDbData {
     // pool: SqlitePool,
-    tbl_users: Arc<RwLock<TableData>>,
+    tbl_users: Arc<RwLock<UserTableData>>,
     tbl_cookie_logins: Arc<RwLock<CookieLoginTableData>>,
     tbl_steam_user: Arc<RwLock<SteamUserTableData>>,
 }
@@ -31,7 +31,7 @@ impl MembersDbData {
         Ok(Arc::new_cyclic(|me| {
             RwLock::new(Self {
                 // pool: pool.clone(),
-                tbl_users: TableData::new(pool.clone()),
+                tbl_users: UserTableData::new(pool.clone()),
                 tbl_cookie_logins: CookieLoginTableData::new(pool.clone(), me.clone()),
                 tbl_steam_user: SteamUserTableData::new(pool.clone(), me.clone()),
             })
@@ -55,6 +55,11 @@ impl MembersDbInterface {
     pub async fn tbl_cookie_logins(&self) -> CookieLoginTable {
         let data = self.0.read().await;
         CookieLoginTable::new(data.tbl_cookie_logins.clone())
+    }
+
+    pub async fn tbl_steam_user(&self) -> SteamUserTable {
+        let data = self.0.read().await;
+        SteamUserTable::new(data.tbl_steam_user.clone())
     }
 }
 

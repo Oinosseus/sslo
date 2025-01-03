@@ -33,7 +33,6 @@ impl DbDataRow {
     /// Create a new (empty/default) data row
     fn new(rowid: i64) -> Self {
         debug_assert!(rowid >= 0);
-
         Self {
             rowid,
             name: "".to_string(),
@@ -457,12 +456,12 @@ impl UserItem {
     }
 }
 
-pub(super) struct TableData {
+pub(super) struct UserTableData {
     pool: SqlitePool,
     item_cache: HashMap<i64, Arc<RwLock<UserItemData>>>
 }
 
-impl TableData {
+impl UserTableData {
     pub(super) fn new(pool: SqlitePool) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(Self {
             pool,
@@ -472,12 +471,12 @@ impl TableData {
 }
 
 pub struct UserTable(
-    Arc<RwLock<TableData>>
+    Arc<RwLock<UserTableData>>
 );
 
 impl UserTable {
 
-    pub(super) fn new(data: Arc<RwLock<TableData>>) -> Self {
+    pub(super) fn new(data: Arc<RwLock<UserTableData>>) -> Self {
         Self(data)
     }
 
@@ -585,7 +584,7 @@ mod tests {
 
     async fn get_table_interface() -> UserTable {
         let pool = get_pool().await;
-        let tbl_data = TableData::new(pool);
+        let tbl_data = UserTableData::new(pool);
         UserTable::new(tbl_data.clone())
     }
 
