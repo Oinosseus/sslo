@@ -3,14 +3,14 @@ use axum::http::header;
 use axum::http::request::Parts;
 use crate::app_state::AppState;
 use crate::user_grade::UserGrade;
-use super::super::db2::members::users::User;
-use super::super::db2::members::cookie_logins::CookieLoginInterface;
+use super::super::db2::members::users::UserItem;
+use super::super::db2::members::cookie_logins::CookieLoginItem;
 
 /// Representing the current user of the http service
 pub struct HttpUser {
-    pub user: Option<User>,
+    pub user: Option<UserItem>,
     pub user_grade: UserGrade,
-    pub cookie_login: Option<CookieLoginInterface>,
+    pub cookie_login: Option<CookieLoginItem>,
     pub user_agent: String,
 }
 
@@ -36,7 +36,7 @@ impl HttpUser {
     }
 
 
-    pub fn user(&self) -> Option<User> { self.user.clone() }
+    pub fn user(&self) -> Option<UserItem> { self.user.clone() }
 
 }
 
@@ -69,11 +69,11 @@ where
         let tbl_cookie = app_state.database.db_members().await.tbl_cookie_logins().await;
 
         // try finding database user from cookies
-        let mut user: Option<User> = None;
-        let mut cookie_login: Option<CookieLoginInterface> = None;
+        let mut user: Option<UserItem> = None;
+        let mut cookie_login: Option<CookieLoginItem> = None;
         for cookie_header in parts.headers.get_all(header::COOKIE) {
             if let Ok(cookie_string) = cookie_header.to_str() {
-                if let Some(cl) = tbl_cookie.from_cookie(user_agent.to_string(), cookie_string).await {
+                if let Some(cl) = tbl_cookie.item_by_cookie(user_agent.to_string(), cookie_string).await {
                     if let Some(cl_user) = cl.user().await {
                         user = Some(cl_user);
                         cookie_login = Some(cl);

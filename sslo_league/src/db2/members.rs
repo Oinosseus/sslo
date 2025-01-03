@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 use users::{TableData, UserTable};
 use cookie_logins::CookieLoginTableData;
 use sslo_lib::error::SsloError;
-use crate::db2::members::cookie_logins::CookieLoginTableInterface;
+use crate::db2::members::cookie_logins::CookieLoginTable;
 use crate::db2::members::steam_users::SteamUserTableData;
 
 /// The members database
@@ -52,9 +52,9 @@ impl MembersDbInterface {
         UserTable::new(data.tbl_users.clone())
     }
 
-    pub async fn tbl_cookie_logins(&self) -> CookieLoginTableInterface {
+    pub async fn tbl_cookie_logins(&self) -> CookieLoginTable {
         let data = self.0.read().await;
-        CookieLoginTableInterface::new(data.tbl_cookie_logins.clone())
+        CookieLoginTable::new(data.tbl_cookie_logins.clone())
     }
 }
 
@@ -90,7 +90,7 @@ mod tests {
             assert!(cookie.get_cookie().await.is_none());
 
             // retrieve from cache
-            let cookie = tbl.from_id(1).await.unwrap();
+            let cookie = tbl.item_by_id(1).await.unwrap();
             assert_eq!(cookie.id().await, 1);
             assert!(cookie.get_cookie().await.is_none());
         }
@@ -108,7 +108,7 @@ mod tests {
             let cookie = item.get_cookie().await.unwrap();
 
             // try validate cookie
-            let item = tbl.from_cookie("unit test".to_string(), &cookie).await.unwrap();
+            let item = tbl.item_by_cookie("unit test".to_string(), &cookie).await.unwrap();
             assert_eq!(item.user().await.unwrap().id().await, 1);
             assert!(item.last_usage().await.unwrap() >= now);
             assert_eq!(item.last_useragent().await.unwrap(), "unit test".to_string());
@@ -130,9 +130,9 @@ mod tests {
             let cookie2 = item2.get_cookie().await.unwrap();
 
             // use cookie 2 and then, later cookie 1
-            tbl.from_cookie("unit test".to_string(), &cookie2).await.unwrap();
+            tbl.item_by_cookie("unit test".to_string(), &cookie2).await.unwrap();
             tokio::time::sleep(std::time::Duration::from_millis(1100)).await;  // wait a second
-            tbl.from_cookie("unit test".to_string(), &cookie1).await.unwrap();
+            tbl.item_by_cookie("unit test".to_string(), &cookie1).await.unwrap();
 
             // check that cookie1 is the latest
             let item = tbl.item_from_latest_usage(&user).await.unwrap();
@@ -140,7 +140,7 @@ mod tests {
 
             // use cookie 2 again and check for latest
             tokio::time::sleep(std::time::Duration::from_millis(1100)).await;  // wait a second
-            tbl.from_cookie("unit test".to_string(), &cookie2).await.unwrap();
+            tbl.item_by_cookie("unit test".to_string(), &cookie2).await.unwrap();
             let item = tbl.item_from_latest_usage(&user).await.unwrap();
             assert_eq!(item.id().await, item2.id().await);
         }

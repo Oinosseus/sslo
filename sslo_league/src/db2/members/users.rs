@@ -155,13 +155,13 @@ impl DbDataRow {
 
 
 /// The actual data of an item that is shared by Arc<RwLock<ItemData>>
-pub(super) struct UserData {
+struct UserItemData {
     pool: SqlitePool,
     row: DbDataRow,
 }
 
-impl UserData {
-    pub fn new(pool: &SqlitePool, row: DbDataRow) -> Arc<RwLock<UserData>> {
+impl UserItemData {
+    fn new(pool: &SqlitePool, row: DbDataRow) -> Arc<RwLock<UserItemData>> {
         Arc::new(RwLock::new(Self {
             pool: pool.clone(),
             row,
@@ -171,12 +171,12 @@ impl UserData {
 
 /// This abstracts data access to shared database items
 #[derive(Clone)]
-pub struct User(Arc<RwLock<UserData>>);
+pub struct UserItem(Arc<RwLock<UserItemData>>);
 
-impl User {
+impl UserItem {
 
     /// Set up an object from shared data (assumed to be retrieved from database)
-    pub(super) fn new(item_data: Arc<RwLock<UserData>>) -> Self {
+    fn new(item_data: Arc<RwLock<UserItemData>>) -> Self {
         Self(item_data)
     }
 
@@ -459,7 +459,7 @@ impl User {
 
 pub(super) struct TableData {
     pool: SqlitePool,
-    item_cache: HashMap<i64, Arc<RwLock<UserData>>>
+    item_cache: HashMap<i64, Arc<RwLock<UserItemData>>>
 }
 
 impl TableData {
@@ -482,7 +482,7 @@ impl UserTable {
     }
 
     /// Create a new user
-    pub async fn create_new_user(&self) -> Option<User> {
+    pub async fn create_new_user(&self) -> Option<UserItem> {
 
         // insert new item into DB
         let mut row = DbDataRow::new(0);
@@ -499,8 +499,8 @@ impl UserTable {
 
         // update cache
         let mut tbl_data = self.0.write().await;
-        let item_data = UserData::new(&tbl_data.pool, row);
-        let item = User::new(item_data.clone());
+        let item_data = UserItemData::new(&tbl_data.pool, row);
+        let item = UserItem::new(item_data.clone());
         tbl_data.item_cache.insert(item.id().await, item_data);
         return Some(item);
     }
@@ -508,13 +508,13 @@ impl UserTable {
     /// Get an item
     /// This first tries to load the item from cache,
     /// and secondly load it from the database.
-    pub async fn user_by_id(&self, id: i64) -> Option<User> {
+    pub async fn user_by_id(&self, id: i64) -> Option<UserItem> {
 
         // try cache hit
         {
             let tbl_data = self.0.read().await;
             if let Some(item_data) = tbl_data.item_cache.get(&id) {
-                return Some(User::new(item_data.clone()));
+                return Some(UserItem::new(item_data.clone()));
             }
         }
 
@@ -538,8 +538,8 @@ impl UserTable {
             debug_assert_eq!(row.rowid, id);
 
             // create item
-            let item_data = UserData::new(&tbl_data.pool, row);
-            let item = User::new(item_data.clone());
+            let item_data = UserItemData::new(&tbl_data.pool, row);
+            let item = UserItem::new(item_data.clone());
             tbl_data.item_cache.insert(id, item_data);
             return Some(item);
         }
@@ -549,7 +549,7 @@ impl UserTable {
     /// Search the database for an email and then return the item
     /// The search is case-insensitive,
     /// this is not cached -> expensive
-    pub async fn user_by_email(&self, email: &str) -> Option<User> {
+    pub async fn user_by_email(&self, email: &str) -> Option<UserItem> {
         let pool: SqlitePool;
         {   // scoped lock to call user_by_id() later
             let data = self.0.read().await;
@@ -669,17 +669,17 @@ mod tests {
         use crate::user_grade::{Promotion, PromotionAuthority};
         use test_log::test;
 
-        async fn create_new_item(pool: &SqlitePool) -> User {
+        async fn create_new_item(pool: &SqlitePool) -> UserItem {
             let row = DbDataRow::new(0);
-            let data = UserData::new(pool, row);
-            User::new(data)
+            let data = UserItemData::new(pool, row);
+            UserItem::new(data)
         }
 
-        async fn load_item_from_db(id: i64, pool: &SqlitePool) -> User {
+        async fn load_item_from_db(id: i64, pool: &SqlitePool) -> UserItem {
             let mut row = DbDataRow::new(id);
             row.load(pool).await.unwrap();
-            let data = UserData::new(&pool, row);
-            User::new(data)
+            let data = UserItemData::new(&pool, row);
+            UserItem::new(data)
         }
 
         /// test item generation and property access
@@ -689,8 +689,8 @@ mod tests {
 
             // create item
             let row = DbDataRow::new(0);
-            let data = UserData::new(&pool, row);
-            let item = User::new(data);
+            let data = UserItemData::new(&pool, row);
+            let item = UserItem::new(data);
             assert_eq!(item.id().await, 0);
             assert_eq!(item.name().await, "");
         }
