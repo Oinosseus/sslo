@@ -20,7 +20,7 @@ pub(self) use tablename;
 use item::CookieLoginData;
 use row::CookieLoginDbRow;
 use super::MembersDbData;
-use super::users::UserInterface;
+use super::users::User;
 
 pub(super) struct CookieLoginTableData {
     pool: SqlitePool,
@@ -123,7 +123,7 @@ impl CookieLoginTableInterface {
         Some(item)
     }
 
-    pub async fn create_new_cookie(&self, user: &UserInterface) -> Option<CookieLoginInterface> {
+    pub async fn create_new_cookie(&self, user: &User) -> Option<CookieLoginInterface> {
         let mut tbl_data = self.0.write().await;
         let user_id = user.id().await;
 
@@ -161,7 +161,7 @@ impl CookieLoginTableInterface {
         Some(CookieLoginInterface::new(item_data))
     }
 
-    pub async fn item_from_latest_usage(&self, user: &UserInterface) -> Option<CookieLoginInterface> {
+    pub async fn item_from_latest_usage(&self, user: &User) -> Option<CookieLoginInterface> {
         let mut row : Option<CookieLoginDbRow> = None;
 
         {   // find item in db, with local lock-scope

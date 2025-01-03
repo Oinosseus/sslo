@@ -3,12 +3,12 @@ use axum::http::header;
 use axum::http::request::Parts;
 use crate::app_state::AppState;
 use crate::user_grade::UserGrade;
-use super::super::db2::members::users::UserInterface;
+use super::super::db2::members::users::User;
 use super::super::db2::members::cookie_logins::CookieLoginInterface;
 
 /// Representing the current user of the http service
 pub struct HttpUser {
-    pub user: Option<UserInterface>,
+    pub user: Option<User>,
     pub user_grade: UserGrade,
     pub cookie_login: Option<CookieLoginInterface>,
     pub user_agent: String,
@@ -36,7 +36,7 @@ impl HttpUser {
     }
 
 
-    pub fn user(&self) -> Option<UserInterface> { self.user.clone() }
+    pub fn user(&self) -> Option<User> { self.user.clone() }
 
 }
 
@@ -69,7 +69,7 @@ where
         let tbl_cookie = app_state.database.db_members().await.tbl_cookie_logins().await;
 
         // try finding database user from cookies
-        let mut user: Option<UserInterface> = None;
+        let mut user: Option<User> = None;
         let mut cookie_login: Option<CookieLoginInterface> = None;
         for cookie_header in parts.headers.get_all(header::COOKIE) {
             if let Ok(cookie_string) = cookie_header.to_str() {

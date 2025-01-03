@@ -1,6 +1,6 @@
 use std::ops::Sub;
 use crate::app_state::AppState;
-use crate::db2::members::users::UserInterface;
+use crate::db2::members::users::User;
 
 
 #[derive(PartialEq)]
@@ -115,7 +115,7 @@ impl UserGrade {
     }
 
     pub async fn from_user(app_state: &AppState,
-                           user: &Option<UserInterface>
+                           user: &Option<User>
     ) -> Self {
 
         // extract grade from database item

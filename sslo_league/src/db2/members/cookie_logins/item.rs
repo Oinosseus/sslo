@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 use sqlx::SqlitePool;
 use super::row::CookieLoginDbRow;
 use super::super::super::members::{MembersDbData, MembersDbInterface};
-use super::super::users::UserInterface;
+use super::super::users::User;
 use super::tablename;
 
 /// The actual data of an item that is shared by Arc<RwLock<ItemData>>
@@ -40,7 +40,7 @@ impl CookieLoginInterface {
 
     pub async fn id(&self) -> i64 { self.0.read().await.row.rowid }
 
-    pub async fn user(&self) -> Option<UserInterface> {
+    pub async fn user(&self) -> Option<User> {
         let data = self.0.read().await;
         let db_members = match data.db_members.upgrade() {
             Some(db_data) => MembersDbInterface::new(db_data),

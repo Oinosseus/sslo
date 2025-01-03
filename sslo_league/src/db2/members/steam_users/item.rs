@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
 use tokio::sync::RwLock;
 use super::super::{MembersDbInterface, MembersDbData};
-use super::super::users::UserInterface;
+use super::super::users::User;
 
 /// The actual data of an item that is shared by Arc<RwLock<ItemData>>
 pub(super) struct SteamUserData {
@@ -40,7 +40,7 @@ impl SteamUserInterface {
     pub async fn steam_id(&self) -> String { self.0.read().await.row.steam_id.clone() }
     pub async fn creation(&self) -> DateTime<Utc> { self.0.read().await.row.creation.clone() }
 
-    pub async fn user(&self) -> Option<UserInterface> {
+    pub async fn user(&self) -> Option<User> {
         let data = self.0.read().await;
         let db_members = match data.db_members.upgrade() {
             Some(db_data) => MembersDbInterface::new(db_data),
