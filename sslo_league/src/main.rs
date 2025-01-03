@@ -8,7 +8,6 @@ use app_state::AppState;
 mod http;
 mod config;
 mod app_state;
-mod db;
 mod helpers;
 mod user_grade;
 mod db2;

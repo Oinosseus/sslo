@@ -269,7 +269,7 @@ impl CookieLoginTable {
         {   // try loading from DB if not found in cache
             let mut tbl_data = self.0.write().await;
 
-            // load from db
+            // load from db_obsolete
             let mut row = DbDataRow::new(id);
             match row.load(&tbl_data.pool).await {
                 Ok(_) => { },
@@ -375,7 +375,7 @@ impl CookieLoginTable {
     pub async fn item_from_latest_usage(&self, user: &UserItem) -> Option<CookieLoginItem> {
         let mut row : Option<DbDataRow> = None;
 
-        {   // find item in db, with local lock-scope
+        {   // find item in db_obsolete, with local lock-scope
             let data = self.0.read().await;
             let pool = data.pool.clone();
             if let Ok(r) = DbDataRow::from_user_latest_usage(&pool, user.id().await).await {

@@ -27,7 +27,7 @@ pub async fn handler(State(app_state): State<AppState>,
     let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~1..3s
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
-    // get db tables
+    // get db_obsolete tables
     let tbl_usr = app_state.database.db_members().await.tbl_users().await;
     let tbl_cookie = app_state.database.db_members().await.tbl_cookie_logins().await;
 

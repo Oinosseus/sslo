@@ -5,12 +5,77 @@ macro_rules! tablename {
 use std::collections::HashMap;
 use tokio::sync::RwLock;
 use std::sync::Arc;
-use crate::user_grade::{Promotion, PromotionAuthority};
 use chrono::{DateTime, Utc};
 use sqlx::{Sqlite, SqlitePool};
 use rand::RngCore;
 use sslo_lib::error::SsloError;
 use sslo_lib::token::{Token, TokenType};
+
+
+#[derive(PartialEq, Clone)]
+#[derive(sqlx::Type)]
+#[derive(Debug)]
+#[repr(u32)]
+pub enum PromotionAuthority {
+
+    /// Only executing his promotion (cannot promote others)
+    Executing = 0,
+
+    /// Can also promote other users (up to one level below)
+    Chief = 1,
+}
+
+impl PromotionAuthority {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Executing => "Executing",
+            Self::Chief => "Chief",
+        }
+    }
+}
+
+#[derive(PartialEq, Clone)]
+#[derive(sqlx::Type)]
+#[derive(Debug)]
+#[repr(u32)]
+pub enum Promotion {
+    /// no further user rights
+    None = 0,
+
+    /// graceful server control
+    Steward = 1,
+
+    /// force server control, update downloads
+    Marshal = 2,
+
+    /// schedule races
+    Officer = 3,
+
+    /// correct results, pronounce penalties
+    Commissar = 4,
+
+    /// manage series, edit presets
+    Director = 5,
+
+    /// almost all permissions (except root)
+    Admin = 6,
+}
+
+impl Promotion {
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::None => "",
+            Self::Steward => "Steward",
+            Self::Marshal => "Marshal",
+            Self::Officer => "Officer",
+            Self::Commissar => "Commissar",
+            Self::Director => "Director",
+            Self::Admin => "Administrator",
+        }
+    }
+}
+
 
 #[derive(sqlx::FromRow, Clone)]
 struct DbDataRow {
@@ -300,7 +365,7 @@ impl UserItem {
         return match item_data.row.store(&pool).await {
             Ok(_) => Some(token.decrypted),
             Err(e) => {
-                log::error!("failed to store new email token for user rowid={} into db: {}", item_data.row.rowid, e);
+                log::error!("failed to store new email token for user rowid={} into db_obsolete: {}", item_data.row.rowid, e);
                 None
             }
         };
@@ -521,7 +586,7 @@ impl UserTable {
         {
             let mut tbl_data = self.0.write().await;
 
-            // load from db
+            // load from db_obsolete
             let mut row = DbDataRow::new(id);
             match row.load(&tbl_data.pool).await {
                 Ok(_) => { },
@@ -610,7 +675,7 @@ mod tests {
                 assert_eq!(cache.item_cache.len(), 0);
             }
 
-            // append items to db
+            // append items to db_obsolete
             let mut item = tbl.create_new_user().await.unwrap();
             item.set_name("Bob".to_string()).await.unwrap();
             let mut item = tbl.create_new_user().await.unwrap();
@@ -665,7 +730,6 @@ mod tests {
         use chrono::{DateTime, Utc};
         use sqlx::SqlitePool;
         use super::super::*;
-        use crate::user_grade::{Promotion, PromotionAuthority};
         use test_log::test;
 
         async fn create_new_item(pool: &SqlitePool) -> UserItem {
@@ -728,7 +792,7 @@ mod tests {
             assert_eq!(item.promotion().await, Promotion::Marshal);
             assert_eq!(item.promotion_authority().await, PromotionAuthority::Chief);
 
-            // check if stored into db correctly
+            // check if stored into db_obsolete correctly
             let item = load_item_from_db(item.id().await, &pool).await;
             assert_eq!(item.promotion().await, Promotion::Marshal);
             assert_eq!(item.promotion_authority().await, PromotionAuthority::Chief);
@@ -749,7 +813,7 @@ mod tests {
             item.set_last_lap(dt).await;
             assert_eq!(item.last_lap().await, Some(dt));
 
-            // check if stored into db correctly
+            // check if stored into db_obsolete correctly
             let item = load_item_from_db(item.id().await, &pool).await;
             assert_eq!(item.last_lap().await, Some(dt));
         }
@@ -768,7 +832,7 @@ mod tests {
             assert!(item.verify_email(email_token).await);
             assert_eq!(item.email().await, Some("a.b@c.de".to_string()));
 
-            // check if stored into db correctly
+            // check if stored into db_obsolete correctly
             let item = load_item_from_db(item.id().await, &pool).await;
             assert_eq!(item.email().await, Some("a.b@c.de".to_string()));
         }
@@ -785,7 +849,7 @@ mod tests {
             assert!(item.update_password(None, Some("unsecure_test_password".to_string())).await);
             assert!(item.verify_password("unsecure_test_password".to_string(), "unit test".to_string()).await);
 
-            // check if stored into db correctly
+            // check if stored into db_obsolete correctly
             let mut item = load_item_from_db(item.id().await, &pool).await;
             assert!(item.verify_password("unsecure_test_password".to_string(), "unit test".to_string()).await);
 
@@ -795,7 +859,7 @@ mod tests {
             // update password
             assert!(item.update_password(Some("unsecure_test_password".to_string()), Some("unsecure_updated_test_password".to_string())).await);
 
-            // check if stored into db correctly
+            // check if stored into db_obsolete correctly
             let item = load_item_from_db(item.id().await, &pool).await;
             assert!(item.verify_password("unsecure_updated_test_password".to_string(), "unit test".to_string()).await);
 
@@ -807,8 +871,7 @@ mod tests {
 
     mod row {
         use chrono::{DateTime, Utc};
-        use super::super::*;
-        use crate::user_grade::{Promotion, PromotionAuthority};
+        use super::*;
         use test_log::test;
 
         #[test(tokio::test)]

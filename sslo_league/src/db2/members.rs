@@ -23,7 +23,7 @@ impl MembersDbData {
     /// When db_path is None, the pool is generated in memory
     pub(super) async fn new(db_path: Option<&Path>) -> Result<Arc<RwLock<Self>>, SsloError> {
 
-        // set up db
+        // set up db_obsolete
         let pool = sslo_lib::db::get_pool(db_path);
         sqlx::migrate!("../rsc/db_migrations/league_members").run(&pool).await?;
 

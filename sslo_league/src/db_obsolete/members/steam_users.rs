@@ -33,7 +33,7 @@ impl SteamUser {
 
         // ambiguity check
         if rows.len() > 1 {
-            log::error!("Ambiguous rowid for db.members.steam_users.rowid={}", rowid);
+            log::error!("Ambiguous rowid for db_obsolete.members.steam_users.rowid={}", rowid);
             return None;
         }
 
@@ -59,7 +59,7 @@ impl SteamUser {
 
         // return when unique ID is found
         if rows.len() > 1 {
-            log::error!("Ambiguous steam_id for db.members.steam_users.steam_id={}", steam_id);
+            log::error!("Ambiguous steam_id for db_obsolete.members.steam_users.steam_id={}", steam_id);
             return None;
         } else if let Some(row) = rows.pop() {
             return Some(Self{ row, pool});
@@ -72,7 +72,7 @@ impl SteamUser {
             .await {
             Ok(x) => x,
             Err(e) => {
-                log::error!("Failed to insert into db.members.steam_users: {}", e);
+                log::error!("Failed to insert into db_obsolete.members.steam_users: {}", e);
                 return None;
             }
         };

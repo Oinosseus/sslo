@@ -2,8 +2,7 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 use axum_server::tls_rustls::RustlsConfig;
 use sslo_lib::error::SsloError;
-use crate::{db, db2};
-use crate::db::Database;
+use crate::db2;
 use super::config::Config;
 
 
@@ -18,7 +17,6 @@ pub struct AppState {
 
     /// databases
     pub database: db2::DatabaseManager,
-    // pub db_members: db::members::DbMembers,
 }
 
 
@@ -45,8 +43,6 @@ impl AppState {
                 return Err(SsloError::ConfigCannotCreateSqliteDirectories(e));
             };
         }
-        // let pool_members = db::create_db_pool(sqlite_dir.join("members.db").to_str().unwrap());
-        // let db_members = db::members::DbMembers::new(pool_members);
 
         let database = db2::DatabaseManager::new(&sqlite_dir).await?;
 
@@ -55,7 +51,6 @@ impl AppState {
             database_dir,
             config,
             database,
-            // db_members,
         })
     }
 
@@ -77,12 +72,6 @@ impl AppState {
 
         RustlsConfig::from_pem_file(path_cert, path_key).await.unwrap()
     }
-
-
-    // pub async fn init(&mut self) -> Result<(), Box<dyn Error>> {
-    //     self.db_members.init().await?;
-    //     Ok(())
-    // }
 
 
     /// Relate a path to the sslo database directory and return.

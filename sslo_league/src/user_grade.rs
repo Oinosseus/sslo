@@ -1,7 +1,7 @@
 use std::ops::Sub;
 use crate::app_state::AppState;
 use crate::db2::members::users::UserItem;
-
+use crate::db2::members::users::{Promotion, PromotionAuthority};
 
 #[derive(PartialEq)]
 pub enum LoginActivity {
@@ -38,60 +38,6 @@ impl DrivingActivity {
     }
 }
 
-
-#[derive(PartialEq, Clone)]
-#[derive(sqlx::Type)]
-#[derive(Debug)]
-#[repr(u32)]
-pub enum PromotionAuthority {
-
-    /// Only executing his promotion
-    Executing = 0,
-
-    /// Can also promote other users
-    Chief = 1,
-}
-
-impl PromotionAuthority {
-    pub fn label(&self) -> &'static str {
-        match self {
-            Self::Executing => "Executing",
-            Self::Chief => "Chief",
-        }
-    }
-}
-
-
-#[derive(PartialEq, Clone)]
-#[derive(sqlx::Type)]
-#[derive(Debug)]
-#[repr(u32)]
-pub enum Promotion {
-    None = 0,         // no further user rights
-    Steward = 1,      // graceful server control
-    Marshal = 2,      // force server control, update downloads
-    Officer = 3,      // schedule races
-    Commissar = 4,    // correct results, pronounce penalties
-    Director = 5,     // manage series, edit presets
-    Admin = 6,        // almost all permissions (except root)
-}
-
-impl Promotion {
-
-    pub fn label(&self) -> &'static str {
-        match self {
-            Self::None => "",
-            Self::Steward => "Steward",
-            Self::Marshal => "Marshal",
-            Self::Officer => "Officer",
-            Self::Commissar => "Commissar",
-            Self::Director => "Director",
-            Self::Admin => "Administrator",
-        }
-    }
-}
-
-
 pub struct UserGrade {
     pub login_activity: LoginActivity,
     pub driving_activity: DrivingActivity,
@@ -103,7 +49,7 @@ pub struct UserGrade {
 
 impl UserGrade {
 
-    /// create a new object with lowest permissions
+    /// create a new object with the lowest permissions
     pub fn new_lowest() -> Self {
         Self {
             login_activity: LoginActivity::None,

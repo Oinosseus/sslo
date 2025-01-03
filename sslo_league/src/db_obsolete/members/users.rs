@@ -46,7 +46,7 @@ impl User {
 
         // ambiguity check
         if rows.len() > 1 {
-            log::error!("Ambiguous rowid for db.members.users.rowid={}", rowid);
+            log::error!("Ambiguous rowid for db_obsolete.members.users.rowid={}", rowid);
             return None;
         }
 
@@ -70,7 +70,7 @@ impl User {
             }
         };
         if rows.len() > 1 {
-            log::error!("Ambiguous db.members.users.email='{}'", email);
+            log::error!("Ambiguous db_obsolete.members.users.email='{}'", email);
             return None;
         }
         if let Some(db_row) = rows.pop() {
@@ -111,7 +111,7 @@ impl User {
                     Some(Self { row: db_row, pool: db_pool })
                 },
                 Err(e) => {
-                    log::error!("Unable to create new row into db.members.users: {}", e);
+                    log::error!("Unable to create new row into db_obsolete.members.users: {}", e);
                     None
                 }
         }
@@ -140,14 +140,14 @@ impl User {
         let crypted_token: String = match item.row.email_token {
             Some(token_ref) => token_ref.clone(),
             None => {
-                log::warn!("No token set for db.members.users.rowid={} ({})", item.row.rowid, email);
+                log::warn!("No token set for db_obsolete.members.users.rowid={} ({})", item.row.rowid, email);
                 return None;
             },
         };
 
         // check if token was already used
         if let Some(email_token_consumption) = item.row.email_token_consumption {
-            log::warn!("Deny redeeming token for db.members.users.rowid={} ({}), because already consumed at {}",
+            log::warn!("Deny redeeming token for db_obsolete.members.users.rowid={} ({}), because already consumed at {}",
                 item.row.rowid,
                 email,
                 email_token_consumption,
@@ -158,12 +158,12 @@ impl User {
         // check if token is still valid
         match item.row.email_token_creation {
             None => {
-                log::error!("Invalid token creation time for db.members.users.rowid={} ({})", item.row.rowid, email);
+                log::error!("Invalid token creation time for db_obsolete.members.users.rowid={} ({})", item.row.rowid, email);
                 return None;
             },
             Some(token_creation) => {
                 if token_creation < time_token_outdated {  // token outdated
-                    log::warn!("Deny redeeming token for db.members.users rowid={} ({}), because token outdated", item.row.rowid, email);
+                    log::warn!("Deny redeeming token for db_obsolete.members.users rowid={} ({}), because token outdated", item.row.rowid, email);
                     return None;
                 }
             },
@@ -172,7 +172,7 @@ impl User {
         // verify token
         let token = token::Token::new(plain_token, crypted_token);
         if !token.verify() {
-            log::warn!("Deny redeeming token for db.members.users.rowid={} ({}), because token invalid!", item.row.rowid, email);
+            log::warn!("Deny redeeming token for db_obsolete.members.users.rowid={} ({}), because token invalid!", item.row.rowid, email);
             return None;
         }
 
@@ -184,7 +184,7 @@ impl User {
             .await {
             Ok(_) => {},
             Err(e) => {
-                log::error!("Database error at redeeming token for db.members.users.rowid={} ({}), because: {}", item.row.rowid, email, e);
+                log::error!("Database error at redeeming token for db_obsolete.members.users.rowid={} ({}), because: {}", item.row.rowid, email, e);
                 return None;
             },
         };
@@ -212,11 +212,11 @@ impl User {
             match argon2::verify_encoded(&password, plain_password.as_bytes()) {
                 Ok(true) => {},
                 Ok(false) => {
-                    log::warn!("Deny invalid email password for db.members.users.rowid={} ({})", item.row.rowid, email);
+                    log::warn!("Deny invalid email password for db_obsolete.members.users.rowid={} ({})", item.row.rowid, email);
                     return None;
                 },
                 Err(e) => {
-                    log::error!("Failed to verify encoded password for db.members.users.rowid={}, with error: {}", item.row.rowid, e);
+                    log::error!("Failed to verify encoded password for db_obsolete.members.users.rowid={}, with error: {}", item.row.rowid, e);
                     return None;
                 }
             }
@@ -231,7 +231,7 @@ impl User {
             .await {
                 Ok(_) => {},
                 Err(e) => {
-                    log::error!("Failed to update db.members.users.rowid={}, with error {}", item.row.rowid, e);
+                    log::error!("Failed to update db_obsolete.members.users.rowid={}, with error {}", item.row.rowid, e);
                     return None;
                 }
         }
@@ -285,7 +285,7 @@ impl User {
         }
 
         // save changes and return plain token
-        log::info!("Updating email login token for db.members.users.rowid={} ({})", self.row.rowid, self.name_ref());
+        log::info!("Updating email login token for db_obsolete.members.users.rowid={} ({})", self.row.rowid, self.name_ref());
         self.row.email_token = Some(token.encrypted);
         self.row.email_token_creation = Some(time_now);
         self.row.email_token_consumption = None;
@@ -305,7 +305,7 @@ impl User {
                 Ok(())
             },
             Err(e) => {
-                log::error!("Failed to update db.members.users.rowid={}", self.row.rowid);
+                log::error!("Failed to update db_obsolete.members.users.rowid={}", self.row.rowid);
                 Err(e)?
             }
         }
@@ -321,7 +321,7 @@ impl User {
                 match argon2::verify_encoded(some_password, &some_old_password.into_bytes()) {
                     Ok(true) => {},
                     Ok(false) => {
-                        log::warn!("Deny password change for db.members.users.rowid={} ({}), because old_password does not match!", self.row.rowid, self.name_ref());
+                        log::warn!("Deny password change for db_obsolete.members.users.rowid={} ({}), because old_password does not match!", self.row.rowid, self.name_ref());
                         return Err(());
                     },
                     Err(e) => {
@@ -330,14 +330,14 @@ impl User {
                     }
                 }
             } else {
-                log::warn!("Deny password change for db.members.users.rowid={} ({}), because no old_password presented!", self.row.rowid, self.name_ref());
+                log::warn!("Deny password change for db_obsolete.members.users.rowid={} ({}), because no old_password presented!", self.row.rowid, self.name_ref());
                 return Err(());
             }
         }
 
         // check new password strength
         if new_password.len() < 8 {
-            log::warn!("Deny setting password for db.members.users.rowid={}, because new password too short!", self.row.rowid);
+            log::warn!("Deny setting password for db_obsolete.members.users.rowid={}, because new password too short!", self.row.rowid);
             return Err(())
         }
 
@@ -352,18 +352,18 @@ impl User {
             }
         };
 
-        // store to db, return
+        // store to db_obsolete, return
         match sqlx::query("UPDATE users SET password=$1 WHERE rowid=$2;")
             .bind(password)
             .bind(self.row.rowid)
             .execute(&self.pool)
             .await {
             Err(e) => {
-                log::error!("Failed to update db.members.users.rowid={}, because: {}", self.row.rowid, e);
+                log::error!("Failed to update db_obsolete.members.users.rowid={}, because: {}", self.row.rowid, e);
                 Err(())
             },
             Ok(_) => {
-                log::info!("Changing password of db.members.users.rowid={} ({})", self.row.rowid, self.name_ref());
+                log::info!("Changing password of db_obsolete.members.users.rowid={} ({})", self.row.rowid, self.name_ref());
                 Ok(())
             }
         }

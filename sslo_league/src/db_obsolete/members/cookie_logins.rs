@@ -46,13 +46,13 @@ impl CookieLogin {
             .await {
             Ok(row) => row,
             Err(e) => {
-                log::error!("Failed to insert into db.members.cookie_logins: {}", e);
+                log::error!("Failed to insert into db_obsolete.members.cookie_logins: {}", e);
                 return None;
             }
         };
 
         // create cookie
-        log::info!("Creating new login cookie for db.members.users.rowid={} ({})", user.rowid(), user.name_ref());
+        log::info!("Creating new login cookie for db_obsolete.members.users.rowid={} ({})", user.rowid(), user.name_ref());
         let cookie = format!("cookie_login={}:{}; HttpOnly; Max-Age=31536000; SameSite=Strict; Partitioned; Secure; Path=/;",
                              res.rowid, token.decrypted);
         Some(cookie)
@@ -86,14 +86,14 @@ impl CookieLogin {
             .await {
             Ok(x) => x,
             Err(e) => {
-                log::error!("Failed to get db.members.cookie_logins.rowid={} from database: {}", rowid, e);
+                log::error!("Failed to get db_obsolete.members.cookie_logins.rowid={} from database: {}", rowid, e);
                 return None;
             },
         };
 
         // fail on multiple results
         if rows.len() > 1 {
-            log::error!("Multiple database entries for db.members.cookie_logins.rowid={}", rowid);
+            log::error!("Multiple database entries for db_obsolete.members.cookie_logins.rowid={}", rowid);
             return None;
         }
 
@@ -101,7 +101,7 @@ impl CookieLogin {
         if let Some(row) = rows.pop() {
             Some(Self{pool, row})
         } else {
-            log::debug!("db.members.cookie_login.rowid={} not found", rowid);
+            log::debug!("db_obsolete.members.cookie_login.rowid={} not found", rowid);
             None
         }
     }
@@ -151,7 +151,7 @@ impl CookieLogin {
     /// Update usage info
     pub async fn report_usage(&mut self, useragent: String) {
 
-        // update db
+        // update db_obsolete
         let row = match sqlx::query_as("UPDATE cookie_logins SET last_useragent=$1, last_usage=$2 WHERE rowid=$3 RETURNING rowid,*;")
             .bind(useragent)
             .bind(Utc::now())
@@ -160,7 +160,7 @@ impl CookieLogin {
             .await {
             Ok(r) => r,
             Err(e) => {
-                log::error!("Could not update db.members.cookie_login.rowid={}: {}", self.row.rowid, e);
+                log::error!("Could not update db_obsolete.members.cookie_login.rowid={}: {}", self.row.rowid, e);
                 return;
             }
         };
@@ -179,7 +179,7 @@ impl CookieLogin {
             .await {
             Ok(_) => {},
             Err(e) => {
-                log::error!("Failed to delete db.members.cookie_login.rowid={}: {}", self.row.rowid, e);
+                log::error!("Failed to delete db_obsolete.members.cookie_login.rowid={}: {}", self.row.rowid, e);
             }
         }
 
