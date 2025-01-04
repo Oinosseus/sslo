@@ -9,7 +9,6 @@ mod http;
 mod config;
 mod app_state;
 mod helpers;
-mod user_grade;
 mod db2;
 
 #[derive(Parser)]

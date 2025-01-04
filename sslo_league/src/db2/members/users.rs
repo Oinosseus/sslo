@@ -2,14 +2,81 @@ macro_rules! tablename {
     () => { "users" };
 }
 
+
 use std::collections::HashMap;
+use std::ops::Sub;
 use tokio::sync::RwLock;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use chrono::{DateTime, Utc};
 use sqlx::{Sqlite, SqlitePool};
 use rand::RngCore;
 use sslo_lib::error::SsloError;
 use sslo_lib::token::{Token, TokenType};
+use crate::db2::members::MembersDbData;
+
+#[derive(PartialEq)]
+pub enum Activity {
+    None = 0,
+    Obsolete = 1,
+    Recent = 2,
+}
+
+impl Activity {
+    pub fn from_date_time(last_activity: Option<DateTime<Utc>>) -> Self {
+
+        // determine date of recent activity
+        let t_now = chrono::Utc::now();
+        let t_recent = t_now.sub(chrono::Duration::days(90));
+
+        // return enum
+        match last_activity {
+            None => Activity::None,
+            Some(t_login) if t_login < t_recent => Activity::Obsolete,
+            Some(_) => Activity::Recent,
+        }
+    }
+}
+
+pub struct UserActivity {
+    driving_activity: Activity,
+    login_activity: Activity,
+}
+
+impl UserActivity {
+
+    pub fn new() -> Self {
+        Self {
+            driving_activity: Activity::None,
+            login_activity: Activity::None
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self.login_activity {
+            Activity::None => {
+                match self.driving_activity {
+                    Activity::None => {"Wildcard Pedestrian"}
+                    Activity::Obsolete => {"Wildcard Veteran"}
+                    Activity::Recent => {"Wildcard Driver"}
+                }
+            },
+            Activity::Obsolete => {
+                match self.driving_activity {
+                    Activity::None => {"Ghost Pedestrian"}
+                    Activity::Obsolete => {"Ghost Veteran"}
+                    Activity::Recent => {"Ghost Driver"}
+                }
+            },
+            Activity::Recent => {
+                match self.driving_activity {
+                    Activity::None => {"League Pedestrian"}
+                    Activity::Obsolete => {"League Veteran"}
+                    Activity::Recent => {"League Driver"}
+                }
+            },
+        }
+    }
+}
 
 
 #[derive(PartialEq, Clone)]
@@ -25,20 +92,12 @@ pub enum PromotionAuthority {
     Chief = 1,
 }
 
-impl PromotionAuthority {
-    pub fn label(&self) -> &'static str {
-        match self {
-            Self::Executing => "Executing",
-            Self::Chief => "Chief",
-        }
-    }
-}
 
 #[derive(PartialEq, Clone)]
 #[derive(sqlx::Type)]
 #[derive(Debug)]
 #[repr(u32)]
-pub enum Promotion {
+pub enum PromotionLevel {
     /// no further user rights
     None = 0,
 
@@ -61,29 +120,68 @@ pub enum Promotion {
     Admin = 6,
 }
 
-impl Promotion {
 
-    pub fn label(&self) -> &'static str {
-        match self {
-            Self::None => "",
-            Self::Steward => "Steward",
-            Self::Marshal => "Marshal",
-            Self::Officer => "Officer",
-            Self::Commissar => "Commissar",
-            Self::Director => "Director",
-            Self::Admin => "Administrator",
-        }
-    }
+pub struct Promotion {
+    pub level: PromotionLevel,
+    pub authority: PromotionAuthority,
 }
 
+impl Promotion {
+
+    pub fn new(level: PromotionLevel, authority: PromotionAuthority) -> Self {
+        Self { level, authority }
+    }
+
+    pub fn new_lowest() -> Self {
+        Self {
+            level: PromotionLevel::None,
+            authority: PromotionAuthority::Executing,
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self.level {
+            PromotionLevel::None => "",
+            PromotionLevel::Steward => match self.authority {
+                PromotionAuthority::Executing => {"Executing Steward"}
+                PromotionAuthority::Chief => {"Chief Steward"}
+            },
+            PromotionLevel::Marshal => match self.authority {
+                PromotionAuthority::Executing => {"Executing Marshal"}
+                PromotionAuthority::Chief => {"Chief Marshal"}
+            },
+            PromotionLevel::Officer => match self.authority {
+                PromotionAuthority::Executing => {"Executing Officer"}
+                PromotionAuthority::Chief => {"Chief Officer"}
+            },
+            PromotionLevel::Commissar => match self.authority {
+                PromotionAuthority::Executing => {"Executing Commissar"}
+                PromotionAuthority::Chief => {"Chief Commissar"}
+            },
+            PromotionLevel::Director => match self.authority {
+                PromotionAuthority::Executing => {"Executing Director"}
+                PromotionAuthority::Chief => {"Chief Director"}
+            },
+            PromotionLevel::Admin => match self.authority {
+                PromotionAuthority::Executing => {"Executing Administrator"}
+                PromotionAuthority::Chief => {"Chief Administrator"}
+            },
+        }
+    }
+
+    pub fn symbol(&self) -> &'static str {
+        todo!()
+    }
+}
 
 #[derive(sqlx::FromRow, Clone)]
 struct DbDataRow {
     pub(super) rowid: i64,
     pub(super) name: String,
     pub(super) promotion_authority: PromotionAuthority,
-    pub(super) promotion: Promotion,
+    pub(super) promotion_level: PromotionLevel,
     pub(super) last_lap: Option<DateTime<Utc>>,
+    pub(super) last_login: Option<DateTime<Utc>>,
     pub(super) email: Option<String>,
     pub(super) email_token: Option<String>,
     pub(super) email_token_creation: Option<DateTime<Utc>>,
@@ -102,8 +200,9 @@ impl DbDataRow {
             rowid,
             name: "".to_string(),
             promotion_authority: PromotionAuthority::Executing,
-            promotion: Promotion::None,
+            promotion_level: PromotionLevel::None,
             last_lap: None,
+            last_login: None,
             email: None,
             email_token: None,
             email_token_creation: None,
@@ -164,8 +263,9 @@ impl DbDataRow {
                 sqlx::query(concat!("INSERT INTO ", tablename!(),
                 "(name,\
                   promotion_authority,\
-                  promotion,\
+                  promotion_level,\
                   last_lap,\
+                  last_login,\
                   email,\
                   email_token,\
                   email_token_creation,\
@@ -173,30 +273,32 @@ impl DbDataRow {
                   password,\
                   password_last_usage,\
                   password_last_useragent) \
-                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING rowid;"))
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING rowid;"))
             },
             _ => {
                 sqlx::query(concat!("UPDATE ", tablename!(), " SET \
                                    name=$1,\
                                    promotion_authority=$2,\
-                                   promotion=$3,\
+                                   promotion_level=$3,\
                                    last_lap=$4,\
-                                   email=$5,\
-                                   email_token=$6,\
-                                   email_token_creation=$7,\
-                                   email_token_consumption=$8,\
-                                   password=$9,\
-                                   password_last_usage=$10,\
-                                   password_last_useragent=$11 \
-                                   WHERE rowid=$12;"))
+                                   last_login=$5,\
+                                   email=$6,\
+                                   email_token=$7,\
+                                   email_token_creation=$8,\
+                                   email_token_consumption=$9,\
+                                   password=$10,\
+                                   password_last_usage=$11,\
+                                   password_last_useragent=$12 \
+                                   WHERE rowid=$13;"))
             }
         };
 
         // bind values
         query = query.bind(&self.name)
             .bind(&self.promotion_authority)
-            .bind(&self.promotion)
+            .bind(&self.promotion_level)
             .bind(&self.last_lap)
+            .bind(&self.last_login)
             .bind(&self.email)
             .bind(&self.email_token)
             .bind(&self.email_token_creation)
@@ -222,13 +324,15 @@ impl DbDataRow {
 struct UserItemData {
     pool: SqlitePool,
     row: DbDataRow,
+    db_members: Weak<RwLock<MembersDbData>>,
 }
 
 impl UserItemData {
-    fn new(pool: &SqlitePool, row: DbDataRow) -> Arc<RwLock<UserItemData>> {
+    fn new(pool: &SqlitePool, row: DbDataRow, db_members: Weak<RwLock<MembersDbData>>) -> Arc<RwLock<UserItemData>> {
         Arc::new(RwLock::new(Self {
             pool: pool.clone(),
             row,
+            db_members,
         }))
     }
 }
@@ -260,12 +364,22 @@ impl UserItem {
         data.row.store(&pool).await
     }
 
-    pub async fn promotion_authority(&self) -> PromotionAuthority { self.0.read().await.row.promotion_authority.clone() }
-    pub async fn promotion(&self) -> Promotion { self.0.read().await.row.promotion.clone() }
-    pub async fn set_promotion(&mut self, promotion: Promotion, authority: PromotionAuthority) {
+    pub async fn activity(&self) -> UserActivity {
+        let data = self.0.read().await;
+        UserActivity {
+            driving_activity: Activity::from_date_time(data.row.last_lap),
+            login_activity: Activity::from_date_time(data.row.last_login),
+        }
+    }
+
+    pub async fn promotion(&self) -> Promotion {
+        let data = self.0.read().await;
+        Promotion::new(data.row.promotion_level.clone(), data.row.promotion_authority.clone())
+    }
+    pub async fn set_promotion(&mut self, promotion: Promotion) {
         let mut item_data = self.0.write().await;
-        item_data.row.promotion = promotion;
-        item_data.row.promotion_authority = authority;
+        item_data.row.promotion_level = promotion.level;
+        item_data.row.promotion_authority = promotion.authority;
         let pool = item_data.pool.clone();
         if let Err(e) = item_data.row.store(&pool).await {
             log::error!("Failed to set promotion: {}", e);
@@ -279,6 +393,16 @@ impl UserItem {
         let pool = data.pool.clone();
         if let Err(e) = data.row.store(&pool).await {
             log::error!("Failed to set last lap: {}", e);
+        };
+    }
+
+    pub async fn last_login(&self) -> Option<DateTime<Utc>> { self.0.read().await.row.last_login }
+    pub async fn set_last_login(self: &mut Self, last_login: DateTime<Utc>) {
+        let mut data = self.0.write().await;
+        data.row.last_login = Some(last_login);
+        let pool = data.pool.clone();
+        if let Err(e) = data.row.store(&pool).await {
+            log::error!("Failed to set last login: {}", e);
         };
     }
 
@@ -563,7 +687,7 @@ impl UserTable {
 
         // update cache
         let mut tbl_data = self.0.write().await;
-        let item_data = UserItemData::new(&tbl_data.pool, row);
+        let item_data = UserItemData::new(&tbl_data.pool, row, Weak::new());
         let item = UserItem::new(item_data.clone());
         tbl_data.item_cache.insert(item.id().await, item_data);
         return Some(item);
@@ -602,7 +726,7 @@ impl UserTable {
             debug_assert_eq!(row.rowid, id);
 
             // create item
-            let item_data = UserItemData::new(&tbl_data.pool, row);
+            let item_data = UserItemData::new(&tbl_data.pool, row, Weak::new());
             let item = UserItem::new(item_data.clone());
             tbl_data.item_cache.insert(id, item_data);
             return Some(item);
@@ -734,14 +858,14 @@ mod tests {
 
         async fn create_new_item(pool: &SqlitePool) -> UserItem {
             let row = DbDataRow::new(0);
-            let data = UserItemData::new(pool, row);
+            let data = UserItemData::new(pool, row, Weak::new());
             UserItem::new(data)
         }
 
         async fn load_item_from_db(id: i64, pool: &SqlitePool) -> UserItem {
             let mut row = DbDataRow::new(id);
             row.load(pool).await.unwrap();
-            let data = UserItemData::new(&pool, row);
+            let data = UserItemData::new(&pool, row, Weak::new());
             UserItem::new(data)
         }
 
@@ -752,7 +876,7 @@ mod tests {
 
             // create item
             let row = DbDataRow::new(0);
-            let data = UserItemData::new(&pool, row);
+            let data = UserItemData::new(&pool, row, Weak::new());
             let item = UserItem::new(data);
             assert_eq!(item.id().await, 0);
             assert_eq!(item.name().await, "");
@@ -786,16 +910,19 @@ mod tests {
             let mut item = create_new_item(&pool.clone()).await;
 
             // modify item (ne before, eq after)
-            assert_ne!(item.promotion().await, Promotion::Marshal);
-            assert_ne!(item.promotion_authority().await, PromotionAuthority::Chief);
-            item.set_promotion(Promotion::Marshal, PromotionAuthority::Chief).await;
-            assert_eq!(item.promotion().await, Promotion::Marshal);
-            assert_eq!(item.promotion_authority().await, PromotionAuthority::Chief);
+            let prom = item.promotion().await;
+            assert_ne!(prom.level, PromotionLevel::Marshal);
+            assert_ne!(prom.authority, PromotionAuthority::Chief);
+            item.set_promotion(Promotion::new(PromotionLevel::Marshal, PromotionAuthority::Chief)).await;
+            let prom = item.promotion().await;
+            assert_eq!(prom.level, PromotionLevel::Marshal);
+            assert_eq!(prom.authority, PromotionAuthority::Chief);
 
             // check if stored into db_obsolete correctly
             let item = load_item_from_db(item.id().await, &pool).await;
-            assert_eq!(item.promotion().await, Promotion::Marshal);
-            assert_eq!(item.promotion_authority().await, PromotionAuthority::Chief);
+            let prom = item.promotion().await;
+            assert_eq!(prom.level, PromotionLevel::Marshal);
+            assert_eq!(prom.authority, PromotionAuthority::Chief);
         }
 
         #[test(tokio::test)]
@@ -880,8 +1007,9 @@ mod tests {
             assert_eq!(row.rowid, 33);
             assert_eq!(row.name, "".to_string());
             assert_eq!(row.promotion_authority, PromotionAuthority::Executing);
-            assert_eq!(row.promotion, Promotion::None);
+            assert_eq!(row.promotion_level, PromotionLevel::None);
             assert_eq!(row.last_lap, None);
+            assert_eq!(row.last_login, None);
             assert_eq!(row.email, None);
             assert_eq!(row.email_token, None);
             assert_eq!(row.email_token_creation, None);
@@ -901,19 +1029,21 @@ mod tests {
             let dt2: DateTime<Utc> = DateTime::parse_from_rfc3339("2002-02-02T02:02:02.2222+02:00").unwrap().into();
             let dt3: DateTime<Utc> = DateTime::parse_from_rfc3339("3003-03-03T03:03:03.3333+03:00").unwrap().into();
             let dt4: DateTime<Utc> = DateTime::parse_from_rfc3339("4004-04-04T04:04:04.4444+04:00").unwrap().into();
+            let dt5: DateTime<Utc> = DateTime::parse_from_rfc3339("5005-05-05T05:05:05.5555+05:00").unwrap().into();
 
             // store (insert)
             let mut row = DbDataRow::new(0);
             row.name = "RowName".to_string();
             row.promotion_authority = PromotionAuthority::Chief;
-            row.promotion = Promotion::Commissar;
+            row.promotion_level = PromotionLevel::Commissar;
             row.last_lap = Some(dt1.clone());
+            row.last_login = Some(dt2.clone());
             row.email = Some("user@email.tld".into());
             row.email_token = Some("IAmAnEmailToken".to_string());
-            row.email_token_creation = Some(dt2.clone());
-            row.email_token_consumption = Some(dt3.clone());
+            row.email_token_creation = Some(dt3.clone());
+            row.email_token_consumption = Some(dt4.clone());
             row.password = Some("IAmThePassword".to_string());
-            row.password_last_usage = Some(dt4.clone());
+            row.password_last_usage = Some(dt5.clone());
             row.password_last_useragent = Some("IAmTheUserAgent".to_string());
             row.store(&pool).await.unwrap();
 
@@ -923,26 +1053,28 @@ mod tests {
             assert_eq!(row.rowid, 1);
             assert_eq!(row.name, "RowName".to_string());
             assert_eq!(row.promotion_authority, PromotionAuthority::Chief);
-            assert_eq!(row.promotion, Promotion::Commissar);
+            assert_eq!(row.promotion_level, PromotionLevel::Commissar);
             assert_eq!(row.last_lap, Some(dt1.clone()));
+            assert_eq!(row.last_login, Some(dt2.clone()));
             assert_eq!(row.email, Some("user@email.tld".into()));
             assert_eq!(row.email_token, Some("IAmAnEmailToken".to_string()));
-            assert_eq!(row.email_token_creation, Some(dt2.clone()));
-            assert_eq!(row.email_token_consumption, Some(dt3.clone()));
+            assert_eq!(row.email_token_creation, Some(dt3.clone()));
+            assert_eq!(row.email_token_consumption, Some(dt4.clone()));
             assert_eq!(row.password, Some("IAmThePassword".to_string()));
-            assert_eq!(row.password_last_usage, Some(dt4.clone()));
+            assert_eq!(row.password_last_usage, Some(dt5.clone()));
             assert_eq!(row.password_last_useragent, Some("IAmTheUserAgent".to_string()));
 
             // store (update)
             let mut row = DbDataRow::new(1);
             row.name = "RowNameNew".to_string();
             row.promotion_authority = PromotionAuthority::Executing;
-            row.promotion = Promotion::Admin;
+            row.promotion_level = PromotionLevel::Admin;
             row.last_lap = Some(dt2.clone());
+            row.last_login = Some(dt3.clone());
             row.email = Some("a.b@c.de".into());
             row.email_token = Some("IAmAnEmailTokenNew".to_string());
-            row.email_token_creation = Some(dt3.clone());
-            row.email_token_consumption = Some(dt4.clone());
+            row.email_token_creation = Some(dt4.clone());
+            row.email_token_consumption = Some(dt5.clone());
             row.password = Some("IAmThePasswordNew".to_string());
             row.password_last_usage = Some(dt1.clone());
             row.password_last_useragent = Some("IAmTheUserAgentNew".to_string());
@@ -954,12 +1086,13 @@ mod tests {
             assert_eq!(row.rowid, 1);
             assert_eq!(row.name, "RowNameNew".to_string());
             assert_eq!(row.promotion_authority, PromotionAuthority::Executing);
-            assert_eq!(row.promotion, Promotion::Admin);
+            assert_eq!(row.promotion_level, PromotionLevel::Admin);
             assert_eq!(row.last_lap, Some(dt2.clone()));
+            assert_eq!(row.last_login, Some(dt3.clone()));
             assert_eq!(row.email, Some("a.b@c.de".into()));
             assert_eq!(row.email_token, Some("IAmAnEmailTokenNew".to_string()));
-            assert_eq!(row.email_token_creation, Some(dt3.clone()));
-            assert_eq!(row.email_token_consumption, Some(dt4.clone()));
+            assert_eq!(row.email_token_creation, Some(dt4.clone()));
+            assert_eq!(row.email_token_consumption, Some(dt5.clone()));
             assert_eq!(row.password, Some("IAmThePasswordNew".to_string()));
             assert_eq!(row.password_last_usage, Some(dt1.clone()));
             assert_eq!(row.password_last_useragent, Some("IAmTheUserAgentNew".to_string()));
