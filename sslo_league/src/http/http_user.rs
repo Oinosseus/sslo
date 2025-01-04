@@ -2,14 +2,12 @@ use axum::extract::{FromRef, FromRequestParts};
 use axum::http::header;
 use axum::http::request::Parts;
 use crate::app_state::AppState;
-// use crate::user_grade::UserGrade;
 use super::super::db2::members::users::UserItem;
 use super::super::db2::members::cookie_logins::CookieLoginItem;
 
 /// Representing the current user of the http service
 pub struct HttpUser {
     pub user: Option<UserItem>,
-    // pub user_grade: UserGrade,
     pub cookie_login: Option<CookieLoginItem>,
     pub user_agent: String,
 }
@@ -21,7 +19,6 @@ impl HttpUser {
     pub fn new_lowest() -> Self {
         Self {
             user: None,
-            // user_grade: UserGrade::new_lowest(),
             cookie_login: None,
             user_agent: "".to_string(),
         }
@@ -84,7 +81,6 @@ where
         };
 
         let http_user = HttpUser {
-            // user_grade: UserGrade::from_user(&app_state, &user).await,
             user,
             cookie_login,
             user_agent,
