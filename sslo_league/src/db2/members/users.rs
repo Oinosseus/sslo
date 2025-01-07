@@ -482,12 +482,17 @@ impl UserItem {
         };
 
         // update data
+        let old_email = item_data.row.email.take();
         item_data.row.email = Some(email);
         item_data.row.email_token = Some(token.encrypted);
         item_data.row.email_token_creation = Some(time_now);
         item_data.row.email_token_consumption = None;
         return match item_data.row.store(&pool).await {
-            Ok(_) => Some(token.decrypted),
+            Ok(_) => {
+                log::info!("set new email for user:{} from '{:?}' to '{:?}'",
+                item_data.row.rowid, old_email, item_data.row.email);
+                Some(token.decrypted)
+            },
             Err(e) => {
                 log::error!("failed to store new email token for user rowid={} into db_obsolete: {}", item_data.row.rowid, e);
                 None
@@ -546,14 +551,16 @@ impl UserItem {
         item_data.row.email_token = None;  // reset for security
         item_data.row.email_token_consumption = Some(time_now);
         let pool = item_data.pool.clone();
-        return match item_data.row.store(&pool).await {
-            Ok(_) => true,
-            Err(e) => {
+        if let Err(e) = item_data.row.store(&pool).await {
                 log::error!("failed to store verified email token for rowid={}, email={:?}: {}",
                 item_data.row.rowid, item_data.row.email, e);
-                false
-            }
+                return false;
         }
+
+        // success
+        log::info!("User rowid={}, successfully verified email token for '{:?}'",
+            item_data.row.rowid, item_data.row.email);
+        true
     }
 
     /// Consume a cleartext password, and store encrypted
@@ -641,7 +648,10 @@ impl UserItem {
             return false;
         }
 
-        return true;
+        // done
+        log::info!("successful password verification for User rowid={} / '{:?}'",
+            data.row.rowid, data.row.email);
+        true
     }
 }
 
@@ -684,12 +694,18 @@ impl UserTable {
                 }
             }
         }
+        let id = row.rowid;
 
         // update cache
         let mut tbl_data = self.0.write().await;
         let item_data = UserItemData::new(&tbl_data.pool, row, Weak::new());
         let item = UserItem::new(item_data.clone());
         tbl_data.item_cache.insert(item.id().await, item_data);
+
+        // log
+        log::info!("new user created, rowid={}", id);
+
+        // done
         return Some(item);
     }
 
