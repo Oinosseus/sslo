@@ -69,11 +69,8 @@ impl HtmlTemplate {
     pub fn include_js(&mut self, file_path: & 'static str) {
         self.js_files.push(file_path)
     }
-}
 
-impl IntoResponse for HtmlTemplate {
-
-    fn into_response(self) -> Response {
+    pub async fn into_response(self) -> Response {
         let mut html = String::new();
 
         html += "<!DOCTYPE html>\n";
@@ -144,7 +141,14 @@ impl IntoResponse for HtmlTemplate {
 
         // footer
         html.push_str("    <footer>\n");
-        html.push_str("USERNAME <small>&lt;USER_GRADE&gt;</small>");
+        if let Some(user) = self.http_user.user() {
+            html.push_str(&user.html_name().await);
+            html.push_str(" <small>&lt;");
+            html.push_str(user.activity().await.label());
+            html.push_str(" ");
+            html.push_str(user.promotion().await.label());
+            html.push_str("&gt;</small>\n");
+        }
         html.push_str("    </footer>\n");
 
         // html finish

@@ -357,6 +357,12 @@ impl UserItem {
         self.0.read().await.row.name.clone()
     }
 
+    pub async fn html_name(&self) -> String {
+        let mut html = String::new();
+        html_escape::encode_safe_to_string(&self.0.read().await.row.name, &mut html);
+        return html;
+    }
+
     pub async fn set_name(self: &mut Self, name: String) -> Result<(), SsloError> {
         let mut data = self.0.write().await;
         data.row.name = name;
@@ -908,14 +914,17 @@ mod tests {
 
             // modify item
             assert_eq!(item.name().await, "");
-            item.set_name("Ronny".to_string()).await.unwrap();
+            item.set_name("Ronald Antonio \"Ronnie\" O'Sullivan".to_string()).await.unwrap();
             assert_eq!(item.id().await, 1);
-            assert_eq!(item.name().await, "Ronny");
+            assert_eq!(item.name().await, "Ronald Antonio \"Ronnie\" O'Sullivan");
 
             // check if arrived in database
             let item = load_item_from_db(1, &pool).await;
             assert_eq!(item.id().await, 1);
-            assert_eq!(item.name().await, "Ronny");
+            assert_eq!(item.name().await, "Ronald Antonio \"Ronnie\" O'Sullivan");
+
+            // check html name
+            assert_eq!(item.html_name().await, "Ronald Antonio &quot;Ronnie&quot; O&#x27;Sullivan");
         }
 
         #[test(tokio::test)]

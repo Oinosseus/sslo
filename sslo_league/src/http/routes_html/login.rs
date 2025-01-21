@@ -1,7 +1,7 @@
 use axum::extract::{OriginalUri, Path, State};
 use axum::http::header::{SET_COOKIE, REFRESH};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use rand::RngCore;
 use serde::Deserialize;
 use crate::app_state::AppState;
@@ -12,7 +12,7 @@ use super::super::http_user::HttpUserExtractor;
 
 pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor,
                      OriginalUri(uri): OriginalUri,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<Response, StatusCode> {
 
     let mut html = HtmlTemplate::new(http_user);
     html.include_css("/rsc/css/login.css");
@@ -68,7 +68,7 @@ pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor,
     }
     html.push_body("</form>");
 
-    return Ok(html);
+    Ok(html.into_response().await)
 }
 
 
@@ -119,7 +119,7 @@ pub async fn handler_email_password(State(app_state): State<AppState>,
     }
 
     // done
-    let mut response = html.into_response();
+    let mut response = html.into_response().await;
     if let Some(cookie) = cookie {
         response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
         response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
@@ -132,7 +132,7 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
                                     HttpUserExtractor(http_user): HttpUserExtractor,
                                     OriginalUri(uri): OriginalUri,
                                     axum::Form(form): axum::Form<LoginEmailRequestData>,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<Response, StatusCode> {
     let mut html = HtmlTemplate::new(http_user);
     html.include_css("/rsc/css/login.css");
     html.include_js("/rsc/js/login.js");
@@ -179,7 +179,7 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
     // done
     html.message_success("An email with a temporary login link was sent.".to_string());
     html.message_warning("No login link is sent if previous link is still active, or email is invalid.".to_string());
-    Ok(html)
+    Ok(html.into_response().await)
 }
 
 
@@ -217,7 +217,7 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     }
 
     // done
-    let mut response = html.into_response();
+    let mut response = html.into_response().await;
     if let Some(cookie) = cookie {
         response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
         response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
@@ -246,7 +246,7 @@ pub async fn handler_logout(State(app_state): State<AppState>,
     html.message_success(format!("Logged out '{}' ...", name));
 
     // create response
-    let mut response = html.into_response();
+    let mut response = html.into_response().await;
     if let Some(cookie_value) = cookie_value {
         response.headers_mut().insert(SET_COOKIE, cookie_value.parse().unwrap());
         response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
@@ -306,5 +306,5 @@ pub async fn handler_steam_verify(State(_app_state): State<AppState>,
     }
 
 
-    Ok(html.into_response())
+    Ok(html.into_response().await)
 }

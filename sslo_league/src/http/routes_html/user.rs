@@ -1,6 +1,6 @@
 use axum::extract::{OriginalUri, State};
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::response::Response;
 use crate::app_state::AppState;
 use crate::http::HtmlTemplate;
 use crate::http::http_user::HttpUserExtractor;
@@ -8,7 +8,7 @@ use crate::http::http_user::HttpUserExtractor;
 
 pub async fn handler_settings(State(_app_state): State<AppState>,
                               OriginalUri(_uri): OriginalUri,
-                              HttpUserExtractor(http_user): HttpUserExtractor) -> Result<impl IntoResponse, StatusCode> {
+                              HttpUserExtractor(http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
 
     if http_user.user.is_none() {
         return Err(StatusCode::UNAUTHORIZED);
@@ -32,5 +32,5 @@ pub async fn handler_settings(State(_app_state): State<AppState>,
     html.push_body("<label></label><button type=\"submit\">Save</button>");
     html.push_body("</form>");
 
-    Ok(html)
+    Ok(html.into_response().await)
 }
