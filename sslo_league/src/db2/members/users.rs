@@ -514,7 +514,7 @@ impl UserItem {
             None => return Some(token.decrypted),
             Some(pool) => match item_data.row.store(&pool).await {
                 Ok(_) => {
-                    log::info!("set new email for user:{} from '{:?}' to '{:?}'",
+                    log::info!("refresh email for user:{} from '{:?}' to '{:?}'",
                     item_data.row.rowid, old_email, item_data.row.email);
                     Some(token.decrypted)
                 },

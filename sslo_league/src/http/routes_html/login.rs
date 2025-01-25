@@ -5,6 +5,7 @@ use axum::response::Response;
 use rand::RngCore;
 use serde::Deserialize;
 use crate::app_state::AppState;
+use crate::db2::members::users::UserItem;
 use crate::http::HtmlTemplate;
 use crate::http::http_user::HttpUser;
 use super::super::http_user::HttpUserExtractor;
@@ -141,18 +142,24 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
     let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~2000 maximum
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
-    // get user db_obsolete table
+    // get user db table
     let tbl_usr = app_state.database.db_members().await.tbl_users().await;
 
     // get user
     let mut token : Option<String> = None;  // need this option, because build fails when nesting new_email_login_token() and send_email()
-    let mut user_item = tbl_usr.user_by_email(&form.email).await;
-    if user_item.is_none() {
-        if let Some(mut new_user_item) = tbl_usr.create_new_user().await {
-            token = new_user_item.set_email(form.email.clone()).await;
-            user_item = Some(new_user_item);
-        }
-    }
+    let mut user_item: UserItem = match tbl_usr.user_by_email(&form.email).await {
+        Some(user) => user,
+        None => match tbl_usr.create_new_user().await {
+            Some(new_user) => new_user,
+            None => {
+                log::error!("Failed to create new Useritem with email='{}'", form.email);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        },
+    };
+
+    // create new token
+    token = user_item.set_email(form.email.clone()).await;
 
     // send info email
     if let Some(t) = token {
