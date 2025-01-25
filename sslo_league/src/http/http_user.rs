@@ -2,12 +2,13 @@ use axum::extract::{FromRef, FromRequestParts};
 use axum::http::header;
 use axum::http::request::Parts;
 use crate::app_state::AppState;
+use crate::db2::members::users::Promotion;
 use super::super::db2::members::users::UserItem;
 use super::super::db2::members::cookie_logins::CookieLoginItem;
 
 /// Representing the current user of the http service
 pub struct HttpUser {
-    pub user: Option<UserItem>,
+    pub user: UserItem,
     pub cookie_login: Option<CookieLoginItem>,
     pub user_agent: String,
 }
@@ -16,25 +17,18 @@ pub struct HttpUser {
 impl HttpUser {
 
     /// Crate a object with lowest permissions
-    pub fn new_lowest() -> Self {
+    pub async fn new_anonymous(app_state: AppState) -> Self {
+        let tbl_usr = app_state.database.db_members().await.tbl_users().await;
         Self {
-            user: None,
+            user: tbl_usr.user_dummy().await,
             cookie_login: None,
             user_agent: "".to_string(),
         }
     }
 
-    pub async fn name(&self) -> String {
-        if let Some(item) = &self.user {
-            item.name().await
-        } else {
-            "".to_string()
-        }
+    pub fn is_logged_in(&self) -> bool {
+        self.cookie_login.is_some()
     }
-
-
-    pub fn user(&self) -> Option<UserItem> { self.user.clone() }
-
 }
 
 
@@ -66,27 +60,28 @@ where
         let tbl_cookie = app_state.database.db_members().await.tbl_cookie_logins().await;
 
         // try finding database user from cookies
-        let mut user: Option<UserItem> = None;
-        let mut cookie_login: Option<CookieLoginItem> = None;
         for cookie_header in parts.headers.get_all(header::COOKIE) {
             if let Ok(cookie_string) = cookie_header.to_str() {
                 if let Some(cl) = tbl_cookie.item_by_cookie(user_agent.to_string(), cookie_string).await {
                     if let Some(cl_user) = cl.user().await {
-                        user = Some(cl_user);
-                        cookie_login = Some(cl);
-                        break;
+                        let http_user = HttpUser {
+                            user: cl_user,
+                            cookie_login: Some(cl),
+                            user_agent,
+                        };
+                        return Ok(Self(http_user));
                     }
                 }
             }
         };
 
+        // create dummy user if no other user found
+        let tbl_usr = app_state.database.db_members().await.tbl_users().await;
         let http_user = HttpUser {
-            user,
-            cookie_login,
+            user: tbl_usr.user_dummy().await,
+            cookie_login: None,
             user_agent,
         };
-
-        // return
         Ok(Self(http_user))
     }
 }

@@ -20,32 +20,30 @@ pub struct SetNameRequest {
 }
 
 pub async fn handler_update_settings(State(_app_state): State<AppState>,
-                                     HttpUserExtractor(http_user): HttpUserExtractor,
+                                     HttpUserExtractor(mut http_user): HttpUserExtractor,
                                      Json(input): Json<SetNameRequest>) -> Response {
 
-    if let Some(mut some_user) = http_user.user {
-
-        // name
-        if let Some(new_name) = input.new_name {
-            match some_user.set_name(new_name).await {
-                Ok(_) => {},
-                Err(e) => {
-                    log::error!("Could not update username: {}", e);
-                    return GeneralError::new("Updating name failed".to_string(), "".to_string()).into_response();
-                }
-            };
-        }
-
-        // password
-        if let Some(new_password) = input.new_password {
-            if !some_user.update_password(input.old_password, Some(new_password)).await {
-                log::error!("Failed to update password!");
-                return GeneralError::new("Updating password failed".to_string(), "".to_string()).into_response();
-            }
-        }
-
-    } else {
+    if !http_user.is_logged_in() {
         return StatusCode::UNAUTHORIZED.into_response();
+    }
+
+    // name
+    if let Some(new_name) = input.new_name {
+        match http_user.user.set_name(new_name).await {
+            Ok(_) => {},
+            Err(e) => {
+                log::error!("Could not update username: {}", e);
+                return GeneralError::new("Updating name failed".to_string(), "".to_string()).into_response();
+            }
+        };
+    }
+
+    // password
+    if let Some(new_password) = input.new_password {
+        if !http_user.user.update_password(input.old_password, Some(new_password)).await {
+            log::error!("Failed to update password!");
+            return GeneralError::new("Updating password failed".to_string(), "".to_string()).into_response();
+        }
     }
 
     Json(EmptyResponse{}).into_response()

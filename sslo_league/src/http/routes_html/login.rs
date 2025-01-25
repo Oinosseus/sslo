@@ -231,17 +231,17 @@ pub async fn handler_logout(State(app_state): State<AppState>,
 
     // get tables
     let tbl_cookie = app_state.database.db_members().await.tbl_cookie_logins().await;
+    let name = http_user.user.name().await;
 
     let mut cookie_value: Option<String> = None;
     if let Some(cookie_login) = http_user.cookie_login.take() {
         cookie_value = Some(tbl_cookie.delete_cookie(cookie_login).await);  // invalidate login cookie
-        http_user = HttpUser::new_lowest();  // downgrade http user
+        http_user = HttpUser::new_anonymous(app_state).await;  // downgrade http user
     } else {
         return Err(StatusCode::UNAUTHORIZED);
     }
 
     // generate html
-    let name = http_user.name().await;
     let mut html = HtmlTemplate::new(http_user);
     html.message_success(format!("Logged out '{}' ...", name));
 

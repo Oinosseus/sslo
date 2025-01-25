@@ -11,6 +11,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{Sqlite, SqlitePool};
 use rand::RngCore;
 use sslo_lib::error::SsloError;
+use sslo_lib::optional_date::OptionalDateTime;
 use sslo_lib::token::{Token, TokenType};
 use crate::db2::members::MembersDbData;
 
@@ -322,7 +323,7 @@ impl DbDataRow {
 
 /// The actual data of an item that is shared by Arc<RwLock<ItemData>>
 struct UserItemData {
-    pool: SqlitePool,
+    pool: Option<SqlitePool>,  // dummy users do not have a pool
     row: DbDataRow,
     db_members: Weak<RwLock<MembersDbData>>,
 }
@@ -330,9 +331,19 @@ struct UserItemData {
 impl UserItemData {
     fn new(pool: &SqlitePool, row: DbDataRow, db_members: Weak<RwLock<MembersDbData>>) -> Arc<RwLock<UserItemData>> {
         Arc::new(RwLock::new(Self {
-            pool: pool.clone(),
+            pool: Some(pool.clone()),
             row,
             db_members,
+        }))
+    }
+
+    ///! Creates a new user, which is actually not stored in the database
+    fn new_dummy() -> Arc<RwLock<UserItemData>> {
+        let row = DbDataRow::new(0);
+        Arc::new(RwLock::new(Self {
+            pool: None,
+            row,
+            db_members: Weak::new(),
         }))
     }
 }
@@ -366,8 +377,10 @@ impl UserItem {
     pub async fn set_name(self: &mut Self, name: String) -> Result<(), SsloError> {
         let mut data = self.0.write().await;
         data.row.name = name;
-        let pool = data.pool.clone();
-        data.row.store(&pool).await
+        match data.pool.clone() {
+            None => Ok(()),
+            Some(pool) => data.row.store(&pool).await
+        }
     }
 
     pub async fn activity(&self) -> UserActivity {
@@ -386,30 +399,33 @@ impl UserItem {
         let mut item_data = self.0.write().await;
         item_data.row.promotion_level = promotion.level;
         item_data.row.promotion_authority = promotion.authority;
-        let pool = item_data.pool.clone();
-        if let Err(e) = item_data.row.store(&pool).await {
-            log::error!("Failed to set promotion: {}", e);
-        };
+        if let Some(pool) = item_data.pool.clone() {
+            if let Err(e) = item_data.row.store(&pool).await {
+                log::error!("Failed to set promotion: {}", e);
+            };
+        }
     }
 
-    pub async fn last_lap(&self) -> Option<DateTime<Utc>> { self.0.read().await.row.last_lap }
+    pub async fn last_lap(&self) -> OptionalDateTime { OptionalDateTime::new(self.0.read().await.row.last_lap) }
     pub async fn set_last_lap(self: &mut Self, last_lap: DateTime<Utc>) {
         let mut data = self.0.write().await;
         data.row.last_lap = Some(last_lap);
-        let pool = data.pool.clone();
-        if let Err(e) = data.row.store(&pool).await {
-            log::error!("Failed to set last lap: {}", e);
-        };
+        if let Some(pool) = data.pool.clone() {
+            if let Err(e) = data.row.store(&pool).await {
+                log::error!("Failed to set last lap: {}", e);
+            }
+        }
     }
 
-    pub async fn last_login(&self) -> Option<DateTime<Utc>> { self.0.read().await.row.last_login }
+    pub async fn last_login(&self) -> OptionalDateTime { OptionalDateTime::new(self.0.read().await.row.last_login) }
     pub async fn set_last_login(self: &mut Self, last_login: DateTime<Utc>) {
         let mut data = self.0.write().await;
         data.row.last_login = Some(last_login);
-        let pool = data.pool.clone();
-        if let Err(e) = data.row.store(&pool).await {
-            log::error!("Failed to set last login: {}", e);
-        };
+        if let Some(pool) = data.pool.clone() {
+            if let Err(e) = data.row.store(&pool).await {
+                log::error!("Failed to set last login: {}", e);
+            }
+        }
     }
 
     /// Returns email address (if correctly confirmed)
@@ -463,19 +479,20 @@ impl UserItem {
         }
 
         // check for unique email
-        let pool = item_data.pool.clone();
-        match DbDataRow::from_email(&email, &pool).await {
-            Ok(row) => {
-                if row.rowid != item_data.row.rowid {
-                    log::warn!("reject assigning email '{}' because duplicate at rowid={}", &email, row.rowid);
+        if let Some(pool) = item_data.pool.clone() {
+            match DbDataRow::from_email(&email, &pool).await {
+                Ok(row) => {
+                    if row.rowid != item_data.row.rowid {
+                        log::warn!("reject assigning email '{}' because duplicate at rowid={}", &email, row.rowid);
+                        return None;
+                    }
+                },
+                Err(e) if e.is_db_not_found_type() => {},
+                Err(e) => {
+                    log::error!("failed to email uniqueness for email = '{}': {}", &email, e);
                     return None;
-                }
-            },
-            Err(e) if e.is_db_not_found_type() => {},
-            Err(e) => {
-                log::error!("failed to email uniqueness for email = '{}': {}", &email, e);
-                return None;
-            },
+                },
+            }
         }
 
         // generate new email_token
@@ -493,17 +510,20 @@ impl UserItem {
         item_data.row.email_token = Some(token.encrypted);
         item_data.row.email_token_creation = Some(time_now);
         item_data.row.email_token_consumption = None;
-        return match item_data.row.store(&pool).await {
-            Ok(_) => {
-                log::info!("set new email for user:{} from '{:?}' to '{:?}'",
-                item_data.row.rowid, old_email, item_data.row.email);
-                Some(token.decrypted)
-            },
-            Err(e) => {
-                log::error!("failed to store new email token for user rowid={} into db_obsolete: {}", item_data.row.rowid, e);
-                None
+        return match item_data.pool.clone() {
+            None => return Some(token.decrypted),
+            Some(pool) => match item_data.row.store(&pool).await {
+                Ok(_) => {
+                    log::info!("set new email for user:{} from '{:?}' to '{:?}'",
+                    item_data.row.rowid, old_email, item_data.row.email);
+                    Some(token.decrypted)
+                },
+                Err(e) => {
+                    log::error!("failed to store new email token for user rowid={} into db_obsolete: {}", item_data.row.rowid, e);
+                    None
+                }
             }
-        };
+        }
     }
 
     pub async fn verify_email(&self, token_decrypted: String) -> bool {
@@ -556,11 +576,12 @@ impl UserItem {
         // update email_token_consumption
         item_data.row.email_token = None;  // reset for security
         item_data.row.email_token_consumption = Some(time_now);
-        let pool = item_data.pool.clone();
-        if let Err(e) = item_data.row.store(&pool).await {
+        if let Some(pool) = item_data.pool.clone() {
+            if let Err(e) = item_data.row.store(&pool).await {
                 log::error!("failed to store verified email token for rowid={}, email={:?}: {}",
                 item_data.row.rowid, item_data.row.email, e);
                 return false;
+            }
         }
 
         // success
@@ -612,10 +633,11 @@ impl UserItem {
         data.row.password = new_password_encrypted;
         data.row.password_last_usage = None;
         data.row.password_last_useragent = None;
-        let pool = data.pool.clone();
-        if let Err(e) = data.row.store(&pool).await {
-            log::error!("failed to store updated password for rowid={}: {}", data.row.rowid, e);
-            return false;
+        if let Some(pool) = data.pool.clone() {
+            if let Err(e) = data.row.store(&pool).await {
+                log::error!("failed to store updated password for rowid={}: {}", data.row.rowid, e);
+                return false;
+            }
         }
 
         log::info!("password updated for rowid={}", data.row.rowid);
@@ -648,10 +670,11 @@ impl UserItem {
         let mut data = self.0.write().await;
         data.row.password_last_usage = Some(Utc::now());
         data.row.password_last_useragent = Some(user_agent);
-        let pool = data.pool.clone();
-        if let Err(e) = data.row.store(&pool).await {
-            log::error!("failed to update password usage for rowid={}: {}", data.row.rowid, e);
-            return false;
+        if let Some(pool) = data.pool.clone() {
+            if let Err(e) = data.row.store(&pool).await {
+                log::error!("failed to update password usage for rowid={}: {}", data.row.rowid, e);
+                return false;
+            }
         }
 
         // done
@@ -715,10 +738,24 @@ impl UserTable {
         return Some(item);
     }
 
+    /// Get a dummy user
+    /// This can be used to handle unknown users (will not be stored into db)
+    pub async fn user_dummy(&self) -> UserItem {
+        let item_data = UserItemData::new_dummy();
+        UserItem::new(item_data)
+    }
+
     /// Get an item
     /// This first tries to load the item from cache,
     /// and secondly load it from the database.
     pub async fn user_by_id(&self, id: i64) -> Option<UserItem> {
+
+        // sanity check
+        debug_assert!(id > 0);
+        if id <= 0 {
+            log::error!("Deny to retrieve user with id={}", id);
+            return None;
+        }
 
         // try cache hit
         {
@@ -961,13 +998,13 @@ mod tests {
             let dt: DateTime<Utc> = DateTime::parse_from_rfc3339("1001-01-01T01:01:01.1111+01:00").unwrap().into();
 
             // modify item (ne before, eq after)
-            assert_eq!(item.last_lap().await, None);
+            assert_eq!(item.last_lap().await.raw(), &None);
             item.set_last_lap(dt).await;
-            assert_eq!(item.last_lap().await, Some(dt));
+            assert_eq!(item.last_lap().await.raw(), &Some(dt));
 
             // check if stored into db_obsolete correctly
             let item = load_item_from_db(item.id().await, &pool).await;
-            assert_eq!(item.last_lap().await, Some(dt));
+            assert_eq!(item.last_lap().await.raw(), &Some(dt));
         }
 
         #[test(tokio::test)]

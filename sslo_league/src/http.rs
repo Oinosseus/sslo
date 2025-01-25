@@ -108,10 +108,11 @@ impl HtmlTemplate {
         html += "          <div class=\"NavbarNoDrop\">\n";
         html += "              <a href=\"/\" class=\"active\">Home</a>\n";
         html += "          </div>\n";
-        if self.http_user.user.is_some() {
+        if self.http_user.is_logged_in() {
             html += "          <div class=\"NavbarDropdown\">\n";
             html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">🯅 User ⯆</a>\n";
             html += "              <div>\n";
+            html += "                  <a href=\"/html/user_profile\">User Profile</a>\n";
             html += "                  <a href=\"/html/user_settings\">User Settings</a>\n";
             html += "                  <a href=\"#\">Login Data</a>\n";
             html += "                  <a href=\"/html/logout\">Logout</a>\n";
@@ -141,14 +142,12 @@ impl HtmlTemplate {
 
         // footer
         html.push_str("    <footer>\n");
-        if let Some(user) = self.http_user.user() {
-            html.push_str(&user.html_name().await);
-            html.push_str(" <small>&lt;");
-            html.push_str(user.activity().await.label());
-            html.push_str(" ");
-            html.push_str(user.promotion().await.label());
-            html.push_str("&gt;</small>\n");
-        }
+        html.push_str(&self.http_user.user.html_name().await);
+        html.push_str(" <small>&lt;");
+        html.push_str(self.http_user.user.activity().await.label());
+        html.push_str(" ");
+        html.push_str(self.http_user.user.promotion().await.label());
+        html.push_str("&gt;</small>\n");
         html.push_str("    </footer>\n");
 
         // html finish
@@ -174,6 +173,7 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/html/logout", routing::get(routes_html::login::handler_logout))
 
         .route("/html/user_settings", routing::get(routes_html::user::handler_settings))
+        .route("/html/user_profile", routing::get(routes_html::user::handler_profile))
 
         .route("/api/v0/login/email", routing::post(routes_rest_v0::login_email::handler))
         .route("/api/v0/user/update_settings", routing::post(routes_rest_v0::user::handler_update_settings))
