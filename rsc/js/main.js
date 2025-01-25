@@ -24,9 +24,10 @@ function navbarDropdown(element) {
 /** Make a POST call to the v0 API
  * endpoint - the relative path to the REST API endpoint
  * tx_data - an object that can be json parsed
- * callback - function(return_code, json_data)
+ * callback - function(return_code, json_data, callback_data)
+ * callback_data - arbitraty data that is hand over to the callbackl function
  */
-function api_v0_post(endpoint, tx_data, callback) {
+function api_v0_post(endpoint, tx_data, callback, callback_data) {
     let tx_data_string = JSON.stringify(tx_data);
     fetch("/api/v0/" + endpoint, {
         method: "POST",
@@ -37,7 +38,7 @@ function api_v0_post(endpoint, tx_data, callback) {
         body: tx_data_string,
     })
         .then(response => {
-            response.json().then(json_data => {callback(response.status, json_data)});
+            response.json().then(json_data => {callback(response.status, json_data, callback_data)});
         })
         .catch(error => {
             console.log("API error: " + error);
@@ -91,4 +92,81 @@ function append_message_warning(title, message) {
 
 function append_message_success(title, message) {
     append_message("MessageSuccess", title, message);
+}
+
+
+
+// ==========================================================================================
+//                                    LiveInput
+// HTML:
+// <div class="LiveInput" id="MyId"><input ...><button>Save</button></div>
+//
+// JS:
+// liveinput_init("MyId", prepare_save);
+//
+// function prepare_save(input_element) {
+//     return {
+//         api_endpoint: "change/my_value",
+//         api_data: {value: input_element.value},
+//     }
+// }
+//
+// ==========================================================================================
+
+function liveinput_init(id, prepare_api_call_function) {
+    const e_div = document.getElementById(id);
+    const e_inp = e_div.getElementsByTagName("input")[0];
+    const e_btn = e_div.getElementsByTagName("button")[0];
+    e_inp.addEventListener('input', liveinput_changed, {once:true});
+    e_inp.LiveInputId = id;
+    e_btn.LiveInputId = id;
+    e_inp.LiveInputPrepareApiCallFunction = prepare_api_call_function;
+}
+
+function liveinput_changed(event) {
+    const id = event.currentTarget.LiveInputId;
+    const e_div = document.getElementById(id);
+    const e_inp = e_div.getElementsByTagName("input")[0];
+    const e_btn = e_div.getElementsByTagName("button")[0];
+
+    e_inp.className = "Modified";
+    e_btn.className = "Modified";
+    e_btn.addEventListener("click", liveinput_save_clicked, {once:true});
+}
+
+function liveinput_save_clicked(event) {
+    const id = event.currentTarget.LiveInputId;
+    const e_div = document.getElementById(id);
+    const e_inp = e_div.getElementsByTagName("input")[0];
+    const e_btn = e_div.getElementsByTagName("button")[0];
+
+    // lock elements
+    e_inp.className = "Saving";
+    e_btn.className = "Saving";
+
+    // prepare api call
+    const api_call_data = e_inp.LiveInputPrepareApiCallFunction(e_inp);
+    api_v0_post(api_call_data.api_endpoint, api_call_data.api_data, liveinput_api_return, id);
+}
+
+function liveinput_api_return(return_code, json_data, id) {
+    const e_div = document.getElementById(id);
+    const e_inp = e_div.getElementsByTagName("input")[0];
+    const e_btn = e_div.getElementsByTagName("button")[0];
+    if (return_code === 200) {
+        e_inp.className = "Saved";
+        e_btn.className = "Saved";
+        e_inp.addEventListener('change', liveinput_changed, {once:true});
+    } else if (return_code === 500) {
+        append_message_error(json_data.summary, json_data.description)
+        console.log("Error: " + return_code);
+        console.log(json_data);
+        e_inp.className = "Failed";
+        e_btn.className = "Failed";
+    } else {
+        console.log("Error: " + return_code);
+        console.log(json_data);
+        e_inp.className = "Failed";
+        e_btn.className = "Failed";
+    }
 }

@@ -45,9 +45,9 @@ pub async fn handler_profile(State(_app_state): State<AppState>,
 
     html.push_body("<div class=\"BgBox\"><table id=\"UserProfile\">");
 
-    html.push_body("<tr><th>Name</th><td><input id=\"InputUserName\" type=\"text\" name=\"UserName\" value=\"");
+    html.push_body("<tr><th>Name</th><td><div class=\"LiveInput\" id=\"ProfileUserName\"><input type=\"text\" name=\"UserName\" value=\"");
     html.push_body(&html.http_user.user.html_name().await);
-    html.push_body("\"><button id=\"InputUserNameSaveButton\">Save</button></td></tr>");
+    html.push_body("\"><button>Save</button></div></td></tr>");
 
     html.push_body("<tr><th>Activity</th><td>");
     html.push_body(html.http_user.user.activity().await.label());

@@ -36,14 +36,14 @@ pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor,
     html.push_body("</form>");
 
     // Login with Email SSO
-    html.push_body("<form id=\"TabLoginEmail\" action=\"/html/login_email_generate\" method=\"post\">");
+    html.push_body("<form id=\"TabLoginEmail\" action=\"/html/login_email_generate\" method=\"post\" class=\"BgBox\">");
     html.push_body("<label>Login via sending Email login link</label>");
     html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" name=\"email\">");
     html.push_body("<button type=\"submit\">Send Login Link</button>");
     html.push_body("</form>");
 
     // Login with Steam SSO
-    html.push_body("<form id=\"TabLoginSteam\">");
+    html.push_body("<form id=\"TabLoginSteam\" class=\"BgBox\">");
     html.push_body("<label>Login via Steam</label>");
     if let Some(uri_scheme) = uri.scheme() {
         if let Some(uri_authority) = uri.authority() {

@@ -1,5 +1,5 @@
 
-table#user_profile th {
+table#UserProfile th {
     text-align: right;
     font-weight: bold;
     padding-right: 1em;
@@ -7,9 +7,4 @@ table#user_profile th {
 
 table#UserProfile th::after {
     content: ":";
-}
-
-table#UserProfile button {
-    display: none;
-    margin-left: 0.5em;
 }

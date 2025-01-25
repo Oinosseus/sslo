@@ -86,11 +86,11 @@ impl HtmlTemplate {
             html += css_file;
             html += "\">\n";
         }
-        html += "    <script src=\"/rsc/js/main.js\" async></script>\n";
+        html += "    <script src=\"/rsc/js/main.js\" defer></script>\n";
         for js_file in &self.js_files {
             html += "    <script src=\"";
             html += js_file;
-            html += "\"></script>\n";
+            html += "\" defer></script>\n";
         }
         html += "  </head>\n";
 
@@ -145,8 +145,9 @@ impl HtmlTemplate {
         html.push_str(&self.http_user.user.html_name().await);
         html.push_str(" <small>&lt;");
         html.push_str(self.http_user.user.activity().await.label());
-        html.push_str(" ");
-        html.push_str(self.http_user.user.promotion().await.label());
+        let promotion = self.http_user.user.promotion().await.label();
+        if promotion.len() > 0 { html.push_str(" "); }
+        html.push_str(promotion);
         html.push_str("&gt;</small>\n");
         html.push_str("    </footer>\n");
 

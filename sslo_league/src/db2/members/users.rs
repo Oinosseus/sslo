@@ -376,6 +376,7 @@ impl UserItem {
 
     pub async fn set_name(self: &mut Self, name: String) -> Result<(), SsloError> {
         let mut data = self.0.write().await;
+        let name = name.trim().to_string();
         log::info!("Change User:{}, name from '{}' to '{}'", data.row.rowid, data.row.name, name);
         data.row.name = name;
         match data.pool.clone() {
@@ -952,7 +953,7 @@ mod tests {
 
             // modify item
             assert_eq!(item.name().await, "");
-            item.set_name("Ronald Antonio \"Ronnie\" O'Sullivan".to_string()).await.unwrap();
+            item.set_name(" Ronald Antonio \"Ronnie\" O'Sullivan\n".to_string()).await.unwrap();
             assert_eq!(item.id().await, 1);
             assert_eq!(item.name().await, "Ronald Antonio \"Ronnie\" O'Sullivan");
 

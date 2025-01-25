@@ -1,19 +1,23 @@
 :root {
-    /* Common colors */
-    /*--color-text: #ddd;*/
-/*     --color-red-accent: #bd0000; */
-/*     --color-disabled: #883440; */
-
     --color-dark-bg: rgba(0, 0, 0, 0.6);
-    /*--color-dark-text: #ddd;*/
-
     --color-light-bg: rgba(0, 0, 0, 0.3);
-    /*--color-light-text: #bbb;*/
 
     /* New Color Scheme */
     --color-white: #dde;
     --color-black: #666;
     --color-green: #3d1;
+
+    --color-success-fg: #3d1c;
+    --color-success-bg: #3d13;
+
+    --color-modified-fg: #ff0c;
+    --color-modified-bg: #ff03;
+
+    --color-waiting-fg: #00fa;
+    --color-waiting-bg: #00f3;
+
+    --color-failed-fg: #f00a;
+    --color-failed-bg: #f003;
 }
 
 
@@ -286,4 +290,82 @@ form.GridForm label {
 
 form.GridForm > * {
     margin-bottom: 0.5em;
+}
+
+
+/*****************************************************************************
+                               Live Inputs
+ directly saving data when modifying a single input field
+ <div class="LiveInput"><input ...><button>Save</button></div>
+
+ Transitions are:
+    "" -> Modified -> Saving -> Saved / Failed -> ""
+ *****************************************************************************/
+
+div.LiveInput {
+
+}
+
+div.LiveInput input {
+    transition: background-color 1s;
+    border-radius: 0.4em;
+    border: none;
+    font-size: 1em;
+    background-color: transparent;
+}
+
+div.LiveInput input:hover,
+div.LiveInput input:focus {
+    outline: 0.2em solid var(--color-modified-fg);
+}
+
+div.LiveInput input.Modified {
+    background-color: var(--color-modified-bg);
+}
+
+div.LiveInput input.Saving {
+    background-color: var(--color-waiting-bg);
+    color: var(--color-waiting-fg);
+    pointer-events: none;
+    font-style: italic;
+}
+
+div.LiveInput input.Saved {
+    background-color: var(--color-success-bg);
+}
+
+div.LiveInput input.Failed {
+    background-color: var(--color-failed-bg);
+}
+
+div.LiveInput button {
+    content: "S";
+    visibility: hidden;
+    margin-left: 0.5em;
+    border-radius: 0.4em;
+    background-color: transparent;
+    border: none;
+    outline: none;
+}
+
+div.LiveInput button.Modified {
+    visibility: visible;
+    background-color: var(--color-modified-bg);
+    /*outline: 0.2em solid var(--color-modified-fg);*/
+}
+
+div.LiveInput button.Saving {
+    /*visibility: visible;*/
+    background-color: var(--color-waiting-bg);
+    /*outline: none;*/
+    pointer-events: none;
+}
+
+div.LiveInput button.Saved {
+}
+
+div.LiveInput button.Failed {
+    visibility: visible;
+    background-color: var(--color-failed-bg);
+    /*outline: 0.2em solid var(--color-failed-fg);*/
 }
