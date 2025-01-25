@@ -1,0 +1,10 @@
+
+table#user_profile th {
+    text-align: right;
+    font-weight: bold;
+    padding-right: 1em;
+}
+
+table#user_profile th::after {
+    content: ":";
+}

@@ -39,10 +39,10 @@ pub async fn handler_profile(State(_app_state): State<AppState>,
                              HttpUserExtractor(http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
 
     let mut html = HtmlTemplate::new(http_user);
-    // html.include_js("/rsc/js/user.js");
+    html.include_css("/rsc/css/user.css");
     html.http_user();
 
-    html.push_body("<table>");
+    html.push_body("<div class=\"bgbox\"><table id=\"user_profile\">");
 
     html.push_body("<tr><th>Name</th><td>");
     html.push_body(&html.http_user.user.name().await);
@@ -71,7 +71,7 @@ pub async fn handler_profile(State(_app_state): State<AppState>,
     }
     html.push_body("</td></tr>");
 
-    html.push_body("</table>");
+    html.push_body("</table></div>");
 
     Ok(html.into_response().await)
 }

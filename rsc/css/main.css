@@ -235,10 +235,23 @@ messages > div.MessageSuccess {
  *****************************************************************************/
 
 main {
+    /*padding: 1em;*/
+    /*background-color: var(--color-light-bg);*/
+    /*color: #eee;*/
+/*     width: 80%; */
+/*    max-width: max-content;*/
+/*    margin-top: 2em;*/
+/*    margin-left: auto;*/
+/*    margin-right: auto;*/
+/*    margin-bottom: 1em;*/
+/*    border-radius: 0.5em;*/
+}
+
+.bgbox {
     padding: 1em;
     background-color: var(--color-light-bg);
     color: #eee;
-/*     width: 80%; */
+    /*     width: 80%; */
     max-width: max-content;
     margin-top: 2em;
     margin-left: auto;
@@ -246,8 +259,6 @@ main {
     margin-bottom: 1em;
     border-radius: 0.5em;
 }
-
-
 
 /*****************************************************************************
                                 Footer
