@@ -113,8 +113,8 @@ impl HtmlTemplate {
             html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">🯅 User ⯆</a>\n";
             html += "              <div>\n";
             html += "                  <a href=\"/html/user_profile\">User Profile</a>\n";
-            html += "                  <a href=\"/html/user_settings\">User Settings</a>\n";
-            html += "                  <a href=\"#\">Login Data</a>\n";
+            // html += "                  <a href=\"/html/user_settings\">User Settings</a>\n";
+            html += "                  <a href=\"/html/user_credentials\">Credentials</a>\n";
             html += "                  <a href=\"/html/logout\">Logout</a>\n";
             html += "              </div>\n";
             html += "          </div>\n";
@@ -174,9 +174,11 @@ pub fn create_router(app_state: AppState) -> Router {
 
         .route("/html/user_settings", routing::get(routes_html::user::handler_settings))
         .route("/html/user_profile", routing::get(routes_html::user::handler_profile))
+        .route("/html/user_credentials", routing::get(routes_html::user::handler_credentials))
 
         .route("/api/v0/login/email", routing::post(routes_rest_v0::login_email::handler))
         .route("/api/v0/user/update_settings", routing::post(routes_rest_v0::user::handler_update_settings))
+        .route("/api/v0/user/set_name", routing::post(routes_rest_v0::user::handler_set_name))
 
         .with_state(app_state);
     router

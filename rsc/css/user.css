@@ -5,6 +5,11 @@ table#user_profile th {
     padding-right: 1em;
 }
 
-table#user_profile th::after {
+table#UserProfile th::after {
     content: ":";
+}
+
+table#UserProfile button {
+    display: none;
+    margin-left: 0.5em;
 }

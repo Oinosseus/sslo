@@ -247,7 +247,7 @@ main {
 /*    border-radius: 0.5em;*/
 }
 
-.bgbox {
+.BgBox {
     padding: 1em;
     background-color: var(--color-light-bg);
     color: #eee;

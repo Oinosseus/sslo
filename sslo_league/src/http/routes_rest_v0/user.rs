@@ -13,7 +13,7 @@ pub struct EmptyResponse {
 
 
 #[derive(Deserialize)]
-pub struct SetNameRequest {
+pub struct UpdateSettingsRequest {
     new_name: Option<String>,
     old_password: Option<String>,
     new_password: Option<String>,
@@ -21,7 +21,7 @@ pub struct SetNameRequest {
 
 pub async fn handler_update_settings(State(_app_state): State<AppState>,
                                      HttpUserExtractor(mut http_user): HttpUserExtractor,
-                                     Json(input): Json<SetNameRequest>) -> Response {
+                                     Json(input): Json<UpdateSettingsRequest>) -> Response {
 
     if !http_user.is_logged_in() {
         return StatusCode::UNAUTHORIZED.into_response();
@@ -45,6 +45,31 @@ pub async fn handler_update_settings(State(_app_state): State<AppState>,
             return GeneralError::new("Updating password failed".to_string(), "".to_string()).into_response();
         }
     }
+
+    Json(EmptyResponse{}).into_response()
+}
+
+
+#[derive(Deserialize)]
+pub struct SetNameRequest {
+    name: String,
+}
+
+pub async fn handler_set_name(State(_app_state): State<AppState>,
+                              HttpUserExtractor(mut http_user): HttpUserExtractor,
+                              Json(input): Json<SetNameRequest>) -> Response {
+
+    if !http_user.is_logged_in() {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
+    match http_user.user.set_name(input.name).await {
+        Ok(_) => {},
+        Err(e) => {
+            log::error!("Could not update username: {}", e);
+            return GeneralError::new("Updating name failed".to_string(), "".to_string()).into_response();
+        }
+    };
 
     Json(EmptyResponse{}).into_response()
 }

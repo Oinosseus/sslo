@@ -376,6 +376,7 @@ impl UserItem {
 
     pub async fn set_name(self: &mut Self, name: String) -> Result<(), SsloError> {
         let mut data = self.0.write().await;
+        log::info!("Change User:{}, name from '{}' to '{}'", data.row.rowid, data.row.name, name);
         data.row.name = name;
         match data.pool.clone() {
             None => Ok(()),

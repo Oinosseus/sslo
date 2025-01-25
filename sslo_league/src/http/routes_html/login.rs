@@ -20,7 +20,7 @@ pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor,
     html.include_js("/rsc/js/login.js");
 
     // Tab Selection
-    html.push_body("<div id=\"TabSelection\">");
+    html.push_body("<div id=\"TabSelection\" class=\"BgBox\">");
     html.push_body("<div>Choose Login Method:</div>");
     html.push_body("<button id=\"LoginButtonLoginPassword\" onclick=\"tabSelectByIndex(0)\" class=\"ActiveButton\">Password</button>");
     html.push_body("<button id=\"LoginButtonLoginEmail\" onclick=\"tabSelectByIndex(1)\">Email</button>");
@@ -28,7 +28,7 @@ pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor,
     html.push_body("</div>");
 
     // Login with Password
-    html.push_body("<form id=\"TabLoginPassword\" action=\"/html/login_email_password\" method=\"post\" class=\"ActiveTab\">");
+    html.push_body("<form id=\"TabLoginPassword\" action=\"/html/login_email_password\" method=\"post\" class=\"ActiveTab BgBox\">");
     html.push_body("<label>Login with SSLO Password</label>");
     html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" name=\"email\">");
     html.push_body("<input required placeholder=\"password\" type=\"password\" name=\"password\">");

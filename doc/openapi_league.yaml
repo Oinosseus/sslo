@@ -60,3 +60,27 @@ paths:
           description: "Current user not valid"
         '500':
           $ref: '#/components/responses/GeneralError'
+  /user/set_name:
+    post:
+      summary: Change name of current user
+      requestBody:
+        description: Containing new username
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: "Name changed"
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: "Current user not valid"
+        '500':
+          $ref: '#/components/responses/GeneralError'
