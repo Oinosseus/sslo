@@ -23,8 +23,8 @@ CREATE TABLE cookie_logins (
 
 CREATE TABLE steam_users (
     steam_id TEXT NOT NULL UNIQUE,
-    creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     user INTEGER,
+    creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_login_timestamp TEXT,
     last_login_useragent BLOB
 )

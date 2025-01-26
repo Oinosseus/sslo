@@ -1,5 +1,5 @@
 macro_rules! tablename {
-    {} => { "steam_users" };
+    {} => { "steam" };
 }
 
 use std::collections::HashMap;
@@ -14,8 +14,8 @@ use sslo_lib::error::SsloError;
 #[derive(sqlx::FromRow, Clone)]
 struct DbDataRow {
     rowid: i64,
-    user: i64,
     steam_id: String,
+    user: Option<i64>,
     creation: DateTime<Utc>,
     last_login_timestamp: Option<DateTime<Utc>>,
     last_login_useragent: Option<String>,
@@ -28,12 +28,30 @@ impl DbDataRow {
         debug_assert!(rowid >= 0);
         Self {
             rowid,
-            user: 0,
+            user: None,
             steam_id: String::new(),
             creation: Utc::now(),
             last_login_timestamp: None,
             last_login_useragent: None,
         }
+    }
+
+    /// directly retrieve an item from database by steam_id
+    async fn from_steam_id(steam_id: &str, pool: &SqlitePool) -> Result<Self, SsloError> {
+        return match sqlx::query_as::<Sqlite, DbDataRow>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE steam_id = $1 LIMIT 2;"))
+            .bind(steam_id)
+            .fetch_one(pool)
+            .await {
+            Ok(row) => {
+                Ok(row)
+            },
+            Err(sqlx::Error::RowNotFound) => {
+                Err(SsloError::DatabaseDataNotFound(tablename!(), "steam_id", steam_id.to_string()))
+            },
+            Err(e) => {
+                return Err(SsloError::DatabaseSqlx(e));
+            }
+        };
     }
 
     /// Read the data from the database
@@ -179,6 +197,94 @@ pub struct SteamUserTable(Arc<RwLock<SteamUserTableData>>);
 
 impl SteamUserTable {
     pub(super) fn new(data: Arc<RwLock<SteamUserTableData>>) -> Self { Self(data) }
+
+    /// Get an item
+    /// This first tries to load the item from cache,
+    /// and secondly load it from the database.
+    pub async fn user_by_id(&self, id: i64) -> Option<SteamUserItem> {
+
+        // sanity check
+        debug_assert!(id > 0);
+        if id <= 0 {
+            log::error!("Deny to retrieve user with id={}", id);
+            return None;
+        }
+
+        // try cache hit
+        {
+            let tbl_data = self.0.read().await;
+            if let Some(item_data) = tbl_data.item_cache_by_rowid.get(&id) {
+                return Some(SteamUserItem::new(item_data.clone()));
+            }
+        }
+
+        // try loading from DB if not found in cache
+        {
+            let mut tbl_data = self.0.write().await;
+
+            // load from db table
+            let mut row = DbDataRow::new(id);
+            match row.load(&tbl_data.pool).await {
+                Ok(_) => { },
+                Err(e) => {
+                    if e.is_db_not_found_type() {
+                        log::warn!("{}", e);
+                    } else {
+                        log::error!("{}", e.to_string());
+                    }
+                    return None;
+                },
+            }
+            debug_assert_eq!(row.rowid, id);
+
+            // create item
+            let item_data = SteamUserData::new(&tbl_data.pool, row, Weak::new());
+            let item = SteamUserItem::new(item_data.clone());
+            tbl_data.item_cache_by_rowid.insert(id, item_data.clone());
+            tbl_data.item_cache_by_steamid.insert(item.steam_id(), item_data);
+            return Some(item);
+        }
+    }
+
+    /// Get an item
+    /// This first tries to load the item from cache,
+    /// and secondly load it from the database.
+    pub async fn user_by_steam_id(&self, steam_id: &str) -> Option<SteamUserItem> {
+
+        // try cache hit
+        {
+            let tbl_data = self.0.read().await;
+            if let Some(item_data) = tbl_data.item_cache_by_steamid.get(steam_id) {
+                return Some(SteamUserItem::new(item_data.clone()));
+            }
+        }
+
+        // try loading from DB if not found in cache
+        {
+            let mut tbl_data = self.0.write().await;
+
+            // load from db table
+            let mut row = match DbDataRow::from_steam_id(steam_id, &tbl_data.pool).await {
+                Ok(row) => row,
+                Err(e) => {
+                    if e.is_db_not_found_type() {
+                        log::warn!("{}", e);
+                    } else {
+                        log::error!("{}", e.to_string());
+                    }
+                    return None;
+                },
+            };
+            debug_assert_eq!(row.steam_id, steam_id);
+
+            // create item
+            let item_data = SteamUserData::new(&tbl_data.pool, row, Weak::new());
+            let item = SteamUserItem::new(item_data.clone());
+            tbl_data.item_cache_by_rowid.insert(item.id(), item_data.clone());
+            tbl_data.item_cache_by_steamid.insert(item.steam_id(), item_data);
+            return Some(item);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -201,7 +307,7 @@ mod tests {
         async fn new_defaults() {
             let row = DbDataRow::new(33);
             assert_eq!(row.rowid, 33);
-            assert_eq!(row.user, 0);
+            assert_eq!(row.user, None);
             assert_eq!(row.steam_id, String::new());
             assert_eq!(row.last_login_timestamp, None);
             assert_eq!(row.last_login_useragent, None);
@@ -219,7 +325,7 @@ mod tests {
 
             // store (insert)
             let mut row = DbDataRow::new(0);
-            row.user = 44;
+            row.user = Some(44);
             row.steam_id = "SomeSteam64GUID".to_string();
             row.creation = dt1;
             row.last_login_timestamp = Some(dt2);
@@ -230,7 +336,7 @@ mod tests {
             let mut row = DbDataRow::new(1);
             row.load(&pool).await.unwrap();
             assert_eq!(row.rowid, 1);
-            assert_eq!(row.user, 44);
+            assert_eq!(row.user, Some(44));
             assert_eq!(row.steam_id, "SomeSteam64GUID".to_string());
             assert_eq!(row.creation, dt1.clone());
             assert_eq!(row.last_login_timestamp, Some(dt2.clone()));
@@ -238,7 +344,7 @@ mod tests {
 
             // store (update)
             let mut row = DbDataRow::new(1);
-            row.user = 46;
+            row.user = Some(46);
             row.steam_id = "NewSomeSteam64GUID".to_string();
             row.creation = dt2;
             row.last_login_timestamp = Some(dt3);
@@ -249,11 +355,22 @@ mod tests {
             let mut row = DbDataRow::new(1);
             row.load(&pool).await.unwrap();
             assert_eq!(row.rowid, 1);
-            assert_eq!(row.user, 46);
+            assert_eq!(row.user, Some(46));
             assert_eq!(row.steam_id, "NewSomeSteam64GUID".to_string());
             assert_eq!(row.creation, dt2.clone());
             assert_eq!(row.last_login_timestamp, Some(dt3.clone()));
             assert_eq!(row.last_login_useragent, Some("new unit test".to_string()));
+        }
+    }
+
+    mod item {
+        use test_log::test;
+        use super::*;
+
+        #[test(tokio::test)]
+        async fn test() {
+            let pool = get_pool().await;
+            todo!();
         }
     }
 }
