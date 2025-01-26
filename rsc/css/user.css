@@ -1,10 +1,19 @@
 
 table#UserProfile th {
     text-align: right;
+    vertical-align: top;
     font-weight: bold;
     padding-right: 1em;
 }
 
 table#UserProfile th::after {
     content: ":";
+}
+
+table#UserProfile td {
+    font-style: italic;
+}
+
+table#UserProfile input {
+    font-style: normal;
 }

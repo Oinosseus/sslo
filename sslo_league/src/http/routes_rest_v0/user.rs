@@ -24,13 +24,13 @@ pub async fn handler_set_name(State(_app_state): State<AppState>,
     if !http_user.is_logged_in() {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    // tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
 
     match http_user.user.set_name(input.name).await {
         Ok(_) => {},
         Err(e) => {
             log::error!("Could not update username: {}", e);
-            return GeneralError::new("Updating name failed".to_string(), "".to_string()).into_response();
+            return GeneralError::new(StatusCode::INTERNAL_SERVER_ERROR,
+                                     "Updating name failed".to_string()).into_response();
         }
     };
 
@@ -39,36 +39,27 @@ pub async fn handler_set_name(State(_app_state): State<AppState>,
 
 
 #[derive(Deserialize)]
-pub struct UpdateSettingsRequest {
-    new_name: Option<String>,
+pub struct SetPasswordRequest {
     old_password: Option<String>,
     new_password: Option<String>,
 }
 
-pub async fn handler_update_settings(State(_app_state): State<AppState>,
+pub async fn handler_set_password(State(_app_state): State<AppState>,
                                      HttpUserExtractor(mut http_user): HttpUserExtractor,
-                                     Json(input): Json<UpdateSettingsRequest>) -> Response {
+                                     Json(input): Json<SetPasswordRequest>) -> Response {
 
     if !http_user.is_logged_in() {
-        return StatusCode::UNAUTHORIZED.into_response();
+        return GeneralError::new(StatusCode::UNAUTHORIZED,
+                                 "No user logged in".to_string(),
+        ).into_response();
     }
 
-    // name
-    if let Some(new_name) = input.new_name {
-        match http_user.user.set_name(new_name).await {
-            Ok(_) => {},
-            Err(e) => {
-                log::error!("Could not update username: {}", e);
-                return GeneralError::new("Updating name failed".to_string(), "".to_string()).into_response();
-            }
-        };
-    }
-
-    // password
     if let Some(new_password) = input.new_password {
         if !http_user.user.update_password(input.old_password, Some(new_password)).await {
             log::error!("Failed to update password!");
-            return GeneralError::new("Updating password failed".to_string(), "".to_string()).into_response();
+            return GeneralError::new(StatusCode::INTERNAL_SERVER_ERROR,
+                                     "Updating password failed".to_string(),
+            ).into_response();
         }
     }
 

@@ -32,34 +32,6 @@ paths:
                 properties:
         '500':
           $ref: '#/components/responses/GeneralError'
-  /user/update_settings:
-    post:
-      summary: Change name of current user
-      requestBody:
-        description: Containing new username
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                new_name:
-                  type: string
-                old_password:
-                  type: string
-                new_password:
-                  type: string
-      responses:
-        '200':
-          description: "Name changed"
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          description: "Current user not valid"
-        '500':
-          $ref: '#/components/responses/GeneralError'
   /user/set_name:
     post:
       summary: Change name of current user
@@ -81,6 +53,32 @@ paths:
               schema:
                 type: object
         '401':
-          description: "Current user not valid"
+          $ref: '#/components/responses/GeneralError'
+        '500':
+          $ref: '#/components/responses/GeneralError'
+  /user/set_password:
+    post:
+      summary: Set/Update password for a user
+      requestBody:
+        description: Containing current and new passwords
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                old_password:
+                  type: string
+                new_password:
+                  type: string
+      responses:
+        '200':
+          description: "password set"
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/GeneralError'
         '500':
           $ref: '#/components/responses/GeneralError'

@@ -104,10 +104,11 @@ function append_message_success(title, message) {
 // JS:
 // liveinput_init("MyId", prepare_save);
 //
-// function prepare_save(input_element) {
+// function prepare_save(input_elements) {
+//     if (!is_valid(input_elements[0].value)) return null;
 //     return {
 //         api_endpoint: "change/my_value",
-//         api_data: {value: input_element.value},
+//         api_data: {value: input_elements[0].value},
 //     }
 // }
 //
@@ -115,58 +116,92 @@ function append_message_success(title, message) {
 
 function liveinput_init(id, prepare_api_call_function) {
     const e_div = document.getElementById(id);
-    const e_inp = e_div.getElementsByTagName("input")[0];
+
     const e_btn = e_div.getElementsByTagName("button")[0];
-    e_inp.addEventListener('input', liveinput_changed, {once:true});
-    e_inp.LiveInputId = id;
     e_btn.LiveInputId = id;
-    e_inp.LiveInputPrepareApiCallFunction = prepare_api_call_function;
+
+    let inputs = e_div.getElementsByTagName("input");
+    for (let i=0; i<inputs.length; i++ ) {
+        let e_inp = inputs[i];
+        e_inp.LiveInputId = id;
+        e_inp.addEventListener('input', liveinput_changed, {once:true});
+        e_inp.LiveInputPrepareApiCallFunction = prepare_api_call_function;
+    }
 }
 
 function liveinput_changed(event) {
     const id = event.currentTarget.LiveInputId;
     const e_div = document.getElementById(id);
-    const e_inp = e_div.getElementsByTagName("input")[0];
-    const e_btn = e_div.getElementsByTagName("button")[0];
 
-    e_inp.className = "Modified";
+    const e_btn = e_div.getElementsByTagName("button")[0];
     e_btn.className = "Modified";
     e_btn.addEventListener("click", liveinput_save_clicked, {once:true});
+
+    let inputs = e_div.getElementsByTagName("input");
+    for (let i=0; i<inputs.length; i++ ) {
+        let e_inp = inputs[i];
+        e_inp.removeEventListener('input', liveinput_changed);
+        e_inp.className = "Modified";
+    }
 }
 
 function liveinput_save_clicked(event) {
     const id = event.currentTarget.LiveInputId;
     const e_div = document.getElementById(id);
-    const e_inp = e_div.getElementsByTagName("input")[0];
     const e_btn = e_div.getElementsByTagName("button")[0];
+    let inputs = e_div.getElementsByTagName("input");
 
-    // lock elements
-    e_inp.className = "Saving";
+    // get prepared api call data
+    var prepare_api_callback_function = inputs[0].LiveInputPrepareApiCallFunction;
+    const api_call_data = prepare_api_callback_function(inputs);
+    if (api_call_data === null) {
+        for (let i=0; i<inputs.length; i++ ) {
+            let e_inp = inputs[i];
+            e_inp.className = "Failed";
+        }
+        e_btn.className = "Failed";
+        e_btn.addEventListener("click", liveinput_save_clicked, {once:true});
+        return;
+    }
+
+    // set to saving
+    for (let i=0; i<inputs.length; i++ ) {
+        let e_inp = inputs[i];
+        e_inp.className = "Saving";
+    }
     e_btn.className = "Saving";
 
-    // prepare api call
-    const api_call_data = e_inp.LiveInputPrepareApiCallFunction(e_inp);
     api_v0_post(api_call_data.api_endpoint, api_call_data.api_data, liveinput_api_return, id);
 }
 
 function liveinput_api_return(return_code, json_data, id) {
     const e_div = document.getElementById(id);
-    const e_inp = e_div.getElementsByTagName("input")[0];
+    let inputs = e_div.getElementsByTagName("input");
     const e_btn = e_div.getElementsByTagName("button")[0];
+
     if (return_code === 200) {
-        e_inp.className = "Saved";
         e_btn.className = "Saved";
-        e_inp.addEventListener('change', liveinput_changed, {once:true});
+        for (let i=0; i<inputs.length; i++ ) {
+            let e_inp = inputs[i];
+            e_inp.className = "Saved";
+            e_inp.addEventListener('change', liveinput_changed, {once:true});
+        }
     } else if (return_code === 500) {
         append_message_error(json_data.summary, json_data.description)
         console.log("Error: " + return_code);
         console.log(json_data);
-        e_inp.className = "Failed";
         e_btn.className = "Failed";
+        for (let i=0; i<inputs.length; i++ ) {
+            let e_inp = inputs[i];
+            e_inp.className = "Failed";
+        }
     } else {
         console.log("Error: " + return_code);
         console.log(json_data);
-        e_inp.className = "Failed";
         e_btn.className = "Failed";
+        for (let i=0; i<inputs.length; i++ ) {
+            let e_inp = inputs[i];
+            e_inp.className = "Failed";
+        }
     }
 }

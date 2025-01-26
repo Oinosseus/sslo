@@ -45,9 +45,13 @@ pub async fn handler_profile(State(_app_state): State<AppState>,
 
     html.push_body("<div class=\"BgBox\"><table id=\"UserProfile\">");
 
-    html.push_body("<tr><th>Name</th><td><div class=\"LiveInput\" id=\"ProfileUserName\"><input type=\"text\" name=\"UserName\" value=\"");
+    html.push_body("<tr><th>Id</th><td>");
+    html.push_body(&format!("{}", html.http_user.user.id().await));
+    html.push_body("</td></tr>");
+
+    html.push_body("<tr><th>Name</th><td><div class=\"LiveInput\" id=\"ProfileUserName\"><input type=\"text\" value=\"");
     html.push_body(&html.http_user.user.html_name().await);
-    html.push_body("\"><button>Save</button></div></td></tr>");
+    html.push_body("\"><button title=\"Save\">&#128190;</button></div></td></tr>");
 
     html.push_body("<tr><th>Activity</th><td>");
     html.push_body(html.http_user.user.activity().await.label());
@@ -71,6 +75,12 @@ pub async fn handler_profile(State(_app_state): State<AppState>,
         Some(email) => html.push_body(&email, ),
     }
     html.push_body("</td></tr>");
+
+    html.push_body("<tr><th>Password</th><td><div class=\"LiveInput\" id=\"ProfileUserPassword\">");
+    html.push_body("<input type=\"password\" name=\"PasswordCurrent\" placeholder=\"current password\"><br>");
+    html.push_body("<input type=\"password\" name=\"PasswordNew1\" placeholder=\"new password\"><br>");
+    html.push_body("<input type=\"password\" name=\"PasswordNew2\" placeholder=\"repeat password\">");
+    html.push_body("<button title=\"Save\">&#128190;</button></div></td></tr>");
 
     html.push_body("</table></div>");
 
