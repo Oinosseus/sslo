@@ -360,7 +360,6 @@ mod tests {
     mod db_row {
         use super::*;
         use test_log::test;
-        use toml::to_string;
 
         #[test(tokio::test)]
         async fn new_defaults() {
@@ -429,6 +428,26 @@ mod tests {
             // create same email shall fail, case insensitive
             let mut row = DbDataRow::new(0, "a.B@c.de".to_string());
             assert!(row.store(&pool).await.is_err());
+        }
+
+        mod item {
+            use super::*;
+            use test_log::test;
+
+            async fn create_new_item(pool: &SqlitePool, email: String) -> EmailAccountItem {
+                let row = DbDataRow::new(0, email);
+                let data = EmailAccountItemData::new(pool, row, Weak::new());
+                EmailAccountItem::new(data)
+            }
+
+            #[test(tokio::test)]
+            async fn new_item() {
+                let pool = get_pool().await;
+                let item = create_new_item(&pool, "a.b@c.de".to_string()).await;
+                assert_eq!(item.id().await, 1);
+                assert_eq!(item.email().await, "a.b@c.de".to_string());
+                assert_eq!(item.is_verified().await, false);
+            }
         }
     }
 }
