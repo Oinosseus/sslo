@@ -771,7 +771,7 @@ impl UserTable {
         {
             let mut tbl_data = self.0.write().await;
 
-            // load from db_obsolete
+            // load from db row
             let mut row = DbDataRow::new(id);
             match row.load(&tbl_data.pool).await {
                 Ok(_) => { },

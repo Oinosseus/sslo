@@ -27,7 +27,7 @@ CREATE TABLE steam_users (
     creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_login_timestamp TEXT,
     last_login_useragent BLOB
-)
+);
 
 CREATE TABLE email_accounts (
     user INTEGER,

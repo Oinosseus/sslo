@@ -160,7 +160,7 @@ impl SteamUserItem {
         let db_members = match data.db_members.upgrade() {
             Some(db_data) => MembersDbInterface::new(db_data),
             None => {
-                log::error!("cannot upgrade weak pointer for rowid={}, user={}", data.row.rowid, data.row.user);
+                log::error!("cannot upgrade weak pointer for rowid={}, user={:?}", data.row.rowid, data.row.user);
                 return None;
             }
         };
@@ -241,7 +241,7 @@ impl SteamUserTable {
             let item_data = SteamUserData::new(&tbl_data.pool, row, Weak::new());
             let item = SteamUserItem::new(item_data.clone());
             tbl_data.item_cache_by_rowid.insert(id, item_data.clone());
-            tbl_data.item_cache_by_steamid.insert(item.steam_id(), item_data);
+            tbl_data.item_cache_by_steamid.insert(item.steam_id().await, item_data);
             return Some(item);
         }
     }
@@ -280,8 +280,8 @@ impl SteamUserTable {
             // create item
             let item_data = SteamUserData::new(&tbl_data.pool, row, Weak::new());
             let item = SteamUserItem::new(item_data.clone());
-            tbl_data.item_cache_by_rowid.insert(item.id(), item_data.clone());
-            tbl_data.item_cache_by_steamid.insert(item.steam_id(), item_data);
+            tbl_data.item_cache_by_rowid.insert(item.id().await, item_data.clone());
+            tbl_data.item_cache_by_steamid.insert(item.steam_id().await, item_data);
             return Some(item);
         }
     }
