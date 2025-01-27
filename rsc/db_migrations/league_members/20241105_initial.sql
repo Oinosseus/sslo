@@ -28,3 +28,11 @@ CREATE TABLE steam_users (
     last_login_timestamp TEXT,
     last_login_useragent BLOB
 )
+
+CREATE TABLE email_accounts (
+    user INTEGER,
+    email TEXT UNIQUE,
+    token BLOB UNIQUE,
+    token_creation TEXT,
+    token_consumption TEXT
+)
