@@ -10,6 +10,7 @@ use users::{UserTableData, UserTable};
 use cookie_logins::CookieLoginTableData;
 use sslo_lib::error::SsloError;
 use crate::db2::members::cookie_logins::CookieLoginTable;
+use crate::db2::members::email_accounts::{EmailAccountsTable, EmailAccountsTableData};
 use crate::db2::members::steam_users::{SteamUserTable, SteamUserTableData};
 
 /// The members database
@@ -18,6 +19,7 @@ pub struct MembersDbData {
     tbl_users: Arc<RwLock<UserTableData>>,
     tbl_cookie_logins: Arc<RwLock<CookieLoginTableData>>,
     tbl_steam_user: Arc<RwLock<SteamUserTableData>>,
+    tbl_email_accounts: Arc<RwLock<EmailAccountsTableData>>,
 }
 
 impl MembersDbData {
@@ -35,6 +37,7 @@ impl MembersDbData {
                 tbl_users: UserTableData::new(pool.clone()),
                 tbl_cookie_logins: CookieLoginTableData::new(pool.clone(), me.clone()),
                 tbl_steam_user: SteamUserTableData::new(pool.clone(), me.clone()),
+                tbl_email_accounts: EmailAccountsTableData::new(pool.clone(), me.clone()),
             })
         }))
     }
@@ -61,6 +64,11 @@ impl MembersDbInterface {
     pub async fn tbl_steam_user(&self) -> SteamUserTable {
         let data = self.0.read().await;
         SteamUserTable::new(data.tbl_steam_user.clone())
+    }
+
+    pub async fn tbl_email_accounts(&self) -> EmailAccountsTable {
+        let data = self.0.read().await;
+        EmailAccountsTable::new(data.tbl_email_accounts.clone())
     }
 }
 
@@ -150,5 +158,27 @@ mod tests {
             let item = tbl.item_from_latest_usage(&user).await.unwrap();
             assert_eq!(item.id().await, item2.id().await);
         }
+    }
+
+    mod email_accounts {
+        use test_log::test;
+        use super::*;
+
+        #[test(tokio::test)]
+        async fn set_get_user() {
+            let db = get_db().await;
+
+            // set user
+            {
+                let usr = db.tbl_users().await.create_new_user().await.unwrap();
+                assert_eq!(usr.id().await, 1);
+                let eml = db.tbl_email_accounts().await.create_account("a.b@c.de".to_string()).await.unwrap();
+                assert!(eml.set_user(&usr).await);
+
+                // get user
+                assert_eq!(eml.user().await.unwrap().id().await, usr.id().await);
+            }
+        }
+
     }
 }

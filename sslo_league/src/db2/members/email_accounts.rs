@@ -324,18 +324,20 @@ impl EmailAccountItem {
     }
 }
 
-struct EmailAccountsTableData {
+pub(super) struct EmailAccountsTableData {
     pool: SqlitePool,
     item_cache_by_id: HashMap<i64, Arc<RwLock<EmailAccountItemData>>>,
     item_cache_by_email: HashMap<String, Arc<RwLock<EmailAccountItemData>>>,
+    db_members: Weak<RwLock<MembersDbData>>,
 }
 
 impl EmailAccountsTableData {
-    fn new(pool: SqlitePool) -> Arc<RwLock<Self>> {
+    pub(super) fn new(pool: SqlitePool, db_members: Weak<RwLock<MembersDbData>>) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new( Self {
             pool,
             item_cache_by_id: HashMap::new(),
             item_cache_by_email: HashMap::new(),
+            db_members,
         }))
     }
 }
@@ -346,7 +348,7 @@ pub struct EmailAccountsTable(
 
 impl EmailAccountsTable {
 
-    fn new(data: Arc<RwLock<EmailAccountsTableData>>) -> Self {
+    pub(super) fn new(data: Arc<RwLock<EmailAccountsTableData>>) -> Self {
         Self(data)
     }
 
@@ -375,7 +377,7 @@ impl EmailAccountsTable {
         // create item
         let row_id = row.rowid;
         let row_email = row.email.clone();
-        let item_data = EmailAccountItemData::new(&tbl_data.pool, row, Weak::new());
+        let item_data = EmailAccountItemData::new(&tbl_data.pool, row, tbl_data.db_members.clone());
         let item = EmailAccountItem::new(item_data.clone());
         tbl_data.item_cache_by_id.insert(row_id, item_data.clone());
         tbl_data.item_cache_by_email.insert(row_email, item_data);
@@ -487,7 +489,7 @@ mod tests {
 
     async fn get_table_interface() -> EmailAccountsTable {
         let pool = get_pool().await;
-        let tbl_data = EmailAccountsTableData::new(pool);
+        let tbl_data = EmailAccountsTableData::new(pool, Weak::new());
         EmailAccountsTable::new(tbl_data.clone())
     }
 
@@ -635,7 +637,7 @@ mod tests {
 
         async fn create_table() -> EmailAccountsTable {
             let pool = get_pool().await;
-            let table_data = EmailAccountsTableData::new(pool);
+            let table_data = EmailAccountsTableData::new(pool, Weak::new());
             EmailAccountsTable::new(table_data)
         }
 
