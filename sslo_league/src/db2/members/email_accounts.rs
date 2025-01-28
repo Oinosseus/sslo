@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 use chrono::{DateTime, Utc};
+use regex::Regex;
 use sqlx::{FromRow, Sqlite, SqlitePool};
 use tokio::sync::RwLock;
 use sslo_lib::error::SsloError;
@@ -158,7 +159,7 @@ impl EmailAccountItem {
     }
 
     pub async fn set_user(&self, user: &UserItem) -> bool {
-        let item_data = self.0.write().await;
+        let mut item_data = self.0.write().await;
         let pool = item_data.pool.clone();
         item_data.row.user = Some(user.id().await);
         match item_data.row.store(&pool).await {
@@ -352,6 +353,14 @@ impl EmailAccountsTable {
     /// creates a new email account
     pub async fn create_account(&self, email: String) -> Option<EmailAccountItem> {
         let mut tbl_data = self.0.write().await;
+
+        // check email
+        let email = email.trim().to_string();
+        let re = Regex::new("^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])$").unwrap();  // modified from https://emailregex.com/
+        if !re.is_match(&email) {
+            log::warn!("Ignoring creating account with invalid email: '{}'", email);
+            return None;
+        }
 
         // create new row
         let mut row = DbDataRow::new(0, email);
@@ -617,6 +626,65 @@ mod tests {
             let item = EmailAccountItem::new(item_data.clone());
             assert!(!item.consume_token(token).await);
             assert_eq!(item.is_verified().await, false);
+        }
+    }
+
+    mod table {
+        use super::*;
+        use test_log::test;
+
+        async fn create_table() -> EmailAccountsTable {
+            let pool = get_pool().await;
+            let table_data = EmailAccountsTableData::new(pool);
+            EmailAccountsTable::new(table_data)
+        }
+
+        #[test(tokio::test)]
+        async fn new() {
+            create_table().await;
+        }
+
+        #[test(tokio::test)]
+        async fn create_account() {
+            let tbl = create_table().await;
+
+            // with valid email
+            let item = tbl.create_account("a.b@c.de".to_string()).await;
+            assert!(item.is_some());
+
+            // with invalid email
+            let item = tbl.create_account("@foo.com".to_string()).await;
+            assert!(item.is_none());
+
+            // deny creating new account with same email
+            let item = tbl.create_account("a.b@c.de".to_string()).await;
+            assert!(item.is_none());
+        }
+
+        #[test(tokio::test)]
+        async fn by_id_by_email() {
+            let tbl = create_table().await;
+
+            // create two emails
+            let item = tbl.create_account("a.b@c.de".to_string()).await.unwrap();
+            let token = item.create_token().await.unwrap();
+            assert!(item.consume_token(token).await);
+            tbl.create_account("siegmund.jaehn@space.de".to_string()).await.unwrap();
+
+            // by id
+            assert_eq!(tbl.item_by_id(1).await.unwrap().email().await,
+                       "a.b@c.de".to_string());
+            assert_eq!(tbl.item_by_id(2).await.unwrap().email().await,
+                       "siegmund.jaehn@space.de".to_string());
+
+            // by email, verified
+            assert!(tbl.item_by_email("a.b@c.de").await.is_some());
+            assert!(tbl.item_by_email("siegmund.jaehn@space.de").await.is_none());
+
+            // by email, unverified
+            assert!(tbl.item_by_email_ignore_verification("a.b@c.de").await.is_some());
+            assert!(tbl.item_by_email_ignore_verification("siegmund.jaehn@space.de").await.is_some());
+
         }
     }
 }
