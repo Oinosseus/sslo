@@ -169,16 +169,40 @@ mod tests {
             let db = get_db().await;
 
             // set user
-            {
-                let usr = db.tbl_users().await.create_new_user().await.unwrap();
-                assert_eq!(usr.id().await, 1);
-                let eml = db.tbl_email_accounts().await.create_account("a.b@c.de".to_string()).await.unwrap();
-                assert!(eml.set_user(&usr).await);
+            let usr = db.tbl_users().await.create_new_user().await.unwrap();
+            assert_eq!(usr.id().await, 1);
+            let eml = db.tbl_email_accounts().await.create_account("a.b@c.de".to_string()).await.unwrap();
+            assert!(eml.set_user(&usr).await);
+            assert_eq!(eml.user().await.unwrap().id().await, usr.id().await);
 
-                // get user
-                assert_eq!(eml.user().await.unwrap().id().await, usr.id().await);
-            }
+            // another mail (not associated to known user
+            let eml = db.tbl_email_accounts().await.create_account("foo@bar.org".to_string()).await.unwrap();
+            assert!(eml.user().await.unwrap().id().await > 0);
+            let eml_usr = eml.user().await.unwrap();
+            assert_ne!(eml_usr.id().await, usr.id().await);
         }
 
+        #[test(tokio::test)]
+        async fn items_by_user() {
+            let db = get_db().await;
+            let tbl_eml = db.tbl_email_accounts().await;
+
+            // create user
+            let usr = db.tbl_users().await.create_new_user().await.unwrap();
+            assert_eq!(usr.id().await, 1);
+
+            // creates email accounts
+            let eml = tbl_eml.create_account("a.b@c.de".to_string()).await.unwrap();
+            assert!(eml.set_user(&usr).await);
+            let eml = tbl_eml.create_account("foo.bar@c.de".to_string()).await.unwrap();
+            assert!(eml.set_user(&usr).await);
+            let eml = tbl_eml.create_account("not.associated@elsewhere.net".to_string()).await.unwrap();
+            let eml = tbl_eml.create_account("foo.baz@c.de".to_string()).await.unwrap();
+            assert!(eml.set_user(&usr).await);
+
+            // check associated accounts
+            let items = tbl_eml.items_by_user(&usr).await;
+            assert_eq!(items.len(), 3);
+        }
     }
 }

@@ -53,6 +53,25 @@ impl DbDataRow {
         }
     }
 
+    async fn from_user(user: &UserItem, pool: &SqlitePool) -> Vec<Self> {
+        let user_id = user.id().await;
+        match sqlx::query_as::<Sqlite, DbDataRow>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE user = $1 LIMIT 100;"))
+            .bind(user_id)
+            .fetch_all(pool)
+            .await {
+            Ok(rows) => {
+                if rows.len() >= 99 {
+                    log::warn!("user rowid={} has more than 99 email accounts associated (truncating for safety)", user_id);
+                }
+                rows
+            },
+            Err(e) => {
+                log::error!("{}", e);
+                Vec::new()
+            }
+        }
+    }
+
     async fn load(self: &mut Self, pool: &SqlitePool) -> Result<(), SsloError> {
         match sqlx::query_as::<Sqlite, DbDataRow>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE rowid = $1 LIMIT 2;"))
             .bind(self.rowid)
@@ -149,7 +168,24 @@ impl EmailAccountItem {
     /// returns the assigned user
     /// If no user is assigned, a new user will by tried to created
     pub async fn user(&self) -> Option<UserItem> {
-        let data = self.0.read().await;
+        {   // try reading existing user
+            let data = self.0.read().await;
+            if let Some(user_id) = data.row.user {
+                let db_members = match data.db_members.upgrade() {
+                    Some(db_data) => MembersDbInterface::new(db_data),
+                    None => {
+                        log::error!("cannot upgrade weak pointer for rowid={}, email={}", data.row.rowid, data.row.email);
+                        return None;
+                    }
+                };
+                let tbl_usr = db_members.tbl_users().await;
+                return tbl_usr.user_by_id(user_id).await;
+            }
+        }
+
+        // create new user
+        let mut data = self.0.write().await;
+        let pool = data.pool.clone();
         let db_members = match data.db_members.upgrade() {
             Some(db_data) => MembersDbInterface::new(db_data),
             None => {
@@ -158,10 +194,22 @@ impl EmailAccountItem {
             }
         };
         let tbl_usr = db_members.tbl_users().await;
-        match tbl_usr.user_by_id(data.row.rowid).await {
-            Some(u) => Some(u),
-            None => tbl_usr.create_new_user().await,
+        let user = match tbl_usr.create_new_user().await {
+            Some(user) => user,
+            None => {
+                log::error!("failed to create new user for email account '{}'", data.row.email);
+                return None;
+            }
+        };
+        data.row.user = Some(user.id().await);
+        match data.row.store(&pool).await {
+            Ok(_) => {},
+            Err(e) => {
+                log::error!("failed to store new user for email account '{}'", data.row.email);
+                return None;
+            }
         }
+        return Some(user);
     }
 
     pub async fn set_user(&self, user: &UserItem) -> bool {
@@ -477,6 +525,29 @@ impl EmailAccountsTable {
                 true => Some(item),
             },
         }
+    }
+
+    /// Get all email accounts that are associated to a certain user
+    pub async fn items_by_user(&self, user: &UserItem) -> Vec<EmailAccountItem> {
+        let mut tbl_data = self.0.write().await;
+        let pool = tbl_data.pool.clone();
+        let mut item_list: Vec<EmailAccountItem> = Vec::new();
+
+        for row in DbDataRow::from_user(user, &pool).await.into_iter() {
+            let rowid = row.rowid;
+            let item = match tbl_data.item_cache_by_id.get(&rowid) {
+                Some(item_data) => EmailAccountItem::new(item_data.clone()),
+                None => {
+                    let item_data = EmailAccountItemData::new(&pool, row, tbl_data.db_members.clone());
+                    let item = EmailAccountItem::new(item_data.clone());
+                    tbl_data.item_cache_by_id.insert(rowid, item_data.clone());
+                    item
+                }
+            };
+            item_list.push(item);
+        }
+
+        return item_list;
     }
 }
 
