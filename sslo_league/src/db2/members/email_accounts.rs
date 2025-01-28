@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{FromRow, Sqlite, SqlitePool};
 use tokio::sync::RwLock;
 use sslo_lib::error::SsloError;
+use sslo_lib::token::{Token, TokenType};
 use crate::db2::members::MembersDbData;
 use crate::db2::members::users::UserItem;
 
@@ -91,7 +92,7 @@ impl DbDataRow {
                                    email=$2,\
                                    token=$3,\
                                    token_creation=$4,\
-                                   token_consumption=$5,\
+                                   token_consumption=$5 \
                                    WHERE rowid=$6;"))
             }
         };
@@ -193,8 +194,111 @@ impl EmailAccountItem {
     /// Creates a new token, that shall be sent via email
     /// The token is not created, if an existing token is still pending.
     /// A token is pending until verified or until a timeout has passed.
+    /// The token is stored into DB encrypted, the unencrypted token is returned.
     pub async fn create_token(&self) -> Option<String> {
-        todo!();
+        let mut item_data = self.0.write().await;
+        let pool = item_data.pool.clone();
+
+        // check for timeout since last token creation
+        let time_now = Utc::now();
+        let time_token_outdated = time_now.clone()
+            .checked_add_signed(chrono::TimeDelta::hours(-1))
+            .unwrap();  // subtracting one hour cannot fail, theoretically
+        if let Some(token_creation) = item_data.row.token_creation {
+            if token_creation > time_token_outdated {  // token is still valid
+                if item_data.row.token_consumption.is_none() {  // token is not used, yet
+                    log::warn!("Not generating new email login token for '{}' because last token is still active.", item_data.row.email);
+                    return None;
+                }
+            }
+        }
+
+        // generate new email_token
+        let token = match Token::generate(TokenType::Strong) {
+            Ok(t) => t,
+            Err(e) => {
+                log::error!("Could not generate new token: {}", e);
+                return None;
+            }
+        };
+
+        // update data and return
+        item_data.row.token = Some(token.encrypted);
+        item_data.row.token_creation = Some(time_now);
+        item_data.row.token_consumption = None;
+        match item_data.row.store(&pool).await {
+            Ok(_) => {
+                log::info!("New token generated for email '{}'", item_data.row.email);
+                Some(token.decrypted)
+            },
+            Err(e) => {
+                log::error!("failed to store new email token for user rowid={} into db: {}", item_data.row.rowid, e);
+                None
+            }
+        }
+    }
+
+    /// This consumes a token which has been sent via email to verify a valid and owned email account
+    pub async fn consume_token(&self, token: String) -> bool {
+        let mut item_data = self.0.write().await;
+        let pool = item_data.pool.clone();
+        let time_now = Utc::now();
+        let time_token_outdated = time_now.clone()
+            .checked_add_signed(chrono::TimeDelta::hours(-1))
+            .unwrap();  // subtracting one hour cannot fail, theoretically
+
+        // ensure encrypted token is set
+        let token_encrypted = match item_data.row.token.as_ref() {
+            Some(x) => x,
+            None => {
+                log::warn!("deny email verification because no email token set for user rowid={}; email={}",
+                    item_data.row.rowid, item_data.row.email);
+                return false;
+            },
+        };
+
+        // ensure token is not already consumed
+        if let Some(consumption_time) = item_data.row.token_consumption.as_ref() {
+            log::warn!("deny email token validation for rowid={}, email={}, because token already consumed at {}",
+                        item_data.row.rowid, item_data.row.email, consumption_time);
+            return false;
+        }
+
+        // ensure creation time is not outdated
+        match item_data.row.token_creation.as_ref() {
+            None => {
+                log::error!("deny email verification, because no token-creation time set for user rowid={}; email={:?}",
+                    item_data.row.rowid, item_data.row.email);
+                return false;
+            },
+            Some(token_creation) => {
+                if token_creation < &time_token_outdated {
+                    log::warn!("deny email token verification for email='{}', rowid={}, because token is outdated since {}",
+                                        item_data.row.email, item_data.row.rowid, time_token_outdated);
+                    return false;
+                }
+            },
+        }
+
+        // verify token
+        if !Token::new(token, token_encrypted.clone()).verify() {
+            log::warn!("deny email verification because token verification failed for rowid={}, email={}",
+                item_data.row.rowid, item_data.row.email);
+            return false;
+        }
+
+        // update email_token_consumption
+        item_data.row.token = None;  // reset for security
+        item_data.row.token_consumption = Some(time_now);
+        if let Err(e) = item_data.row.store(&pool).await {
+            log::error!("failed to store verified email token for rowid={}, email={}: {}",
+                item_data.row.rowid, item_data.row.email, e);
+            return false;
+        }
+
+        // success
+        log::info!("successfully verified email token for '{}'", item_data.row.email);
+        true
     }
 }
 
@@ -385,7 +489,9 @@ mod tests {
             row.token = Some(token.clone());
             row.token_creation = Some(dt1);
             row.token_consumption = Some(dt2);
-            row.store(&pool).await.unwrap();
+            row.store(&pool).await.unwrap();  // check INSERT
+            assert_eq!(row.rowid, 1);
+            row.store(&pool).await.unwrap();  // check UPDATE
             assert_eq!(row.rowid, 1);
 
             // load
@@ -430,24 +536,66 @@ mod tests {
             assert!(row.store(&pool).await.is_err());
         }
 
-        mod item {
-            use super::*;
-            use test_log::test;
+    }
 
-            async fn create_new_item(pool: &SqlitePool, email: String) -> EmailAccountItem {
-                let row = DbDataRow::new(0, email);
-                let data = EmailAccountItemData::new(pool, row, Weak::new());
-                EmailAccountItem::new(data)
-            }
+    mod item {
+        use super::*;
+        use test_log::test;
 
-            #[test(tokio::test)]
-            async fn new_item() {
-                let pool = get_pool().await;
-                let item = create_new_item(&pool, "a.b@c.de".to_string()).await;
-                assert_eq!(item.id().await, 1);
-                assert_eq!(item.email().await, "a.b@c.de".to_string());
-                assert_eq!(item.is_verified().await, false);
-            }
+        async fn create_new_item(pool: &SqlitePool, email: String) -> EmailAccountItem {
+            let mut row = DbDataRow::new(0, email);
+            row.store(pool).await.unwrap();
+            let data = EmailAccountItemData::new(pool, row, Weak::new());
+            EmailAccountItem::new(data)
+        }
+
+        #[test(tokio::test)]
+        async fn new_item() {
+            let pool = get_pool().await;
+            let item = create_new_item(&pool, "a.b@c.de".to_string()).await;
+            assert_eq!(item.id().await, 1);
+            assert_eq!(item.email().await, "a.b@c.de".to_string());
+            assert_eq!(item.is_verified().await, false);
+        }
+
+        #[test(tokio::test)]
+        async fn token_verification_process() {
+            let pool = get_pool().await;
+            let item = create_new_item(&pool, "a.b@c.de".to_string()).await;
+
+            // successfully create and verify token
+            assert_eq!(item.is_verified().await, false);
+            let token = item.create_token().await.unwrap();
+            assert!(token.len() > 20); // ensure to have a secure token
+            assert!(item.consume_token(token).await);
+            assert_eq!(item.is_verified().await, true);
+
+            // successfully create and verify token (should work a second time)
+            let token = item.create_token().await.unwrap();
+            assert!(token.len() > 20); // ensure to have a secure token
+            assert!(item.consume_token(token).await);
+            assert_eq!(item.is_verified().await, true);
+
+            // fail to consume a wrong token
+            let mut token = item.create_token().await.unwrap();
+            assert!(token.len() > 20); // ensure to have a secure token
+            token.push('X'); // manipulate the token
+            assert!(!item.consume_token(token.clone()).await);
+            assert_eq!(item.is_verified().await, false);
+
+            // fail when token is outdated
+            let time_now = Utc::now();
+            let time_token_outdated = time_now.clone().checked_add_signed(chrono::TimeDelta::hours(-1)).unwrap();
+            // let token = item.create_token().await.unwrap();  // not generating new token, because last token is still active
+            let id = item.id().await;
+            let mut row = DbDataRow::new(id, "".to_string());
+            row.load(&pool).await.unwrap();
+            row.token_creation = Some(time_token_outdated);
+            row.store(&pool).await.unwrap();
+            let item_data = EmailAccountItemData::new(&pool, row, Weak::new());
+            let item = EmailAccountItem::new(item_data.clone());
+            assert!(!item.consume_token(token).await);
+            assert_eq!(item.is_verified().await, false);
         }
     }
 }
