@@ -35,8 +35,10 @@ pub async fn handler_settings(State(_app_state): State<AppState>,
 }
 
 
-pub async fn handler_profile(State(_app_state): State<AppState>,
+pub async fn handler_profile(State(app_state): State<AppState>,
                              HttpUserExtractor(http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
+
+    let tbl_eml = app_state.database.db_members().await.tbl_email_accounts().await;
 
     let mut html = HtmlTemplate::new(http_user);
     html.include_css("/rsc/css/user.css");
@@ -69,10 +71,10 @@ pub async fn handler_profile(State(_app_state): State<AppState>,
     html.push_body(&html.http_user.user.last_login().await.html_label_full());
     html.push_body("</td></tr>");
 
-    html.push_body("<tr><th>Email</th><td>");
-    match html.http_user.user.email().await {
-        None => html.push_body("-", ),
-        Some(email) => html.push_body(&email, ),
+    html.push_body("<tr><th>Email(s)</th><td>");
+    for eml in tbl_eml.items_by_user(&html.http_user.user).await {
+        html.push_body(&eml.email().await);
+        html.push_body("<br>");
     }
     html.push_body("</td></tr>");
 
@@ -112,9 +114,9 @@ pub async fn handler_credentials(State(_app_state): State<AppState>,
 
     // email
     html.push_body("<label>Email:</label><input type=\"email\" placeholder=\"email\" name=\"email\" value=\"");
-    if let Some(email) = html.http_user.user.email().await {
-        html.push_body(&email);
-    }
+    // if let Some(email) = html.http_user.user.email().await {
+    //     html.push_body(&email);
+    // }
     html.push_body("\">");
 
     // save

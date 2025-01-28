@@ -204,7 +204,6 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
     // get db tables
-    let tbl_usr = app_state.database.db_members().await.tbl_users().await;
     let tbl_cookie = app_state.database.db_members().await.tbl_cookie_logins().await;
     let tbl_eml = app_state.database.db_members().await.tbl_email_accounts().await;
 
