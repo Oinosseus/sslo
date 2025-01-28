@@ -146,6 +146,8 @@ impl EmailAccountItem {
         self.0.read().await.row.rowid
     }
 
+    /// returns the assigned user
+    /// If no user is assigned, a new user will by tried to created
     pub async fn user(&self) -> Option<UserItem> {
         let data = self.0.read().await;
         let db_members = match data.db_members.upgrade() {
@@ -155,7 +157,11 @@ impl EmailAccountItem {
                 return None;
             }
         };
-        db_members.tbl_users().await.user_by_id(data.row.rowid).await
+        let tbl_usr = db_members.tbl_users().await;
+        match tbl_usr.user_by_id(data.row.rowid).await {
+            Some(u) => Some(u),
+            None => tbl_usr.create_new_user().await,
+        }
     }
 
     pub async fn set_user(&self, user: &UserItem) -> bool {
@@ -358,7 +364,7 @@ impl EmailAccountsTable {
 
         // check email
         let email = email.trim().to_string();
-        let re = Regex::new("^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])$").unwrap();  // modified from https://emailregex.com/
+        let re = Regex::new("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$").unwrap();  // modified from https://emailregex.com/
         if !re.is_match(&email) {
             log::warn!("Ignoring creating account with invalid email: '{}'", email);
             return None;
@@ -416,7 +422,7 @@ impl EmailAccountsTable {
 
             // create item
             let email = row.email.clone();
-            let item_data = EmailAccountItemData::new(&tbl_data.pool, row, Weak::new());
+            let item_data = EmailAccountItemData::new(&tbl_data.pool, row, tbl_data.db_members.clone());
             let item = EmailAccountItem::new(item_data.clone());
             tbl_data.item_cache_by_id.insert(id, item_data.clone());
             tbl_data.item_cache_by_email.insert(email, item_data);
@@ -451,11 +457,10 @@ impl EmailAccountsTable {
                     return None;
                 },
             };
-            debug_assert_eq!(row.email, email);
 
             // create item
             let id = row.rowid;
-            let item_data = EmailAccountItemData::new(&tbl_data.pool, row, Weak::new());
+            let item_data = EmailAccountItemData::new(&tbl_data.pool, row, tbl_data.db_members.clone());
             let item = EmailAccountItem::new(item_data.clone());
             tbl_data.item_cache_by_id.insert(id, item_data.clone());
             tbl_data.item_cache_by_email.insert(email.to_string(), item_data);
@@ -661,6 +666,10 @@ mod tests {
             // deny creating new account with same email
             let item = tbl.create_account("a.b@c.de".to_string()).await;
             assert!(item.is_none());
+
+            // with valid email, that failed once
+            let item = tbl.create_account("Thomas.Weinhold@stratoinos.de".to_string()).await;
+            assert!(item.is_some());
         }
 
         #[test(tokio::test)]

@@ -6,6 +6,7 @@ use rand::RngCore;
 use serde::Deserialize;
 use crate::app_state::AppState;
 use crate::db2::members::users::UserItem;
+use crate::db2::members::email_accounts::EmailAccountItem;
 use crate::http::HtmlTemplate;
 use crate::http::http_user::HttpUser;
 use super::super::http_user::HttpUserExtractor;
@@ -80,53 +81,53 @@ pub struct LoginEmailRequestData {
 }
 
 
-pub async fn handler_email_password(State(app_state): State<AppState>,
-                                    HttpUserExtractor(http_user): HttpUserExtractor,
-                                    axum::Form(form): axum::Form<LoginEmailRequestData>,
-) -> Result<Response, StatusCode> {
-    let mut html = HtmlTemplate::new(http_user);
-    html.include_css("/rsc/css/login.css");
-    html.include_js("/rsc/js/login.js");
-
-    // artificial slowdown
-    let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~2000 maximum
-    tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
-
-    // verify login
-    let mut cookie: Option<String> = None;
-    if let Some(password) = form.password {
-        if let Some(user) = app_state.database.db_members().await
-            .tbl_users().await
-            .user_by_email(&form.email).await {
-            if user.verify_password(password, html.http_user.user_agent.clone()).await {
-                if let Some(cookie_login) = app_state.database.db_members().await
-                    .tbl_cookie_logins().await
-                    .create_new_cookie(&user).await {
-                    cookie = cookie_login.get_cookie().await;
-                }
-            } else {
-                log::warn!("password verification failed for email '{}'", &form.email);
-            }
-        } else {
-            log::warn!("could not find user from email: '{}'", &form.email);
-        }
-    }
-
-    // user info
-    if cookie.is_none() {
-        html.message_error("Login failed!".to_string());
-    } else {
-        html.message_success("Login successful!".to_string());
-    }
-
-    // done
-    let mut response = html.into_response().await;
-    if let Some(cookie) = cookie {
-        response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
-        response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
-    }
-    Ok(response)
-}
+// pub async fn handler_email_password(State(app_state): State<AppState>,
+//                                     HttpUserExtractor(http_user): HttpUserExtractor,
+//                                     axum::Form(form): axum::Form<LoginEmailRequestData>,
+// ) -> Result<Response, StatusCode> {
+//     let mut html = HtmlTemplate::new(http_user);
+//     html.include_css("/rsc/css/login.css");
+//     html.include_js("/rsc/js/login.js");
+//
+//     // artificial slowdown
+//     let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~2000 maximum
+//     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
+//
+//     // verify login
+//     let mut cookie: Option<String> = None;
+//     if let Some(password) = form.password {
+//         if let Some(user) = app_state.database.db_members().await
+//             .tbl_users().await
+//             .user_by_email(&form.email).await {
+//             if user.verify_password(password, html.http_user.user_agent.clone()).await {
+//                 if let Some(cookie_login) = app_state.database.db_members().await
+//                     .tbl_cookie_logins().await
+//                     .create_new_cookie(&user).await {
+//                     cookie = cookie_login.get_cookie().await;
+//                 }
+//             } else {
+//                 log::warn!("password verification failed for email '{}'", &form.email);
+//             }
+//         } else {
+//             log::warn!("could not find user from email: '{}'", &form.email);
+//         }
+//     }
+//
+//     // user info
+//     if cookie.is_none() {
+//         html.message_error("Login failed!".to_string());
+//     } else {
+//         html.message_success("Login successful!".to_string());
+//     }
+//
+//     // done
+//     let mut response = html.into_response().await;
+//     if let Some(cookie) = cookie {
+//         response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
+//         response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
+//     }
+//     Ok(response)
+// }
 
 
 pub async fn handler_email_generate(State(app_state): State<AppState>,
@@ -142,24 +143,24 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
     let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~2000 maximum
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
-    // get user db table
-    let tbl_usr = app_state.database.db_members().await.tbl_users().await;
+    // get db table
+    let tbl_eml = app_state.database.db_members().await.tbl_email_accounts().await;
 
-    // get user
+    // get email account
     let mut token : Option<String> = None;  // need this option, because build fails when nesting new_email_login_token() and send_email()
-    let mut user_item: UserItem = match tbl_usr.user_by_email(&form.email).await {
-        Some(user) => user,
-        None => match tbl_usr.create_new_user().await {
-            Some(new_user) => new_user,
+    let mut email_item: EmailAccountItem = match tbl_eml.item_by_email_ignore_verification(&form.email).await {
+        Some(eml) => eml,
+        None => match tbl_eml.create_account(form.email.clone()).await {
+            Some(new_eml) => new_eml,
             None => {
-                log::error!("Failed to create new Useritem with email='{}'", form.email);
+                log::error!("Failed to create new email account with email='{}'", form.email);
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
         },
     };
 
     // create new token
-    token = user_item.set_email(form.email.clone()).await;
+    token = email_item.create_token().await;
 
     // send info email
     if let Some(t) = token {
@@ -168,7 +169,7 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
                 let link = format!("{}://{}/html/login_email_verify/{}/{}",
                                    uri_scheme,
                                    uri_authority,
-                                   &form.email,
+                                   email_item.id().await,
                                    t);
                 let message = format!("Hello User,<br><br>please follow this link to login into the SSLO League: <a href=\"{}\">{}</a>.<br><br>Regards",
                                       link, uri_authority);
@@ -192,7 +193,7 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
 
 pub async fn handler_email_verify(State(app_state): State<AppState>,
                                   HttpUserExtractor(http_user): HttpUserExtractor,
-                                  Path((email,token)): Path<(String, String)>,
+                                  Path((email_account_id_str,token)): Path<(String, String)>,
 ) -> Result<Response, StatusCode> {
     let mut html = HtmlTemplate::new(http_user);
     html.include_css("/rsc/css/login.css");
@@ -202,20 +203,34 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~2000 maximum
     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
 
-    // get db_obsolete tables
+    // get db tables
     let tbl_usr = app_state.database.db_members().await.tbl_users().await;
     let tbl_cookie = app_state.database.db_members().await.tbl_cookie_logins().await;
+    let tbl_eml = app_state.database.db_members().await.tbl_email_accounts().await;
+
+    // extract email account id
+    let email_account_id: i64 = match email_account_id_str.parse() {
+        Ok(id) => id,
+        Err(_) => {
+            log::warn!("Failed to parse email account id from {}", email_account_id_str);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    };
 
     // verify login
     let mut cookie: Option<String> = None;
-    if let Some(user) = tbl_usr.user_by_email(&email).await {
-        if user.verify_email(token).await {
-            if let Some(login_cookie_item) = tbl_cookie.create_new_cookie(&user).await {
-                cookie = login_cookie_item.get_cookie().await;
+    if let Some(eml) = tbl_eml.item_by_id(email_account_id).await {  // get email account
+        if eml.consume_token(token).await {  // verify token
+            if let Some(user) = eml.user().await {  // get assigned user
+                if let Some(login_cookie_item) = tbl_cookie.create_new_cookie(&user).await {
+                    cookie = login_cookie_item.get_cookie().await;
+                }
+            } else {
+                log::error!("Could not retrieve user from a valid email account");
             }
         }
     } else {
-        log::warn!("could not find user from email: '{}'", &email);
+        log::warn!("could not find user from email account: '{}'", email_account_id);
     }
 
     // user info
