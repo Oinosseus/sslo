@@ -183,10 +183,6 @@ struct DbDataRow {
     pub(super) promotion_level: PromotionLevel,
     pub(super) last_lap: Option<DateTime<Utc>>,
     pub(super) last_login: Option<DateTime<Utc>>,
-    pub(super) email: Option<String>,
-    pub(super) email_token: Option<String>,
-    pub(super) email_token_creation: Option<DateTime<Utc>>,
-    pub(super) email_token_consumption: Option<DateTime<Utc>>,
     pub(super) password: Option<String>,
     pub(super) password_last_usage: Option<DateTime<Utc>>,
     pub(super) password_last_useragent: Option<String>,
@@ -204,10 +200,6 @@ impl DbDataRow {
             promotion_level: PromotionLevel::None,
             last_lap: None,
             last_login: None,
-            email: None,
-            email_token: None,
-            email_token_creation: None,
-            email_token_consumption: None,
             password: None,
             password_last_usage: None,
             password_last_useragent: None,
@@ -267,14 +259,10 @@ impl DbDataRow {
                   promotion_level,\
                   last_lap,\
                   last_login,\
-                  email,\
-                  email_token,\
-                  email_token_creation,\
-                  email_token_consumption,\
                   password,\
                   password_last_usage,\
                   password_last_useragent) \
-                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING rowid;"))
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING rowid;"))
             },
             _ => {
                 sqlx::query(concat!("UPDATE ", tablename!(), " SET \
@@ -283,14 +271,10 @@ impl DbDataRow {
                                    promotion_level=$3,\
                                    last_lap=$4,\
                                    last_login=$5,\
-                                   email=$6,\
-                                   email_token=$7,\
-                                   email_token_creation=$8,\
-                                   email_token_consumption=$9,\
-                                   password=$10,\
-                                   password_last_usage=$11,\
-                                   password_last_useragent=$12 \
-                                   WHERE rowid=$13;"))
+                                   password=$6,\
+                                   password_last_usage=$7,\
+                                   password_last_useragent=$8 \
+                                   WHERE rowid=$9;"))
             }
         };
 
@@ -300,10 +284,6 @@ impl DbDataRow {
             .bind(&self.promotion_level)
             .bind(&self.last_lap)
             .bind(&self.last_login)
-            .bind(&self.email)
-            .bind(&self.email_token)
-            .bind(&self.email_token_creation)
-            .bind(&self.email_token_consumption)
             .bind(&self.password)
             .bind(&self.password_last_usage)
             .bind(&self.password_last_useragent);
@@ -430,168 +410,6 @@ impl UserItem {
         }
     }
 
-    /// Returns email address (if correctly confirmed)
-    pub async fn email(&self) -> Option<String> {
-        let now = Utc::now();
-        let item_data = self.0.read().await;
-
-        // ensure email is set
-        let email = match item_data.row.email.as_ref() {
-            Some(x) => x,
-            None => return None,
-        };
-
-        // ensure email is verified
-        match item_data.row.email_token_consumption.as_ref() {
-            Some(t) if t > &now => {
-                log::error!("Token creation/consumption time mismatch for rowid={}, email='{}', consumption='{}'",
-                            item_data.row.rowid, email, t);
-                return None;
-            },
-            Some(t) => {
-                t
-            },
-            None => {
-                log::warn!("hide email, because token not verified for user rowid={}, email={:?}",
-                    item_data.row.rowid, item_data.row.email);
-                return None;
-            }
-        };
-
-        return Some(email.clone());
-    }
-
-    /// Returns a token, that must be sent to the customer for confirmation
-    pub async fn set_email(&mut self, email: String) -> Option<String> {
-        // let email = email.to_lowercase();  // convention to store only lower-case
-        let mut item_data = self.0.write().await;
-
-        // check for timeout since last token creation
-        let time_now = Utc::now();
-        let time_token_outdated = time_now.clone()
-            .checked_add_signed(chrono::TimeDelta::hours(-1))
-            .unwrap();  // subtracting one hour cannot fail, theoretically
-        if let Some(token_creation) = item_data.row.email_token_creation {
-            if token_creation > time_token_outdated {               // token is still valid
-                if item_data.row.email_token_consumption.is_none() {    // token is not used, yet
-                    log::warn!("Not generating new email login token for user {}:'{}' because last token is still active.", item_data.row.rowid, email);
-                    return None;
-                }
-            }
-        }
-
-        // check for unique email
-        if let Some(pool) = item_data.pool.clone() {
-            match DbDataRow::from_email(&email, &pool).await {
-                Ok(row) => {
-                    if row.rowid != item_data.row.rowid {
-                        log::warn!("reject assigning email '{}' because duplicate at rowid={}", &email, row.rowid);
-                        return None;
-                    }
-                },
-                Err(e) if e.is_db_not_found_type() => {},
-                Err(e) => {
-                    log::error!("failed to email uniqueness for email = '{}': {}", &email, e);
-                    return None;
-                },
-            }
-        }
-
-        // generate new email_token
-        let token = match Token::generate(TokenType::Strong) {
-            Ok(t) => t,
-            Err(e) => {
-                log::error!("Could not generate new token: {}", e);
-                return None;
-            }
-        };
-
-        // update data
-        let old_email = item_data.row.email.take();
-        item_data.row.email = Some(email);
-        item_data.row.email_token = Some(token.encrypted);
-        item_data.row.email_token_creation = Some(time_now);
-        item_data.row.email_token_consumption = None;
-        return match item_data.pool.clone() {
-            None => return Some(token.decrypted),
-            Some(pool) => match item_data.row.store(&pool).await {
-                Ok(_) => {
-                    log::info!("refresh email for user:{} from '{:?}' to '{:?}'",
-                    item_data.row.rowid, old_email, item_data.row.email);
-                    Some(token.decrypted)
-                },
-                Err(e) => {
-                    log::error!("failed to store new email token for user rowid={} into db_obsolete: {}", item_data.row.rowid, e);
-                    None
-                }
-            }
-        }
-    }
-
-    pub async fn verify_email(&self, token_decrypted: String) -> bool {
-        let mut item_data = self.0.write().await;
-        let time_now = Utc::now();
-        let time_token_outdated = time_now.clone()
-            .checked_add_signed(chrono::TimeDelta::hours(-1))
-            .unwrap();  // subtracting one hour cannot fail, theoretically
-
-        // ensure encrypted token is set
-        let token_encrypted = match item_data.row.email_token.as_ref() {
-            Some(x) => x,
-            None => {
-                log::warn!("deny email verification because no email token set for user rowid={}; email={:?}",
-                    item_data.row.rowid, item_data.row.email);
-                return false;
-            },
-        };
-
-        // ensure token is not already consumed
-        if let Some(consumption_time) = item_data.row.email_token_consumption.as_ref() {
-            log::warn!("deny email token validation for user rowid={}, email={:?}, because token already consumed at {}",
-                        item_data.row.rowid, item_data.row.email, consumption_time);
-            return false;
-        }
-
-        // ensure creation time is not outdated
-        match item_data.row.email_token_creation.as_ref() {
-            None => {
-                log::error!("deny email verification, because no token-creation time set for user rowid={}; email={:?}",
-                    item_data.row.rowid, item_data.row.email);
-                return false;
-            },
-            Some(token_creation) => {
-                if token_creation < &time_token_outdated {
-                    log::warn!("deny email verification, because token is outdated since {} for user rowid={}; email={:?}",
-                                        time_token_outdated, item_data.row.rowid, item_data.row.email);
-                    return false;
-                }
-            },
-        }
-
-        // verify token
-        if !sslo_lib::token::Token::new(token_decrypted, token_encrypted.clone()).verify() {
-            log::warn!("deny email verification because token verification failed for rowid={}, email={:?}",
-                item_data.row.rowid, item_data.row.email);
-            return false;
-        }
-
-        // update email_token_consumption
-        item_data.row.email_token = None;  // reset for security
-        item_data.row.email_token_consumption = Some(time_now);
-        if let Some(pool) = item_data.pool.clone() {
-            if let Err(e) = item_data.row.store(&pool).await {
-                log::error!("failed to store verified email token for rowid={}, email={:?}: {}",
-                item_data.row.rowid, item_data.row.email, e);
-                return false;
-            }
-        }
-
-        // success
-        log::info!("User rowid={}, successfully verified email token for '{:?}'",
-            item_data.row.rowid, item_data.row.email);
-        true
-    }
-
     /// Consume a cleartext password, and store encrypted
     /// This checks if the current password is valid
     pub async fn update_password(&mut self, old_password: Option<String>, new_password: Option<String>) -> bool {
@@ -680,8 +498,8 @@ impl UserItem {
         }
 
         // done
-        log::info!("successful password verification for User rowid={} / '{:?}'",
-            data.row.rowid, data.row.email);
+        log::info!("successful password verification for User rowid={}, name='{}'",
+            data.row.rowid, data.row.name);
         true
     }
 }
@@ -793,31 +611,6 @@ impl UserTable {
             return Some(item);
         }
     }
-
-
-    /// Search the database for an email and then return the item
-    /// The search is case-insensitive,
-    /// this is not cached -> expensive
-    pub async fn user_by_email(&self, email: &str) -> Option<UserItem> {
-        let pool: SqlitePool;
-        {   // scoped lock to call user_by_id() later
-            let data = self.0.read().await;
-            pool = data.pool.clone();
-        }
-        let row = match DbDataRow::from_email(email, &pool).await {
-            Ok(row) => {row},
-            Err(e) => {
-                if e.is_db_not_found_type() {
-                    log::warn!("{}", e);
-                } else {
-                    log::error!("{}", e.to_string());
-                }
-                return None;
-            },
-        };
-        return self.user_by_id(row.rowid).await;
-    }
-
 }
 
 #[cfg(test)]
@@ -879,35 +672,6 @@ mod tests {
             let item2 = tbl.user_by_id(2).await.unwrap();
             assert_eq!(item2.id().await, 2);
             assert_eq!(item2.name().await, "Dylan");
-        }
-
-        #[test(tokio::test)]
-        async fn user_by_email() {
-            let tbl = super::get_table_interface().await;
-            let mut user = tbl.create_new_user().await.unwrap();
-            let token = user.set_email("a.B@c.de".to_string()).await.unwrap();
-            assert!(user.verify_email(token).await);
-
-            // retrieve item
-            let user = tbl.user_by_email("a.B@c.de").await.unwrap();
-            assert_eq!(user.email().await.unwrap(), "a.B@c.de".to_string());
-
-            // check case insensitivity
-            let user = tbl.user_by_email("a.b@c.de").await.unwrap();
-            assert_eq!(user.email().await.unwrap(), "a.B@c.de".to_string());
-        }
-
-        #[test(tokio::test)]
-        async fn duplicated_email() {
-            let tbl = super::get_table_interface().await;
-
-            // create a user, set email
-            let mut user = tbl.create_new_user().await.unwrap();
-            let token = user.set_email("a.B@c.de".to_string()).await.unwrap();
-
-            // create another user, with same email -> should fail
-            let mut user = tbl.create_new_user().await.unwrap();
-            assert!(user.set_email("a.b@c.de".to_string()).await.is_none());
         }
     }
 
@@ -1010,31 +774,11 @@ mod tests {
         }
 
         #[test(tokio::test)]
-        async fn email() {
-
-            // create item
-            let pool = super::get_pool().await;
-            let mut item = create_new_item(&pool.clone()).await;
-            assert_eq!(item.email().await, None);
-
-            // set email
-            let email_token = item.set_email("a.b@c.de".to_string()).await.unwrap();
-            assert_eq!(item.email().await, None);
-            assert!(item.verify_email(email_token).await);
-            assert_eq!(item.email().await, Some("a.b@c.de".to_string()));
-
-            // check if stored into db_obsolete correctly
-            let item = load_item_from_db(item.id().await, &pool).await;
-            assert_eq!(item.email().await, Some("a.b@c.de".to_string()));
-        }
-
-        #[test(tokio::test)]
         async fn password() {
 
             // create item
             let pool = super::get_pool().await;
             let mut item = create_new_item(&pool.clone()).await;
-            assert_eq!(item.email().await, None);
 
             // set password
             assert!(item.update_password(None, Some("unsecure_test_password".to_string())).await);
@@ -1074,10 +818,6 @@ mod tests {
             assert_eq!(row.promotion_level, PromotionLevel::None);
             assert_eq!(row.last_lap, None);
             assert_eq!(row.last_login, None);
-            assert_eq!(row.email, None);
-            assert_eq!(row.email_token, None);
-            assert_eq!(row.email_token_creation, None);
-            assert_eq!(row.email_token_consumption, None);
             assert_eq!(row.password, None);
             assert_eq!(row.password_last_usage, None);
             assert_eq!(row.password_last_useragent, None);
@@ -1102,10 +842,6 @@ mod tests {
             row.promotion_level = PromotionLevel::Commissar;
             row.last_lap = Some(dt1.clone());
             row.last_login = Some(dt2.clone());
-            row.email = Some("user@email.tld".into());
-            row.email_token = Some("IAmAnEmailToken".to_string());
-            row.email_token_creation = Some(dt3.clone());
-            row.email_token_consumption = Some(dt4.clone());
             row.password = Some("IAmThePassword".to_string());
             row.password_last_usage = Some(dt5.clone());
             row.password_last_useragent = Some("IAmTheUserAgent".to_string());
@@ -1120,10 +856,6 @@ mod tests {
             assert_eq!(row.promotion_level, PromotionLevel::Commissar);
             assert_eq!(row.last_lap, Some(dt1.clone()));
             assert_eq!(row.last_login, Some(dt2.clone()));
-            assert_eq!(row.email, Some("user@email.tld".into()));
-            assert_eq!(row.email_token, Some("IAmAnEmailToken".to_string()));
-            assert_eq!(row.email_token_creation, Some(dt3.clone()));
-            assert_eq!(row.email_token_consumption, Some(dt4.clone()));
             assert_eq!(row.password, Some("IAmThePassword".to_string()));
             assert_eq!(row.password_last_usage, Some(dt5.clone()));
             assert_eq!(row.password_last_useragent, Some("IAmTheUserAgent".to_string()));
@@ -1135,10 +867,6 @@ mod tests {
             row.promotion_level = PromotionLevel::Admin;
             row.last_lap = Some(dt2.clone());
             row.last_login = Some(dt3.clone());
-            row.email = Some("a.b@c.de".into());
-            row.email_token = Some("IAmAnEmailTokenNew".to_string());
-            row.email_token_creation = Some(dt4.clone());
-            row.email_token_consumption = Some(dt5.clone());
             row.password = Some("IAmThePasswordNew".to_string());
             row.password_last_usage = Some(dt1.clone());
             row.password_last_useragent = Some("IAmTheUserAgentNew".to_string());
@@ -1153,10 +881,6 @@ mod tests {
             assert_eq!(row.promotion_level, PromotionLevel::Admin);
             assert_eq!(row.last_lap, Some(dt2.clone()));
             assert_eq!(row.last_login, Some(dt3.clone()));
-            assert_eq!(row.email, Some("a.b@c.de".into()));
-            assert_eq!(row.email_token, Some("IAmAnEmailTokenNew".to_string()));
-            assert_eq!(row.email_token_creation, Some(dt4.clone()));
-            assert_eq!(row.email_token_consumption, Some(dt5.clone()));
             assert_eq!(row.password, Some("IAmThePasswordNew".to_string()));
             assert_eq!(row.password_last_usage, Some(dt1.clone()));
             assert_eq!(row.password_last_useragent, Some("IAmTheUserAgentNew".to_string()));

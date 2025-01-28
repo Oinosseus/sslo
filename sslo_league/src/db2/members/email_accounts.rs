@@ -5,7 +5,7 @@ use sqlx::{FromRow, Sqlite, SqlitePool};
 use tokio::sync::RwLock;
 use sslo_lib::error::SsloError;
 use sslo_lib::token::{Token, TokenType};
-use crate::db2::members::MembersDbData;
+use crate::db2::members::{MembersDbData, MembersDbInterface};
 use crate::db2::members::users::UserItem;
 
 macro_rules! tablename {
@@ -146,7 +146,28 @@ impl EmailAccountItem {
     }
 
     pub async fn user(&self) -> Option<UserItem> {
-        todo!();
+        let data = self.0.read().await;
+        let db_members = match data.db_members.upgrade() {
+            Some(db_data) => MembersDbInterface::new(db_data),
+            None => {
+                log::error!("cannot upgrade weak pointer for rowid={}, email={}", data.row.rowid, data.row.email);
+                return None;
+            }
+        };
+        db_members.tbl_users().await.user_by_id(data.row.rowid).await
+    }
+
+    pub async fn set_user(&self, user: &UserItem) -> bool {
+        let item_data = self.0.write().await;
+        let pool = item_data.pool.clone();
+        item_data.row.user = Some(user.id().await);
+        match item_data.row.store(&pool).await {
+            Ok(_) => true,
+            Err(e) => {
+                log::error!("Failed to set user: {}", e);
+                false
+            },
+        }
     }
 
     pub async fn email(&self) -> String {
