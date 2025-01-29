@@ -5,6 +5,7 @@ use regex::Regex;
 use sqlx::{FromRow, Sqlite, SqlitePool};
 use tokio::sync::RwLock;
 use sslo_lib::error::SsloError;
+use sslo_lib::optional_date::OptionalDateTime;
 use sslo_lib::token::{Token, TokenType};
 use crate::db2::members::{MembersDbData, MembersDbInterface};
 use crate::db2::members::users::UserItem;
@@ -375,6 +376,11 @@ impl EmailAccountItem {
         // success
         log::info!("successfully verified email token for '{}'", item_data.row.email);
         true
+    }
+
+    pub async fn token_verification(&self) -> OptionalDateTime {
+        let item_data = self.0.read().await;
+        OptionalDateTime::new(item_data.row.token_consumption)
     }
 }
 

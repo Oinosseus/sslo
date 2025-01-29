@@ -73,8 +73,11 @@ pub async fn handler_profile(State(app_state): State<AppState>,
 
     html.push_body("<tr><th>Email(s)</th><td>");
     for eml in tbl_eml.items_by_user(&html.http_user.user).await {
+        html.push_body("<div class=\"NoBr\">");
         html.push_body(&eml.email().await);
-        html.push_body("<br>");
+        html.push_body(" <small>(verified at ");
+        html.push_body(&eml.token_verification().await.html_label_full());
+        html.push_body(")</small></div><br>");
     }
     html.push_body("</td></tr>");
 

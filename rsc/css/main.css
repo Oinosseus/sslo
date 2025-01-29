@@ -369,3 +369,24 @@ div.LiveInput button.Failed {
     background-color: var(--color-failed-bg);
     /*outline: 0.2em solid var(--color-failed-fg);*/
 }
+
+
+
+/******************************************************************************************************************
+                                               General Classes
+*******************************************************************************************************************/
+
+div.OptionalDateTime {
+}
+
+div.OptionalDateTime > div {
+    display: inline-block;
+}
+
+.NoBr {
+    white-space: nowrap;
+}
+
+.NoBr > * {
+    display: inline-block;
+}

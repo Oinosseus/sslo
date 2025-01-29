@@ -1,6 +1,7 @@
 use axum::extract::{FromRef, FromRequestParts};
 use axum::http::header;
 use axum::http::request::Parts;
+use chrono::Utc;
 use crate::app_state::AppState;
 use crate::db2::members::users::Promotion;
 use super::super::db2::members::users::UserItem;
@@ -63,7 +64,12 @@ where
         for cookie_header in parts.headers.get_all(header::COOKIE) {
             if let Ok(cookie_string) = cookie_header.to_str() {
                 if let Some(cl) = tbl_cookie.item_by_cookie(user_agent.to_string(), cookie_string).await {
-                    if let Some(cl_user) = cl.user().await {
+                    if let Some(mut cl_user) = cl.user().await {
+
+                        // track user login
+                        cl_user.set_last_login(Utc::now()).await;
+
+                        // create http user
                         let http_user = HttpUser {
                             user: cl_user,
                             cookie_login: Some(cl),
