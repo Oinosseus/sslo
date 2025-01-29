@@ -178,7 +178,7 @@ impl CookieLoginItem {
                 return None;
             }
         };
-        db_members.tbl_users().await.user_by_id(data.row.rowid).await
+        db_members.tbl_users().await.user_by_id(data.row.user).await
     }
 
     /// returns the cookie which can be directly send as http header
