@@ -6,35 +6,6 @@ use crate::http::HtmlTemplate;
 use crate::http::http_user::HttpUserExtractor;
 
 
-pub async fn handler_settings(State(_app_state): State<AppState>,
-                              HttpUserExtractor(http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
-
-    if !http_user.is_logged_in() {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-
-    let mut html = HtmlTemplate::new(http_user);
-    html.include_js("/rsc/js/user.js");
-
-    // change form
-    html.push_body("<form acton=\"\" method=\"POST\" class=\"GridForm\" id=\"UserSettingsForm\">");
-
-    // name
-    html.push_body(&format!("<label>Name:</label><input type=\"text\" placeholder=\"name\" name=\"new_name\" value=\"{}\">", html.http_user().user.name().await));
-
-    // password
-    html.push_body("<label>Current Password:</label><input type=\"password\" placeholder=\"current password\" name=\"old_password\">");
-    html.push_body("<label>New Password:</label><input type=\"password\" placeholder=\"new password\" name=\"new_password1\">");
-    html.push_body("<label>Verify Password:</label><input type=\"password\" placeholder=\"verify password\" name=\"new_password2\">");
-
-    // save
-    html.push_body("<label></label><button type=\"submit\">Save</button>");
-    html.push_body("</form>");
-
-    Ok(html.into_response().await)
-}
-
-
 pub async fn handler_profile(State(app_state): State<AppState>,
                              HttpUserExtractor(http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
 
@@ -110,7 +81,7 @@ pub async fn handler_accounts(State(app_state): State<AppState>,
     html.push_body("<div id=\"TabSelection\" class=\"BgBox\">");
     html.push_body("<div>Choose Account Type:</div>");
     html.push_body("<button id=\"AccountTypeButtonPassword\" onclick=\"tabSelectByIndex(0)\" class=\"ActiveButton\">Password</button>");
-    html.push_body("<button id=\"AccountTypeButtonEmail\" onclick=\"tabSelectByIndex(1)\">Email</button>");
+    html.push_body("<button id=\"AccountTypeButtonEmail\" onclick=\"tabSelectByIndex(1)\">Emails</button>");
     html.push_body("<button id=\"AccountTypeButtonSteam\" onclick=\"tabSelectByIndex(2)\">Steam</button>");
     html.push_body("<button id=\"AccountTypeButtonDiscord\" onclick=\"tabSelectByIndex(3)\">Discord</button>");
     html.push_body("</div>");
@@ -120,7 +91,7 @@ pub async fn handler_accounts(State(app_state): State<AppState>,
     html.push_body("<tr><th>Current Password</th><td><input type=\"password\" name=\"PasswordCurrent\" placeholder=\"current password\"></td></tr>");
     html.push_body("<tr><th>New Password</th><td><input type=\"password\" name=\"PasswordNew1\" placeholder=\"new password\"></td></tr>");
     html.push_body("<tr><th>Repeat Password</th><td><input type=\"password\" name=\"PasswordNew2\" placeholder=\"repeat password\"></td></tr>");
-    html.push_body("<tr><th></th><td><button title=\"Save\">&#128190;</button>");
+    html.push_body("<tr><th></th><td><button title=\"Save\">&#128190; Save</button>");
     html.push_body("</table>");
 
     // Tab Email

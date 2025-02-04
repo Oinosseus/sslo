@@ -171,7 +171,6 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/html/login_steam_verify/", routing::get(routes_html::login::handler_steam_verify))
         .route("/html/logout", routing::get(routes_html::login::handler_logout))
 
-        .route("/html/user_settings", routing::get(routes_html::user::handler_settings))
         .route("/html/user_profile", routing::get(routes_html::user::handler_profile))
         .route("/html/user_accounts", routing::get(routes_html::user::handler_accounts))
 
