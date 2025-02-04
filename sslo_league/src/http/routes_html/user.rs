@@ -46,25 +46,17 @@ pub async fn handler_profile(State(app_state): State<AppState>,
     for eml in tbl_eml.items_by_user(&html.http_user.user).await {
         html.push_body("<div class=\"NoBr\">");
         html.push_body(&eml.email().await);
-        html.push_body(" <small>(verified at ");
-        html.push_body(&eml.token_verification().await.html_label_full());
-        html.push_body(")</small></div><br>");
+        html.push_body("</div><br>");
     }
     html.push_body("</td></tr>");
-
-    html.push_body("<tr><th>Password</th><td><div class=\"LiveInput\" id=\"ProfileUserPassword\">");
-    html.push_body("<input type=\"password\" name=\"PasswordCurrent\" placeholder=\"current password\"><br>");
-    html.push_body("<input type=\"password\" name=\"PasswordNew1\" placeholder=\"new password\"><br>");
-    html.push_body("<input type=\"password\" name=\"PasswordNew2\" placeholder=\"repeat password\">");
-    html.push_body("<button title=\"Save\">&#128190;</button></div></td></tr>");
 
     html.push_body("</table></div>");
 
     Ok(html.into_response().await)
 }
 
-pub async fn handler_accounts(State(app_state): State<AppState>,
-                              HttpUserExtractor(http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
+pub async fn handler_credentials(State(app_state): State<AppState>,
+                                 HttpUserExtractor(http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
 
     if !http_user.is_logged_in() {
         return Err(StatusCode::UNAUTHORIZED);
