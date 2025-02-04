@@ -302,7 +302,7 @@ impl DbDataRow {
 
     /// Returns a string that can be used for integrating this row into a log message
     fn display(&self) -> String {
-        format!("{}(rowid={};name={})", tablename!(), self.rowid, self.name)
+        format!("{}(id={};name={})", tablename!(), self.rowid, self.name)
     }
 }
 
@@ -371,7 +371,7 @@ impl UserItem {
         let display_before = data.row.display();
         data.row.name = name;
         let display_after = data.row.display();
-        log::info!("Change {} to {}", display_before, display_after);
+        log::info!("Change name from {} to {}", display_before, display_after);
         match data.pool.clone() {
             None => Ok(()),
             Some(pool) => data.row.store(&pool).await

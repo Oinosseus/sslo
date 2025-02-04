@@ -119,6 +119,15 @@ impl DbDataRow {
         }
         return Ok(())
     }
+
+    /// Returns a string that can be used for integrating this row into a log message
+    fn display(&self) -> String {
+        if let Some(user_id) = self.user {
+            format!("{}(id={};user-id={};steam-id={})", tablename!(), self.rowid, user_id, self.steam_id)
+        } else {
+            format!("{}(id={};user-id=None;steam-id={})", tablename!(), self.rowid, self.steam_id)
+        }
+    }
 }
 
 pub(super) struct SteamUserData {

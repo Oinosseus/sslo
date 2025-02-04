@@ -122,6 +122,14 @@ impl HtmlTemplate {
             html += "              <a href=\"/html/login\">Login</a>\n";
             html += "          </div>\n";
         }
+        html += "          <div class=\"NavbarDropdown\">\n";
+        html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">About ⯆</a>\n";
+        html += "              <div>\n";
+        html += "                  <a href=\"/html/about\">General</a>\n";
+        html += "                  <a href=\"/html/about/third_party\">Third Party Integrations</a>\n";
+        html += "                  <a href=\"/html/about/data_protection\">Data Protection</a>\n";
+        html += "              </div>\n";
+        html += "          </div>\n";
         html += "      </div>\n";
         html += "    </nav>\n";
 

@@ -139,9 +139,9 @@ impl DbDataRow {
     /// Returns a string that can be used for integrating this row into a log message
     fn display(&self) -> String {
         if let Some(user_id) = self.user {
-            format!("{}(rowid={};email={};user-rowid={})", tablename!(), self.rowid, self.email, user_id)
+            format!("{}(id={};email={};user-id={})", tablename!(), self.rowid, self.email, user_id)
         } else {
-            format!("{}(rowid={};email={};user-rowid=None)", tablename!(), self.rowid, self.email)
+            format!("{}(id={};email={};user-id=None)", tablename!(), self.rowid, self.email)
         }
     }
 }

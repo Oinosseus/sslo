@@ -138,7 +138,7 @@ impl DbDataRow {
 
     /// Returns a string that can be used for integrating this row into a log message
     fn display(&self) -> String {
-        format!("{}(rowid={};user-rowid={})", tablename!(), self.rowid, self.user)
+        format!("{}(id={};user-id={})", tablename!(), self.rowid, self.user)
     }
 }
 
