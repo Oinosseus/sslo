@@ -299,6 +299,11 @@ impl DbDataRow {
         }
         return Ok(())
     }
+
+    /// Returns a string that can be used for integrating this row into a log message
+    fn display(&self) -> String {
+        format!("{}(rowid={};name={})", tablename!(), self.rowid, self.name)
+    }
 }
 
 
@@ -340,6 +345,11 @@ impl UserItem {
         Self(item_data)
     }
 
+    /// Returns a string, that can be used in log messages
+    pub async fn display(&self) -> String {
+        self.0.read().await.row.display()
+    }
+
     pub async fn id(&self) -> i64 {
         self.0.read().await.row.rowid
     }
@@ -358,8 +368,10 @@ impl UserItem {
     pub async fn set_name(self: &mut Self, name: String) -> Result<(), SsloError> {
         let mut data = self.0.write().await;
         let name = name.trim().to_string();
-        log::info!("Change User:{}, name from '{}' to '{}'", data.row.rowid, data.row.name, name);
+        let display_before = data.row.display();
         data.row.name = name;
+        let display_after = data.row.display();
+        log::info!("Change {} to {}", display_before, display_after);
         match data.pool.clone() {
             None => Ok(()),
             Some(pool) => data.row.store(&pool).await
@@ -384,7 +396,7 @@ impl UserItem {
         item_data.row.promotion_authority = promotion.authority;
         if let Some(pool) = item_data.pool.clone() {
             if let Err(e) = item_data.row.store(&pool).await {
-                log::error!("Failed to set promotion: {}", e);
+                log::error!("Failed to set promotion for {}: {}", item_data.row.display(), e);
             };
         }
     }
@@ -395,7 +407,7 @@ impl UserItem {
         data.row.last_lap = Some(last_lap);
         if let Some(pool) = data.pool.clone() {
             if let Err(e) = data.row.store(&pool).await {
-                log::error!("Failed to set last lap: {}", e);
+                log::error!("Failed to set last lap for {}: {}", data.row.display(), e);
             }
         }
     }
@@ -406,7 +418,7 @@ impl UserItem {
         data.row.last_login = Some(last_login);
         if let Some(pool) = data.pool.clone() {
             if let Err(e) = data.row.store(&pool).await {
-                log::error!("Failed to set last login: {}", e);
+                log::error!("Failed to set last login for {}: {}", data.row.display(), e);
             }
         }
     }
@@ -422,7 +434,7 @@ impl UserItem {
                 match argon2::verify_encoded(old_password_encrypted, &old_password_decrypted.into_bytes()) {
                     Ok(true) => {},
                     Ok(false) => {
-                        log::warn!("deny update password, because invalid old password given for rowid={}", data.row.rowid);
+                        log::warn!("deny update password, because invalid old password given for {}", data.row.display());
                         return false;
                     },
                     Err(e) => {
@@ -431,7 +443,7 @@ impl UserItem {
                     }
                 }
             } else {
-                log::warn!("deny update password, because no old password given for rowid={}", data.row.rowid);
+                log::warn!("deny update password, because no old password given for {}", data.row.display());
                 return false;
             }
         }
@@ -444,7 +456,7 @@ impl UserItem {
             new_password_encrypted = match argon2::hash_encoded(&some_new_password.into_bytes(), &salt, &argon2::Config::default()) {
                 Ok(p) => Some(p),
                 Err(e) => {
-                    log::error!("Argon2 failed to encrypt password: {}", e);
+                    log::error!("Argon2 failed to encrypt password for {}: {}", data.row.display(), e);
                     return false;
                 }
             };
@@ -456,12 +468,12 @@ impl UserItem {
         data.row.password_last_useragent = None;
         if let Some(pool) = data.pool.clone() {
             if let Err(e) = data.row.store(&pool).await {
-                log::error!("failed to store updated password for rowid={}: {}", data.row.rowid, e);
+                log::error!("failed to store updated password for {}: {}", data.row.display(), e);
                 return false;
             }
         }
 
-        log::info!("password updated for user rowid={}", data.row.rowid);
+        log::info!("password updated for user {}", data.row.display());
         return true;
     }
 
@@ -477,12 +489,12 @@ impl UserItem {
                         return false;
                     }
                     Err(e) => {
-                        log::error!("Argon2 failure at verifying passwords: {}", e);
+                        log::error!("Argon2 failure at verifying passwords for {}: {}", data.row.display(), e);
                         return false;
                     }
                 }
             } else {
-                log::warn!("deny verifying password, because no password set for rowid={}", data.row.rowid);
+                log::warn!("deny verifying password, because no password set for {}", data.row.display());
                 return false;
             }
         }
@@ -493,14 +505,13 @@ impl UserItem {
         data.row.password_last_useragent = Some(user_agent);
         if let Some(pool) = data.pool.clone() {
             if let Err(e) = data.row.store(&pool).await {
-                log::error!("failed to update password usage for rowid={}: {}", data.row.rowid, e);
+                log::error!("failed to update password usage for {}: {}", data.row.display(), e);
                 return false;
             }
         }
 
         // done
-        log::info!("successful password verification for User rowid={}, name='{}'",
-            data.row.rowid, data.row.name);
+        log::info!("successful password verification for {}", data.row.display());
         true
     }
 }
@@ -540,7 +551,7 @@ impl UserTable {
             match row.store(&pool).await {
                 Ok(_) => {}
                 Err(e) => {
-                    log::error!("Could not create a new user: {}", e);
+                    log::error!("Could not create a new {}: {}", row.display(), e);
                     return None;
                 }
             }
@@ -549,12 +560,13 @@ impl UserTable {
 
         // update cache
         let mut tbl_data = self.0.write().await;
+        let row_display = row.display();
         let item_data = UserItemData::new(&tbl_data.pool, row, Weak::new());
         let item = UserItem::new(item_data.clone());
         tbl_data.item_cache.insert(item.id().await, item_data);
 
         // log
-        log::info!("new user created, rowid={}", id);
+        log::info!("new user created: {}", row_display);
 
         // done
         return Some(item);
@@ -575,7 +587,7 @@ impl UserTable {
         // sanity check
         debug_assert!(id > 0);
         if id <= 0 {
-            log::error!("Deny to retrieve user with id={}", id);
+            log::error!("Deny to retrieve user with nagive rowid={}", id);
             return None;
         }
 
@@ -597,9 +609,9 @@ impl UserTable {
                 Ok(_) => { },
                 Err(e) => {
                     if e.is_db_not_found_type() {
-                        log::warn!("{}", e);
+                        log::warn!("no user found with rowid={}, {}", id, e);
                     } else {
-                        log::error!("{}", e.to_string());
+                        log::error!("failed to load {}: {}", row.display(), e.to_string());
                     }
                     return None;
                 },

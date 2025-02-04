@@ -135,6 +135,11 @@ impl DbDataRow {
         };
 
     }
+
+    /// Returns a string that can be used for integrating this row into a log message
+    fn display(&self) -> String {
+        format!("{}(rowid={};user-rowid={})", tablename!(), self.rowid, self.user)
+    }
 }
 
 /// The actual data of an item that is shared by Arc<RwLock<ItemData>>
@@ -167,6 +172,11 @@ impl CookieLoginItem {
         Self(item_data)
     }
 
+    /// Returns a string, that can be used in log messages
+    pub async fn display(&self) -> String {
+        self.0.read().await.row.display()
+    }
+
     pub async fn id(&self) -> i64 { self.0.read().await.row.rowid }
 
     pub async fn user(&self) -> Option<UserItem> {
@@ -174,7 +184,7 @@ impl CookieLoginItem {
         let db_members = match data.db_members.upgrade() {
             Some(db_data) => MembersDbInterface::new(db_data),
             None => {
-                log::error!("cannot upgrade weak pointer for rowid={}, user={}", data.row.rowid, data.row.user);
+                log::error!("cannot upgrade weak pointer for {}", data.row.display());
                 return None;
             }
         };
@@ -187,7 +197,7 @@ impl CookieLoginItem {
         let mut data = self.0.write().await;
         match data.decrypted_token.take() {
             None => {
-                log::warn!("cannot retrieve decrypted token for rowid={}, user={}", data.row.rowid, data.row.user);
+                log::warn!("cannot retrieve decrypted token for {}", data.row.display());
                 return None;
             },
             Some(decrypted_token) => {
@@ -213,7 +223,7 @@ impl CookieLoginItem {
         return match data.row.store(&pool).await {
             Ok(_) => true,
             Err(e) => {
-                log::error!("failed to update usage for CookieLogin rowid={}, user={}: {}", data.row.rowid, data.row.user, e);
+                log::error!("failed to update usage for CookieLogin {}: {}", data.row.display(), e);
                 false
             }
         }
@@ -228,7 +238,7 @@ impl CookieLoginItem {
         let id = data.row.rowid;
         let pool = data.pool.clone();
         if let Err(e) = data.row.delete(&pool).await {
-            log::error!("failed to delete cookie rowid={}: {}", id, e);
+            log::error!("failed to delete cookie {}: {}", data.row.display(), e);
         }
         "cookie_login=\"\"; HttpOnly; Max-Age=-1; SameSite=Strict; Partitioned; Secure; Path=/;".to_string()
     }
@@ -327,7 +337,7 @@ impl CookieLoginTable {
 
         // verify token
         if !item.verify(cookie_token_decrypted, useragent).await {
-            log::warn!("failed to verify cookie for Cookie id {}", cookie_id);
+            log::warn!("failed to verify cookie for {}", item.display().await);
             return None;
         }
 
@@ -337,12 +347,13 @@ impl CookieLoginTable {
     pub async fn create_new_cookie(&self, user: &UserItem) -> Option<CookieLoginItem> {
         let mut tbl_data = self.0.write().await;
         let user_id = user.id().await;
+        let user_display = user.display().await;
 
         // create a new token
         let token = match Token::generate(TokenType::Quick) {
             Ok(token) => token,
             Err(e) => {
-                log::error!("Could not generate new token: {}", e);
+                log::error!("Could not generate new token for {}: {}", user_display, e);
                 return None;
             }
         };
@@ -353,7 +364,7 @@ impl CookieLoginTable {
         row.creation = Utc::now();
         row.token = token.encrypted;
         if let Err(e) = row.store(&tbl_data.pool.clone()).await {
-            log::error!("failed store new cookie for user id={}: {}", user_id, e);
+            log::error!("failed store new cookie for {}: {}", user.display().await, e);
             return None;
         }
         let new_row_id = row.rowid;
@@ -402,10 +413,10 @@ impl CookieLoginTable {
 
         // delete item
         if let Some(user) = cookie_login.user().await {
-            log::info!("logout user rowid={}, from cookie rowid={}", user.id().await, cookie_login.id().await);
+            log::info!("logout {}, from {}", user.display().await, cookie_login.display().await);
         } else {
             log::warn!("cookie deletion without associated user");
-            log::info!("logout from cookie {}", cookie_login.id().await);
+            log::info!("logout from {}", cookie_login.display().await);
         }
         cookie_login.delete().await
     }

@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var request_data = new Object();
         request_data.password = form_data.get("password");
         let user_id = Number(form_data.get("email_or_id"));
-        if (user_id != NaN) {
+        if (!isNaN(user_id)) {
             request_data.email = null;
             request_data.user_id = user_id;
         } else {

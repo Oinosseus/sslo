@@ -63,7 +63,7 @@ pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor,
             html.push_body(&steam_return_link);
             html.push_body("\" target=\"_top\"><img src=\"https://community.fastly.steamstatic.com/public/images/signinthroughsteam/sits_01.png\"></a>");
         } else {
-            log::warn!("COuld not extract URI authority from: {}", uri);
+            log::warn!("Could not extract URI authority from: {}", uri);
             html.push_body("<span>Steam Login Unavailable</span>");
         }
     } else {
@@ -81,55 +81,6 @@ pub struct LoginEmailRequestData {
     email: String,
     password: Option<String>,
 }
-
-
-// pub async fn handler_password(State(app_state): State<AppState>,
-//                                     HttpUserExtractor(http_user): HttpUserExtractor,
-//                                     axum::Form(form): axum::Form<LoginEmailRequestData>,
-// ) -> Result<Response, StatusCode> {
-//     let mut html = HtmlTemplate::new(http_user);
-//     html.include_css("/rsc/css/login.css");
-//     html.include_js("/rsc/js/login.js");
-//
-//     // artificial slowdown
-//     let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // should result in ~2000 maximum
-//     tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
-//
-//     // verify login
-//     let mut cookie: Option<String> = None;
-//     if let Some(password) = form.password {
-//         if let Some(user) = app_state.database.db_members().await
-//             .tbl_users().await
-//             .user_by_email(&form.email).await {
-//             if user.verify_password(password, html.http_user.user_agent.clone()).await {
-//                 if let Some(cookie_login) = app_state.database.db_members().await
-//                     .tbl_cookie_logins().await
-//                     .create_new_cookie(&user).await {
-//                     cookie = cookie_login.get_cookie().await;
-//                 }
-//             } else {
-//                 log::warn!("password verification failed for email '{}'", &form.email);
-//             }
-//         } else {
-//             log::warn!("could not find user from email: '{}'", &form.email);
-//         }
-//     }
-//
-//     // user info
-//     if cookie.is_none() {
-//         html.message_error("Login failed!".to_string());
-//     } else {
-//         html.message_success("Login successful!".to_string());
-//     }
-//
-//     // done
-//     let mut response = html.into_response().await;
-//     if let Some(cookie) = cookie {
-//         response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
-//         response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
-//     }
-//     Ok(response)
-// }
 
 
 pub async fn handler_email_generate(State(app_state): State<AppState>,
@@ -192,7 +143,6 @@ pub async fn handler_email_generate(State(app_state): State<AppState>,
     Ok(html.into_response().await)
 }
 
-
 pub async fn handler_email_verify(State(app_state): State<AppState>,
                                   HttpUserExtractor(http_user): HttpUserExtractor,
                                   Path((email_account_id_str,token)): Path<(String, String)>,
@@ -227,11 +177,11 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
                     cookie = login_cookie_item.get_cookie().await;
                 }
             } else {
-                log::error!("Could not retrieve user from a valid email account");
+                log::error!("Could not retrieve user from valid email account {}", eml.display().await);
             }
         }
     } else {
-        log::warn!("could not find user from email account: '{}'", email_account_id);
+        log::warn!("could not find email account from {}", email_account_id);
     }
 
     // user info

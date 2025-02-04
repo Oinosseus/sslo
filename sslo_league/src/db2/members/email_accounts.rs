@@ -135,6 +135,15 @@ impl DbDataRow {
         }
         Ok(())
     }
+
+    /// Returns a string that can be used for integrating this row into a log message
+    fn display(&self) -> String {
+        if let Some(user_id) = self.user {
+            format!("{}(rowid={};email={};user-rowid={})", tablename!(), self.rowid, self.email, user_id)
+        } else {
+            format!("{}(rowid={};email={};user-rowid=None)", tablename!(), self.rowid, self.email)
+        }
+    }
 }
 
 struct EmailAccountItemData {
@@ -162,6 +171,11 @@ impl EmailAccountItem {
         Self(item_data)
     }
 
+    /// Returns a string, that can be used in log messages
+    pub async fn display(&self) -> String {
+        self.0.read().await.row.display()
+    }
+
     pub async fn id(&self) -> i64 {
         self.0.read().await.row.rowid
     }
@@ -175,7 +189,7 @@ impl EmailAccountItem {
                 let db_members = match data.db_members.upgrade() {
                     Some(db_data) => MembersDbInterface::new(db_data),
                     None => {
-                        log::error!("cannot upgrade weak pointer for rowid={}, email={}", data.row.rowid, data.row.email);
+                        log::error!("cannot upgrade weak pointer for {}", data.row.display());
                         return None;
                     }
                 };
@@ -190,7 +204,7 @@ impl EmailAccountItem {
         let db_members = match data.db_members.upgrade() {
             Some(db_data) => MembersDbInterface::new(db_data),
             None => {
-                log::error!("cannot upgrade weak pointer for rowid={}, email={}", data.row.rowid, data.row.email);
+                log::error!("cannot upgrade weak pointer for {}", data.row.display());
                 return None;
             }
         };
@@ -198,7 +212,7 @@ impl EmailAccountItem {
         let user = match tbl_usr.create_new_user().await {
             Some(user) => user,
             None => {
-                log::error!("failed to create new user for email account '{}'", data.row.email);
+                log::error!("failed to create new user for {}", data.row.display());
                 return None;
             }
         };
@@ -206,7 +220,7 @@ impl EmailAccountItem {
         match data.row.store(&pool).await {
             Ok(_) => {},
             Err(e) => {
-                log::error!("failed to store new user for email account '{}'", data.row.email);
+                log::error!("failed to store new user for {}", data.row.display());
                 return None;
             }
         }
@@ -220,7 +234,7 @@ impl EmailAccountItem {
         match item_data.row.store(&pool).await {
             Ok(_) => true,
             Err(e) => {
-                log::error!("Failed to set user: {}", e);
+                log::error!("Failed to set user for {}: {}", item_data.row.display(), e);
                 false
             },
         }
@@ -240,15 +254,14 @@ impl EmailAccountItem {
         let token_consumption = item_data.row.token_consumption.as_ref();
         return match token_consumption {
             Some(some_token_consumption) if some_token_consumption > &now => {
-                log::error!("Token creation/consumption time mismatch for rowid={}, email='{:?}', consumption='{}'",
-                            item_data.row.rowid, item_data.row.email, some_token_consumption);
+                log::error!("Token creation/consumption time mismatch for {}, consumption='{}'",
+                            item_data.row.display(), some_token_consumption);
                 false
             },
             Some(some_token_consumption) => match token_creation {
                 Some(some_token_creation) if some_token_creation > some_token_consumption => {
-                    log::error!("Token creation/consumption time mismatch for rowid={}, email='{:?}', creation='{}', consumption='{}'",
-                        item_data.row.rowid,
-                        item_data.row.email,
+                    log::error!("Token creation/consumption time mismatch for {}, creation='{}', consumption='{}'",
+                        item_data.row.display(),
                         some_token_creation,
                         some_token_consumption,
                     );
@@ -256,9 +269,8 @@ impl EmailAccountItem {
                 },
                 Some(_) => true,
                 None => {
-                    log::error!("Token consumed, but never created for rowid={}, email='{:?}', consumption='{}'",
-                        item_data.row.rowid,
-                        item_data.row.email,
+                    log::error!("Token consumed, but never created for {}, consumption='{}'",
+                        item_data.row.display(),
                         some_token_consumption,
                     );
                     false
@@ -275,6 +287,7 @@ impl EmailAccountItem {
     pub async fn create_token(&self) -> Option<String> {
         let mut item_data = self.0.write().await;
         let pool = item_data.pool.clone();
+        let row_display = item_data.row.display();
 
         // check for timeout since last token creation
         let time_now = Utc::now();
@@ -284,7 +297,7 @@ impl EmailAccountItem {
         if let Some(token_creation) = item_data.row.token_creation {
             if token_creation > time_token_outdated {  // token is still valid
                 if item_data.row.token_consumption.is_none() {  // token is not used, yet
-                    log::warn!("Not generating new email login token for '{}' because last token is still active.", item_data.row.email);
+                    log::warn!("Not generating new email login token for {} because last token is still active.", &row_display);
                     return None;
                 }
             }
@@ -294,7 +307,7 @@ impl EmailAccountItem {
         let token = match Token::generate(TokenType::Strong) {
             Ok(t) => t,
             Err(e) => {
-                log::error!("Could not generate new token: {}", e);
+                log::error!("Could not generate new token for {}: {}", row_display, e);
                 return None;
             }
         };
@@ -305,11 +318,11 @@ impl EmailAccountItem {
         item_data.row.token_consumption = None;
         match item_data.row.store(&pool).await {
             Ok(_) => {
-                log::info!("New token generated for email '{}'", item_data.row.email);
+                log::info!("New token generated for {}", row_display);
                 Some(token.decrypted)
             },
             Err(e) => {
-                log::error!("failed to store new email token for user rowid={} into db: {}", item_data.row.rowid, e);
+                log::error!("failed to store new email token for {}: {}", row_display, e);
                 None
             }
         }
@@ -318,6 +331,7 @@ impl EmailAccountItem {
     /// This consumes a token which has been sent via email to verify a valid and owned email account
     pub async fn consume_token(&self, token: String) -> bool {
         let mut item_data = self.0.write().await;
+        let row_display = item_data.row.display();
         let pool = item_data.pool.clone();
         let time_now = Utc::now();
         let time_token_outdated = time_now.clone()
@@ -328,30 +342,28 @@ impl EmailAccountItem {
         let token_encrypted = match item_data.row.token.as_ref() {
             Some(x) => x,
             None => {
-                log::warn!("deny email verification because no email token set for user rowid={}; email={}",
-                    item_data.row.rowid, item_data.row.email);
+                log::warn!("deny email verification because no email token set for user {}", row_display);
                 return false;
             },
         };
 
         // ensure token is not already consumed
         if let Some(consumption_time) = item_data.row.token_consumption.as_ref() {
-            log::warn!("deny email token validation for rowid={}, email={}, because token already consumed at {}",
-                        item_data.row.rowid, item_data.row.email, consumption_time);
+            log::warn!("deny email token validation for {}, because token already consumed at {}",
+                        row_display, consumption_time);
             return false;
         }
 
         // ensure creation time is not outdated
         match item_data.row.token_creation.as_ref() {
             None => {
-                log::error!("deny email verification, because no token-creation time set for user rowid={}; email={:?}",
-                    item_data.row.rowid, item_data.row.email);
+                log::error!("deny email verification, because no token-creation time set for user {}", row_display);
                 return false;
             },
             Some(token_creation) => {
                 if token_creation < &time_token_outdated {
-                    log::warn!("deny email token verification for email='{}', rowid={}, because token is outdated since {}",
-                                        item_data.row.email, item_data.row.rowid, time_token_outdated);
+                    log::warn!("deny email token verification for {}, because token is outdated since {}",
+                                        row_display, time_token_outdated);
                     return false;
                 }
             },
@@ -359,8 +371,7 @@ impl EmailAccountItem {
 
         // verify token
         if !Token::new(token, token_encrypted.clone()).verify() {
-            log::warn!("deny email verification because token verification failed for rowid={}, email={}",
-                item_data.row.rowid, item_data.row.email);
+            log::warn!("deny email verification because token verification failed for {}", row_display);
             return false;
         }
 
@@ -368,13 +379,12 @@ impl EmailAccountItem {
         item_data.row.token = None;  // reset for security
         item_data.row.token_consumption = Some(time_now);
         if let Err(e) = item_data.row.store(&pool).await {
-            log::error!("failed to store verified email token for rowid={}, email={}: {}",
-                item_data.row.rowid, item_data.row.email, e);
+            log::error!("failed to store verified email token for{}: {}", row_display, e);
             return false;
         }
 
         // success
-        log::info!("successfully verified email token for '{}'", item_data.row.email);
+        log::info!("successfully verified email token for {}", row_display);
         true
     }
 

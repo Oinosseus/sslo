@@ -166,7 +166,6 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/", routing::get(routes_html::home::handler))
 
         .route("/html/login", routing::get(routes_html::login::handler))
-        // .route("/html/login_password", routing::post(routes_html::login::handler_password))
         .route("/html/login_email_generate", routing::post(routes_html::login::handler_email_generate))
         .route("/html/login_email_verify/:email/:token", routing::get(routes_html::login::handler_email_verify))
         .route("/html/login_steam_verify/", routing::get(routes_html::login::handler_steam_verify))

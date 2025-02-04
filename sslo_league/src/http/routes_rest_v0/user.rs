@@ -28,7 +28,7 @@ pub async fn handler_set_name(State(_app_state): State<AppState>,
     match http_user.user.set_name(input.name).await {
         Ok(_) => {},
         Err(e) => {
-            log::error!("Could not update username: {}", e);
+            log::error!("Could not update username for {}: {}", http_user.user.display().await, e);
             return GeneralError::new(StatusCode::INTERNAL_SERVER_ERROR,
                                      "Updating name failed".to_string()).into_response();
         }
@@ -56,7 +56,7 @@ pub async fn handler_set_password(State(_app_state): State<AppState>,
 
     if let Some(new_password) = input.new_password {
         if !http_user.user.update_password(input.old_password, Some(new_password)).await {
-            log::error!("Failed to update password!");
+            log::error!("Failed to update password for {}", http_user.user.display().await);
             return GeneralError::new(StatusCode::INTERNAL_SERVER_ERROR,
                                      "Updating password failed".to_string(),
             ).into_response();

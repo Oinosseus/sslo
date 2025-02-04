@@ -45,7 +45,7 @@ pub async fn handler(State(app_state): State<AppState>,
         // by user-id
         Some(user_id) => match tbl_usr.user_by_id(user_id).await {
             None => {
-                log::warn!("Login via password failed because no user for id={} found!", user_id);
+                log::warn!("Login via password failed because no user for rowid={} found!", user_id);
                 return response_failed;
             },
             Some(user) => user,
@@ -76,12 +76,12 @@ pub async fn handler(State(app_state): State<AppState>,
     // verify password
     match input.password {
         None => {
-            log::warn!("Deny login of user {} ({}) because no password given!", user.id().await, user.name().await);
+            log::warn!("Deny login of {} because no password given!", user.display().await);
             return response_failed;
         },
         Some(password) => {
             if !user.verify_password(password, http_user.user_agent.clone()).await {
-                log::warn!("Deny login of user {} ({}) because password cannot be verified!", user.id().await, user.name().await);
+                log::warn!("Deny login of {} because password cannot be verified!", user.display().await);
                 return response_failed;
             }
         }
