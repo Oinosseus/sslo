@@ -29,11 +29,13 @@ pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor,
     html.push_body("</div>");
 
     // Login with Password
-    html.push_body("<form id=\"TabLoginPassword\" action=\"/html/login_email_password\" method=\"post\" class=\"ActiveTab BgBox\">");
+    // html.push_body("<form id=\"TabLoginPassword\" action=\"/html/login_password\" method=\"post\" class=\"ActiveTab BgBox\">");
+    html.push_body("<form id=\"TabLoginPassword\" method=\"post\" class=\"ActiveTab BgBox\">");
     html.push_body("<label>Login with SSLO Password</label>");
-    html.push_body("<input required autofocus placeholder=\"email\" type=\"email\" name=\"email\">");
+    html.push_body("<input required autofocus placeholder=\"email or id\" type=\"text\" name=\"email_or_id\">");
     html.push_body("<input required placeholder=\"password\" type=\"password\" name=\"password\">");
     html.push_body("<button type=\"submit\">Login</button>");
+    // html.push_body("<button onclick=\"login_with_password\">Login</button>");
     html.push_body("</form>");
 
     // Login with Email SSO
@@ -81,7 +83,7 @@ pub struct LoginEmailRequestData {
 }
 
 
-// pub async fn handler_email_password(State(app_state): State<AppState>,
+// pub async fn handler_password(State(app_state): State<AppState>,
 //                                     HttpUserExtractor(http_user): HttpUserExtractor,
 //                                     axum::Form(form): axum::Form<LoginEmailRequestData>,
 // ) -> Result<Response, StatusCode> {

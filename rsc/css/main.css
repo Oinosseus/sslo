@@ -302,11 +302,11 @@ form.GridForm > * {
     "" -> Modified -> Saving -> Saved / Failed -> ""
  *****************************************************************************/
 
-div.LiveInput {
+.LiveInput {
 
 }
 
-div.LiveInput input {
+.LiveInput input {
     transition: background-color 1s;
     border-radius: 0.4em;
     border: none;
@@ -314,31 +314,31 @@ div.LiveInput input {
     background-color: transparent;
 }
 
-div.LiveInput input:hover,
-div.LiveInput input:focus {
+.LiveInput input:hover,
+.LiveInput input:focus {
     outline: 0.2em solid var(--color-modified-fg);
 }
 
-div.LiveInput input.Modified {
+.LiveInput input.Modified {
     background-color: var(--color-modified-bg);
 }
 
-div.LiveInput input.Saving {
+.LiveInput input.Saving {
     background-color: var(--color-waiting-bg);
     color: var(--color-waiting-fg);
     pointer-events: none;
     font-style: italic;
 }
 
-div.LiveInput input.Saved {
+.LiveInput input.Saved {
     background-color: var(--color-success-bg);
 }
 
-div.LiveInput input.Failed {
+.LiveInput input.Failed {
     background-color: var(--color-failed-bg);
 }
 
-div.LiveInput button {
+.LiveInput button {
     content: "S";
     visibility: hidden;
     margin-left: 0.5em;
@@ -348,23 +348,23 @@ div.LiveInput button {
     outline: none;
 }
 
-div.LiveInput button.Modified {
+.LiveInput button.Modified {
     visibility: visible;
     background-color: var(--color-modified-bg);
     /*outline: 0.2em solid var(--color-modified-fg);*/
 }
 
-div.LiveInput button.Saving {
+.LiveInput button.Saving {
     /*visibility: visible;*/
     background-color: var(--color-waiting-bg);
     /*outline: none;*/
     pointer-events: none;
 }
 
-div.LiveInput button.Saved {
+.LiveInput button.Saved {
 }
 
-div.LiveInput button.Failed {
+.LiveInput button.Failed {
     visibility: visible;
     background-color: var(--color-failed-bg);
     /*outline: 0.2em solid var(--color-failed-fg);*/

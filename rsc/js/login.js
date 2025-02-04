@@ -42,8 +42,15 @@ document.addEventListener('DOMContentLoaded', function () {
         // create json request data from form data
         const form_data = new FormData(form);
         var request_data = new Object();
-        request_data.email = form_data.get("email");
         request_data.password = form_data.get("password");
+        let user_id = Number(form_data.get("email_or_id"));
+        if (user_id != NaN) {
+            request_data.email = null;
+            request_data.user_id = user_id;
+        } else {
+            request_data.email = form_data.get("email_or_id");
+            request_data.user_id = null;
+        }
 
         // disable further changes (must be done after getting form data)
         for (var i = 0, len = form.elements.length; i < len; ++i) {
@@ -51,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // call api
-        api_v0_post("login/email", request_data, api_callback)
+        api_v0_post("login/password", request_data, password_login_api_callback)
 
         // prevent default form submission
         event.preventDefault();
@@ -61,18 +68,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 
-function api_callback(status, data) {
+function password_login_api_callback(status, data) {
     if (status == 200) {
         append_message_success("OK", "Successful login");
         window.location.href = "/";
 
     } else {
         append_message_error("ERROR", "Login failed");
-    }
 
-    // re-enable form
-    var form = document.getElementById("TabLoginPassword");
-    for (var i = 0, len = form.elements.length; i < len; ++i) {
-        form.elements[i].setAttribute("disabled", "true");
+        // re-enable form
+        const form = document.getElementById("TabLoginPassword");
+        for (let i = 0, len = form.elements.length; i < len; ++i) {
+            form.elements[i].setAttribute("disabled", "true");
+        }
     }
 }

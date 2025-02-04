@@ -4,6 +4,7 @@ macro_rules! tablename {
 
 
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::ops::Sub;
 use tokio::sync::RwLock;
 use std::sync::{Arc, Weak};
@@ -460,7 +461,7 @@ impl UserItem {
             }
         }
 
-        log::info!("password updated for rowid={}", data.row.rowid);
+        log::info!("password updated for user rowid={}", data.row.rowid);
         return true;
     }
 
@@ -503,6 +504,7 @@ impl UserItem {
         true
     }
 }
+
 
 pub(super) struct UserTableData {
     pool: SqlitePool,

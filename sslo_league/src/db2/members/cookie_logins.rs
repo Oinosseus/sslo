@@ -402,7 +402,7 @@ impl CookieLoginTable {
 
         // delete item
         if let Some(user) = cookie_login.user().await {
-            log::info!("logout user {}, from cookie {}", user.id().await, cookie_login.id().await);
+            log::info!("logout user rowid={}, from cookie rowid={}", user.id().await, cookie_login.id().await);
         } else {
             log::warn!("cookie deletion without associated user");
             log::info!("logout from cookie {}", cookie_login.id().await);

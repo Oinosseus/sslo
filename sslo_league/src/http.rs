@@ -110,9 +110,10 @@ impl HtmlTemplate {
         html += "          </div>\n";
         if self.http_user.is_logged_in() {
             html += "          <div class=\"NavbarDropdown\">\n";
-            html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">🯅 User ⯆</a>\n";
+            html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">User ⯆</a>\n";
             html += "              <div>\n";
-            html += "                  <a href=\"/html/user_profile\">User Profile</a>\n";
+            html += "                  <a href=\"/html/user_profile\">Profile</a>\n";
+            html += "                  <a href=\"/html/user_accounts\">Accounts</a>\n";
             html += "                  <a href=\"/html/logout\">Logout</a>\n";
             html += "              </div>\n";
             html += "          </div>\n";
@@ -165,7 +166,7 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/", routing::get(routes_html::home::handler))
 
         .route("/html/login", routing::get(routes_html::login::handler))
-        // .route("/html/login_email_password", routing::post(routes_html::login::handler_email_password))
+        // .route("/html/login_password", routing::post(routes_html::login::handler_password))
         .route("/html/login_email_generate", routing::post(routes_html::login::handler_email_generate))
         .route("/html/login_email_verify/:email/:token", routing::get(routes_html::login::handler_email_verify))
         .route("/html/login_steam_verify/", routing::get(routes_html::login::handler_steam_verify))
@@ -173,9 +174,9 @@ pub fn create_router(app_state: AppState) -> Router {
 
         .route("/html/user_settings", routing::get(routes_html::user::handler_settings))
         .route("/html/user_profile", routing::get(routes_html::user::handler_profile))
-        .route("/html/user_credentials", routing::get(routes_html::user::handler_credentials))
+        .route("/html/user_accounts", routing::get(routes_html::user::handler_accounts))
 
-        // .route("/api/v0/login/email", routing::post(routes_rest_v0::login_email::handler))
+        .route("/api/v0/login/password", routing::post(routes_rest_v0::login_password::handler))
         .route("/api/v0/user/set_password", routing::post(routes_rest_v0::user::handler_set_password))
         .route("/api/v0/user/set_name", routing::post(routes_rest_v0::user::handler_set_name))
 
