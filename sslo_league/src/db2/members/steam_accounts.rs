@@ -142,11 +142,6 @@ impl SteamUserData {
     }
 }
 
-struct SteamUserLastLogin {
-    time: DateTime<Utc>,
-    useragent: String,
-}
-
 /// This abstracts data access to shared items
 pub struct SteamUserItem(Arc<RwLock<SteamUserData>>);
 
@@ -157,6 +152,7 @@ impl SteamUserItem {
     }
 
     pub async fn id(&self) -> i64 { self.0.read().await.row.rowid }
+    pub async fn display(&self) -> String { self.0.read().await.row.display() }
     pub async fn steam_id(&self) -> String { self.0.read().await.row.steam_id.clone() }
     pub async fn creation(&self) -> DateTime<Utc> { self.0.read().await.row.creation.clone() }
 
@@ -165,7 +161,7 @@ impl SteamUserItem {
         let db_members = match data.db_members.upgrade() {
             Some(db_data) => MembersDbInterface::new(db_data),
             None => {
-                log::error!("cannot upgrade weak pointer for rowid={}, user={:?}", data.row.rowid, data.row.user);
+                log::error!("cannot upgrade weak pointer for {}", data.row.display());
                 return None;
             }
         };
@@ -176,6 +172,7 @@ impl SteamUserItem {
         let data = self.0.read().await;
         OptionalDateTime::new(data.row.last_login.clone())
     }
+
 }
 
 pub(super) struct SteamUserTableData {
