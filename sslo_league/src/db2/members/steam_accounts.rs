@@ -1,5 +1,5 @@
 macro_rules! tablename {
-    {} => { "steam" };
+    {} => { "steam_accounts" };
 }
 
 use std::collections::HashMap;
@@ -10,15 +10,15 @@ use tokio::sync::RwLock;
 use super::{MembersDbData, MembersDbInterface};
 use super::users::UserItem;
 use sslo_lib::error::SsloError;
+use sslo_lib::optional_date::OptionalDateTime;
 
 #[derive(sqlx::FromRow, Clone)]
 struct DbDataRow {
     rowid: i64,
-    steam_id: String,
     user: Option<i64>,
+    steam_id: String,
     creation: DateTime<Utc>,
-    last_login_timestamp: Option<DateTime<Utc>>,
-    last_login_useragent: Option<String>,
+    last_login: Option<DateTime<Utc>>,
 }
 
 impl DbDataRow {
@@ -31,8 +31,7 @@ impl DbDataRow {
             user: None,
             steam_id: String::new(),
             creation: Utc::now(),
-            last_login_timestamp: None,
-            last_login_useragent: None,
+            last_login: None,
         }
     }
 
@@ -87,18 +86,16 @@ impl DbDataRow {
                 "(user,\
                   steam_id,\
                   creation,\
-                  last_login_timestamp,\
-                  last_login_useragent) \
-                  VALUES ($1, $2, $3, $4, $5) RETURNING rowid;"))
+                  last_login) \
+                  VALUES ($1, $2, $3, $4) RETURNING rowid;"))
             },
             _ => {
                 sqlx::query(concat!("UPDATE ", tablename!(), " SET \
                                    user=$1,\
                                    steam_id=$2,\
                                    creation=$3,\
-                                   last_login_timestamp=$4,\
-                                   last_login_useragent=$5 \
-                                   WHERE rowid=$6;"))
+                                   last_login=$4 \
+                                   WHERE rowid=$5;"))
             }
         };
 
@@ -106,8 +103,7 @@ impl DbDataRow {
         query = query.bind(&self.user)
             .bind(&self.steam_id)
             .bind(&self.creation)
-            .bind(&self.last_login_timestamp)
-            .bind(&self.last_login_useragent);
+            .bind(&self.last_login);
         if self.rowid != 0 {
             query = query.bind(self.rowid);
         }
@@ -176,11 +172,9 @@ impl SteamUserItem {
         db_members.tbl_users().await.user_by_id(data.row.rowid).await
     }
 
-    pub async fn last_login(&self) -> Option<SteamUserLastLogin> {
+    pub async fn last_login(&self) -> OptionalDateTime {
         let data = self.0.read().await;
-        let time = data.row.last_login_timestamp.clone()?;
-        let useragent = data.row.last_login_useragent.clone()?;
-        Some(SteamUserLastLogin { time, useragent })
+        OptionalDateTime::new(data.row.last_login.clone())
     }
 }
 
@@ -318,8 +312,7 @@ mod tests {
             assert_eq!(row.rowid, 33);
             assert_eq!(row.user, None);
             assert_eq!(row.steam_id, String::new());
-            assert_eq!(row.last_login_timestamp, None);
-            assert_eq!(row.last_login_useragent, None);
+            assert_eq!(row.last_login, None);
         }
 
         /// Testing load and store (insert+update)
@@ -337,8 +330,7 @@ mod tests {
             row.user = Some(44);
             row.steam_id = "SomeSteam64GUID".to_string();
             row.creation = dt1;
-            row.last_login_timestamp = Some(dt2);
-            row.last_login_useragent = Some("unit test".to_string());
+            row.last_login = Some(dt2);
             row.store(&pool).await.unwrap();
 
             // load
@@ -348,16 +340,14 @@ mod tests {
             assert_eq!(row.user, Some(44));
             assert_eq!(row.steam_id, "SomeSteam64GUID".to_string());
             assert_eq!(row.creation, dt1.clone());
-            assert_eq!(row.last_login_timestamp, Some(dt2.clone()));
-            assert_eq!(row.last_login_useragent, Some("unit test".to_string()));
+            assert_eq!(row.last_login, Some(dt2.clone()));
 
             // store (update)
             let mut row = DbDataRow::new(1);
             row.user = Some(46);
             row.steam_id = "NewSomeSteam64GUID".to_string();
             row.creation = dt2;
-            row.last_login_timestamp = Some(dt3);
-            row.last_login_useragent = Some("new unit test".to_string());
+            row.last_login = Some(dt3);
             row.store(&pool).await.unwrap();
 
             // load
@@ -367,8 +357,7 @@ mod tests {
             assert_eq!(row.user, Some(46));
             assert_eq!(row.steam_id, "NewSomeSteam64GUID".to_string());
             assert_eq!(row.creation, dt2.clone());
-            assert_eq!(row.last_login_timestamp, Some(dt3.clone()));
-            assert_eq!(row.last_login_useragent, Some("new unit test".to_string()));
+            assert_eq!(row.last_login, Some(dt3.clone()));
         }
     }
 

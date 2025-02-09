@@ -17,12 +17,11 @@ CREATE TABLE cookie_logins (
     last_usage TEXT
 );
 
-CREATE TABLE steam_users (
+CREATE TABLE steam_accounts (
     steam_id TEXT NOT NULL UNIQUE,
     user INTEGER,
     creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_login_timestamp TEXT,
-    last_login_useragent BLOB
+    last_login TEXT
 );
 
 CREATE TABLE email_accounts (

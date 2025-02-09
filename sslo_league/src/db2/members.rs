@@ -1,6 +1,6 @@
 pub mod users;
 pub mod cookie_logins;
-pub mod steam_users;
+pub mod steam_accounts;
 pub mod email_accounts;
 
 use std::path::Path;
@@ -11,7 +11,7 @@ use cookie_logins::CookieLoginTableData;
 use sslo_lib::error::SsloError;
 use crate::db2::members::cookie_logins::CookieLoginTable;
 use crate::db2::members::email_accounts::{EmailAccountsTable, EmailAccountsTableData};
-use crate::db2::members::steam_users::{SteamUserTable, SteamUserTableData};
+use crate::db2::members::steam_accounts::{SteamUserTable, SteamUserTableData};
 
 /// The members database
 pub struct MembersDbData {
