@@ -1,6 +1,7 @@
 use axum::extract::{OriginalUri, State};
 use axum::http::StatusCode;
 use axum::response::Response;
+use sslo_lib::optional_date::OptionalDateTime;
 use crate::app_state::AppState;
 use crate::http::HtmlTemplate;
 use crate::http::http_user::HttpUserExtractor;
@@ -63,7 +64,9 @@ pub async fn handler_credentials(State(app_state): State<AppState>,
     }
 
     // get tables
-    let tbl_eml = app_state.database.db_members().await.tbl_email_accounts().await;
+    let db_members = app_state.database.db_members().await;
+    let tbl_eml = db_members.tbl_email_accounts().await;
+    let tbl_steam = db_members.tbl_steam_accounts().await;
 
     let mut html = HtmlTemplate::new(http_user);
     html.include_css("/rsc/css/user.css");
@@ -88,8 +91,7 @@ pub async fn handler_credentials(State(app_state): State<AppState>,
 
     // Tab Email
     html.push_body("<div id=\"AccountTabEmail\" class=\"TabInActive BgBox\">");
-    html.push_body("<table>");
-    html.push_body("<tr><th>Email</th><th>Verified At</th></tr>");
+    html.push_body("<table><tr><th>Email</th><th>Verified At</th></tr>");
     for eml in tbl_eml.items_by_user(&html.http_user.user).await.iter() {
         html.push_body("<tr><td>");
         html.push_body(&eml.email().await);
@@ -102,7 +104,16 @@ pub async fn handler_credentials(State(app_state): State<AppState>,
 
     // Tab Steam
     html.push_body("<div id=\"AccountTabSteam\" class=\"TabInActive BgBox\">");
-    html.push_body("Steam");
+    html.push_body("<table><tr><th>Steam ID</th><th>Created At</th></tr>");
+    for steam in tbl_steam.items_by_user(&html.http_user.user).await.iter() {
+        html.push_body("<tr><td>");
+        html.push_body(&steam.steam_id().await);
+        html.push_body("</td><td>");
+        let dt = OptionalDateTime::new(Some(steam.creation().await));
+        html.push_body(&dt.html_label_full());
+        html.push_body("</tr>");
+    }
+    html.push_body("</table>");
     html.push_body("</div>");
 
     // Tab Discord

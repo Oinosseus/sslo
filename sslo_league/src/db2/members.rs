@@ -11,14 +11,14 @@ use cookie_logins::CookieLoginTableData;
 use sslo_lib::error::SsloError;
 use crate::db2::members::cookie_logins::CookieLoginTable;
 use crate::db2::members::email_accounts::{EmailAccountsTable, EmailAccountsTableData};
-use crate::db2::members::steam_accounts::{SteamUserTable, SteamUserTableData};
+use crate::db2::members::steam_accounts::{SteamAccountsTable, SteamAccountsTableData};
 
 /// The members database
 pub struct MembersDbData {
     // pool: SqlitePool,
     tbl_users: Arc<RwLock<UserTableData>>,
     tbl_cookie_logins: Arc<RwLock<CookieLoginTableData>>,
-    tbl_steam_user: Arc<RwLock<SteamUserTableData>>,
+    tbl_steam_accounts: Arc<RwLock<SteamAccountsTableData>>,
     tbl_email_accounts: Arc<RwLock<EmailAccountsTableData>>,
 }
 
@@ -36,7 +36,7 @@ impl MembersDbData {
                 // pool: pool.clone(),
                 tbl_users: UserTableData::new(pool.clone()),
                 tbl_cookie_logins: CookieLoginTableData::new(pool.clone(), me.clone()),
-                tbl_steam_user: SteamUserTableData::new(pool.clone(), me.clone()),
+                tbl_steam_accounts: SteamAccountsTableData::new(pool.clone(), me.clone()),
                 tbl_email_accounts: EmailAccountsTableData::new(pool.clone(), me.clone()),
             })
         }))
@@ -61,9 +61,9 @@ impl MembersDbInterface {
         CookieLoginTable::new(data.tbl_cookie_logins.clone())
     }
 
-    pub async fn tbl_steam_user(&self) -> SteamUserTable {
+    pub async fn tbl_steam_accounts(&self) -> SteamAccountsTable {
         let data = self.0.read().await;
-        SteamUserTable::new(data.tbl_steam_user.clone())
+        SteamAccountsTable::new(data.tbl_steam_accounts.clone())
     }
 
     pub async fn tbl_email_accounts(&self) -> EmailAccountsTable {
@@ -203,6 +203,37 @@ mod tests {
             // check associated accounts
             let items = tbl_eml.items_by_user(&usr).await;
             assert_eq!(items.len(), 3);
+        }
+    }
+
+    mod steam_accounts {
+        use chrono::Utc;
+        use test_log::test;
+        use super::*;
+
+        #[test(tokio::test)]
+        async fn login_procedure() {
+            let db = get_db().await;
+            let tbl_usr = db.tbl_users().await;
+            let tbl_stm = db.tbl_steam_accounts().await;
+
+            // receive a new steam login
+            let steam_id = "SteamId1";
+
+            // get steam account
+            let steam_account = tbl_stm.item_by_steam_id(steam_id, true).await.unwrap();
+            steam_account.set_last_login(Utc::now()).await.unwrap();
+
+            // get user
+            let user = match steam_account.user().await {
+                Some(user) => user,
+                None => tbl_usr.create_new_user().await.unwrap()
+            };
+
+            // check identical user at new login
+            let steam_account = tbl_stm.item_by_steam_id(steam_id, false).await.unwrap();
+            let user2 = steam_account.user().await.unwrap();
+            assert_eq!(user.id().await, user2.id().await);
         }
     }
 

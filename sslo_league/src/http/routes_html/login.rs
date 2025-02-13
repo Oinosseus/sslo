@@ -7,6 +7,7 @@ use serde::Deserialize;
 use crate::app_state::AppState;
 use crate::db2::members::users::UserItem;
 use crate::db2::members::email_accounts::EmailAccountItem;
+use crate::db2::members::steam_accounts::SteamAccountItem;
 use crate::http::HtmlTemplate;
 use crate::http::http_user::HttpUser;
 use super::super::http_user::HttpUserExtractor;
@@ -228,12 +229,20 @@ pub async fn handler_logout(State(app_state): State<AppState>,
 }
 
 
-pub async fn handler_steam_verify(State(_app_state): State<AppState>,
+pub async fn handler_steam_verify(State(app_state): State<AppState>,
                                   HttpUserExtractor(http_user): HttpUserExtractor,
                                   OriginalUri(uri): OriginalUri,
 ) -> Result<Response, StatusCode> {
     let mut html = HtmlTemplate::new(http_user);
     html.include_css("/rsc/css/login.css");
+
+    let db_members = app_state.database.db_members().await;
+    let tbl_steam = db_members.tbl_steam_accounts().await;
+    let tbl_users = db_members.tbl_users().await;
+    let tbl_cookie = db_members.tbl_cookie_logins().await;
+
+    let mut user : Option<UserItem> = None;
+    let mut cookie: Option<String> = None;
 
     if let Some(query) = uri.query() {
         let openid_string = format!("?{}", query);
@@ -255,29 +264,61 @@ pub async fn handler_steam_verify(State(_app_state): State<AppState>,
             };
 
             // verify
-            let mut steam_result : Option<bool> = None;
+            let mut steam_account : Option<SteamAccountItem> = None;
             match steamopenid::verify_auth_keyvalues(&params).await {
-                Ok(result) => {
-                    steam_result = Some(result);
+                Ok(true) => {
+                    if let Some(some_steam_id) = steam_id {
+                        steam_account = tbl_steam.item_by_steam_id(&some_steam_id, true).await;
+                    }
                 },
+                Ok(false) => {
+                    html.message_error("Steam ID verification failed!".to_string());
+                }
                 Err(e) => {
                     log::error!("Could not verify steam openid parameters {}", e);
                     html.message_error("Could not verify steam openid parameters".to_string());
                 }
             }
 
-            // output success
-            if let Some(some_steam_id) = steam_id {
-                html.message_warning(format!("Unverified Steam ID: {}", some_steam_id));
-                if let Some(steam_result) = steam_result {
-                    if steam_result {
-                        html.message_success(format!("Verifed Steam ID: {}", some_steam_id));
+            // get user
+            if let Some(some_steam_account) = steam_account {
+                user = some_steam_account.user().await;
+                if user.is_none() {
+                    user = tbl_users.create_new_user().await;
+                    if let Some(some_user) = user.as_ref() {
+                        match some_steam_account.set_user(some_user).await {
+                            Ok(_) => {},
+                            Err(e) => {
+                                log::error!("Could not assign steam account to {}: {}",
+                                    some_steam_account.display().await, e);
+                                html.message_error("Could not assign steam account to {}".to_string());
+                            }
+                        }
+                    } else {
+                        html.message_error("Could not create new user!".to_string());
                     }
                 }
             }
         }
     }
 
+    // create login cookie
+    if let Some(some_user) = user.as_ref() {
+        if let Some(login_cookie_item) = tbl_cookie.create_new_cookie(some_user).await {
+            cookie = login_cookie_item.get_cookie().await;
+        }
+    }
 
-    Ok(html.into_response().await)
+    // user info
+    if cookie.is_none() {
+        html.message_error("Login failed!".to_string());
+    }
+
+    // done
+    let mut response = html.into_response().await;
+    if let Some(cookie) = cookie {
+        response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
+        response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
+    }
+    Ok(response)
 }

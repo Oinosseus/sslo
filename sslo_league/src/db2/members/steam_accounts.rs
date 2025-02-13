@@ -11,6 +11,7 @@ use super::{MembersDbData, MembersDbInterface};
 use super::users::UserItem;
 use sslo_lib::error::SsloError;
 use sslo_lib::optional_date::OptionalDateTime;
+use crate::db2::members::email_accounts::EmailAccountItem;
 
 #[derive(sqlx::FromRow, Clone)]
 struct DbDataRow {
@@ -51,6 +52,25 @@ impl DbDataRow {
                 return Err(SsloError::DatabaseSqlx(e));
             }
         };
+    }
+
+    async fn from_user(user: &UserItem, pool: &SqlitePool) -> Vec<Self> {
+        let user_id = user.id().await;
+        match sqlx::query_as::<Sqlite, DbDataRow>(concat!("SELECT rowid,* FROM ", tablename!(), " WHERE user = $1 LIMIT 100;"))
+            .bind(user_id)
+            .fetch_all(pool)
+            .await {
+            Ok(rows) => {
+                if rows.len() >= 99 {
+                    log::warn!("user rowid={} has more than 99 email accounts associated (truncating for safety)", user_id);
+                }
+                rows
+            },
+            Err(e) => {
+                log::error!("{}", e);
+                Vec::new()
+            }
+        }
     }
 
     /// Read the data from the database
@@ -126,13 +146,13 @@ impl DbDataRow {
     }
 }
 
-pub(super) struct SteamUserData {
+pub(super) struct SteamAccountData {
     pool: SqlitePool,
     row: DbDataRow,
     db_members: Weak<RwLock<MembersDbData>>,
 }
 
-impl SteamUserData {
+impl SteamAccountData {
     pub fn new(pool: &SqlitePool, row: DbDataRow, db_members: Weak<RwLock<MembersDbData>>) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(Self {
             pool: pool.clone(),
@@ -143,11 +163,11 @@ impl SteamUserData {
 }
 
 /// This abstracts data access to shared items
-pub struct SteamUserItem(Arc<RwLock<SteamUserData>>);
+pub struct SteamAccountItem(Arc<RwLock<SteamAccountData>>);
 
-impl SteamUserItem {
+impl SteamAccountItem {
 
-    fn new(item_data: Arc<RwLock<SteamUserData>>) -> Self {
+    fn new(item_data: Arc<RwLock<SteamAccountData>>) -> Self {
         Self(item_data)
     }
 
@@ -168,21 +188,46 @@ impl SteamUserItem {
         db_members.tbl_users().await.user_by_id(data.row.rowid).await
     }
 
+    /// Assign a new user
+    /// Checking if user is already set, before writing to disk
+    pub async fn set_user(&self, user: &UserItem) -> Result<(), SsloError> {
+        let mut data = self.0.write().await;
+
+        // check if user is already set
+        if let Some(&existing_user) = data.row.user.as_ref() {
+            if existing_user == user.id().await {
+                return Ok(());
+            }
+        }
+
+        // save
+        data.row.user = Some(user.id().await);
+        let pool = data.pool.clone();
+        data.row.store(&pool).await
+    }
+
     pub async fn last_login(&self) -> OptionalDateTime {
         let data = self.0.read().await;
         OptionalDateTime::new(data.row.last_login.clone())
     }
 
+    pub async fn set_last_login(&self, last_login: DateTime<Utc>) -> Result<(), SsloError> {
+        let mut data = self.0.write().await;
+        data.row.last_login = Some(last_login);
+        let pool = data.pool.clone();
+        data.row.store(&pool).await
+    }
+
 }
 
-pub(super) struct SteamUserTableData {
+pub(super) struct SteamAccountsTableData {
     pool: SqlitePool,
-    item_cache_by_rowid: HashMap<i64, Arc<RwLock<SteamUserData>>>,
-    item_cache_by_steamid: HashMap<String, Arc<RwLock<SteamUserData>>>,
+    item_cache_by_rowid: HashMap<i64, Arc<RwLock<SteamAccountData>>>,
+    item_cache_by_steamid: HashMap<String, Arc<RwLock<SteamAccountData>>>,
     db_members: Weak<RwLock<MembersDbData>>,
 }
 
-impl SteamUserTableData {
+impl SteamAccountsTableData {
     pub(super) fn new(pool: SqlitePool, db_members: Weak<RwLock<MembersDbData>>) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(Self {
             pool,
@@ -193,69 +238,45 @@ impl SteamUserTableData {
     }
 }
 
-pub struct SteamUserTable(Arc<RwLock<SteamUserTableData>>);
+pub struct SteamAccountsTable(Arc<RwLock<SteamAccountsTableData>>);
 
-impl SteamUserTable {
-    pub(super) fn new(data: Arc<RwLock<SteamUserTableData>>) -> Self { Self(data) }
+impl SteamAccountsTable {
+    pub(super) fn new(data: Arc<RwLock<SteamAccountsTableData>>) -> Self { Self(data) }
 
-    /// Get an item
-    /// This first tries to load the item from cache,
-    /// and secondly load it from the database.
-    pub async fn user_by_id(&self, id: i64) -> Option<SteamUserItem> {
+    /// Get all steam accounts that are associated to a certain user
+    pub async fn items_by_user(&self, user: &UserItem) -> Vec<SteamAccountItem> {
+        let mut tbl_data = self.0.write().await;
+        let pool = tbl_data.pool.clone();
+        let mut item_list: Vec<SteamAccountItem> = Vec::new();
 
-        // sanity check
-        debug_assert!(id > 0);
-        if id <= 0 {
-            log::error!("Deny to retrieve user with id={}", id);
-            return None;
+        for row in DbDataRow::from_user(user, &pool).await.into_iter() {
+            let rowid = row.rowid;
+            let item = match tbl_data.item_cache_by_rowid.get(&rowid) {
+                Some(item_data) => SteamAccountItem::new(item_data.clone()),
+                None => {
+                    let item_data = SteamAccountData::new(&pool, row, tbl_data.db_members.clone());
+                    let item = SteamAccountItem::new(item_data.clone());
+                    tbl_data.item_cache_by_rowid.insert(rowid, item_data.clone());
+                    item
+                }
+            };
+            item_list.push(item);
         }
 
-        // try cache hit
-        {
-            let tbl_data = self.0.read().await;
-            if let Some(item_data) = tbl_data.item_cache_by_rowid.get(&id) {
-                return Some(SteamUserItem::new(item_data.clone()));
-            }
-        }
-
-        // try loading from DB if not found in cache
-        {
-            let mut tbl_data = self.0.write().await;
-
-            // load from db table
-            let mut row = DbDataRow::new(id);
-            match row.load(&tbl_data.pool).await {
-                Ok(_) => { },
-                Err(e) => {
-                    if e.is_db_not_found_type() {
-                        log::warn!("{}", e);
-                    } else {
-                        log::error!("{}", e.to_string());
-                    }
-                    return None;
-                },
-            }
-            debug_assert_eq!(row.rowid, id);
-
-            // create item
-            let item_data = SteamUserData::new(&tbl_data.pool, row, Weak::new());
-            let item = SteamUserItem::new(item_data.clone());
-            tbl_data.item_cache_by_rowid.insert(id, item_data.clone());
-            tbl_data.item_cache_by_steamid.insert(item.steam_id().await, item_data);
-            return Some(item);
-        }
+        return item_list;
     }
 
     /// Get an item
     /// This first tries to load the item from cache,
     /// and secondly load it from the database.
-    pub async fn user_by_steam_id(&self, steam_id: &str) -> Option<SteamUserItem> {
+    pub async fn item_by_steam_id(&self, steam_id: &str,
+                                  allow_new_item_creation: bool) -> Option<SteamAccountItem> {
 
         // try cache hit
         {
             let tbl_data = self.0.read().await;
             if let Some(item_data) = tbl_data.item_cache_by_steamid.get(steam_id) {
-                return Some(SteamUserItem::new(item_data.clone()));
+                return Some(SteamAccountItem::new(item_data.clone()));
             }
         }
 
@@ -266,25 +287,38 @@ impl SteamUserTable {
             // load from db table
             let mut row = match DbDataRow::from_steam_id(steam_id, &tbl_data.pool).await {
                 Ok(row) => row,
-                Err(e) => {
-                    if e.is_db_not_found_type() {
-                        log::warn!("{}", e);
-                    } else {
-                        log::error!("{}", e.to_string());
+                Err(e) if !e.is_db_not_found_type() => {
+                    log::error!("{}", e.to_string());
+                    return None;
+                },
+                Err(e) if allow_new_item_creation => {
+                    let mut row = DbDataRow::new(0);
+                    row.steam_id = steam_id.to_string();
+                    match row.store(&tbl_data.pool).await {
+                        Ok(_) => {},
+                        Err(e) => {
+                            log::error!("{}", e.to_string());
+                            return None;
+                        }
                     }
+                    log::info!("New item created: {}", row.display());
+                    row
+                },
+                Err(_) => {
                     return None;
                 },
             };
             debug_assert_eq!(row.steam_id, steam_id);
 
             // create item
-            let item_data = SteamUserData::new(&tbl_data.pool, row, Weak::new());
-            let item = SteamUserItem::new(item_data.clone());
+            let item_data = SteamAccountData::new(&tbl_data.pool, row, tbl_data.db_members.clone());
+            let item = SteamAccountItem::new(item_data.clone());
             tbl_data.item_cache_by_rowid.insert(item.id().await, item_data.clone());
             tbl_data.item_cache_by_steamid.insert(item.steam_id().await, item_data);
             return Some(item);
         }
     }
+
 }
 
 #[cfg(test)]
@@ -292,11 +326,24 @@ mod tests {
     use sqlx::SqlitePool;
     use super::*;
     use test_log::test;
+    use crate::db2::members::users::{UserTable, UserTableData};
 
     async fn get_pool() -> SqlitePool {
         let pool = sslo_lib::db::get_pool(None);
         sqlx::migrate!("../rsc/db_migrations/league_members").run(&pool).await.unwrap();
-        return pool;
+        pool
+    }
+
+    async fn create_new_item(pool: &SqlitePool) -> SteamAccountItem {
+        let row = DbDataRow::new(0);
+        let data = SteamAccountData::new(pool, row, Weak::new());
+        SteamAccountItem::new(data)
+    }
+
+    async fn get_table_interface() -> SteamAccountsTable {
+        let pool = get_pool().await;
+        let tbl_data = SteamAccountsTableData::new(pool, Weak::new());
+        SteamAccountsTable::new(tbl_data.clone())
     }
 
     mod row {
@@ -364,8 +411,28 @@ mod tests {
 
         #[test(tokio::test)]
         async fn test() {
+            let earlier: DateTime<Utc> = Utc::now();
             let pool = get_pool().await;
-            todo!();
+            let item = create_new_item(&pool).await;
+            assert!(item.creation().await > earlier);
+        }
+    }
+
+    mod table {
+        use test_log::test;
+        use super::*;
+
+        #[test(tokio::test)]
+        async fn test_new() {
+            let tbl = get_table_interface().await;
+
+            let item0 = tbl.item_by_steam_id("SteamId1", false).await;
+            assert!(item0.is_none());
+
+            let item1 = tbl.item_by_steam_id("SteamId1", true).await.unwrap();
+            assert!(item1.id().await > 0);
+            let item2 = tbl.item_by_steam_id("SteamId1", true).await.unwrap();
+            assert_eq!(item1.id().await, item2.id().await);
         }
     }
 }
