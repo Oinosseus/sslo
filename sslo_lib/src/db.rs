@@ -8,7 +8,9 @@ pub fn get_pool(db_path: Option<&Path>) -> SqlitePool {
 
     match db_path {
         None => {
-            let sqlite_opts = SqliteConnectOptions::from_str(":memory:").unwrap();
+            let sqlite_opts = SqliteConnectOptions::from_str(":memory:")
+                .unwrap()
+                .foreign_keys(true);
             let pool = SqlitePoolOptions::new()
                 .min_connections(1)
                 .max_connections(1)  // default is 10
@@ -28,7 +30,8 @@ pub fn get_pool(db_path: Option<&Path>) -> SqlitePool {
                 .locking_mode(sqlx::sqlite::SqliteLockingMode::Exclusive)
                 .create_if_missing(true)
                 .optimize_on_close(true, 400)
-                .analysis_limit(Some(400));
+                .analysis_limit(Some(400))
+                .foreign_keys(true);
             pool_opts.connect_lazy_with(conn_opts)
         },
     }

@@ -364,6 +364,12 @@ mod tests {
         async fn load_store() {
             let pool = get_pool().await;
 
+            // genertae some test data
+            let mut query = sqlx::query("INSERT INTO users (rowid,name) VALUES (44,'Foo');");
+            query.execute(&pool).await.unwrap();
+            let mut query = sqlx::query("INSERT INTO users (rowid,name) VALUES (46,'Foo');");
+            query.execute(&pool).await.unwrap();
+
             // define some UTC times
             let dt1: DateTime<Utc> = DateTime::parse_from_rfc3339("1001-01-01T01:01:01.1111+01:00").unwrap().into();
             let dt2: DateTime<Utc> = DateTime::parse_from_rfc3339("2002-02-02T02:02:02.2222+02:00").unwrap().into();

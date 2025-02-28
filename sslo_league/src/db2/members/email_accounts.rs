@@ -607,6 +607,10 @@ mod tests {
             let dt2: DateTime<Utc> = DateTime::parse_from_rfc3339("2002-02-02T02:02:02.2222+02:00").unwrap().into();
             let token = "as3245lkds".to_string();
 
+            // generate some test data
+            let mut query = sqlx::query("INSERT INTO users (rowid,name) VALUES (123,'Foo');");
+            query.execute(&pool).await.unwrap();
+
             // store
             let mut row = DbDataRow::new(0, "a.b@c.de".to_string());
             row.user = Some(123);

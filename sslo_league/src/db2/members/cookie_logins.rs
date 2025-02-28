@@ -436,6 +436,7 @@ mod tests {
     }
 
     mod row {
+        use sqlx::query::Query;
         use super::*;
         use test_log::test;
 
@@ -453,6 +454,12 @@ mod tests {
         #[test(tokio::test)]
         async fn load_store_delete() {
             let pool = get_pool().await;
+
+            // fill db with some dummy data
+            let mut query = sqlx::query("INSERT INTO users (rowid,name) VALUES (44,'Foo');");
+            query.execute(&pool).await.unwrap();
+            let mut query = sqlx::query("INSERT INTO users (rowid,name) VALUES (46,'Bar');");
+            query.execute(&pool).await.unwrap();
 
             // define some UTC times
             let dt1: DateTime<Utc> = DateTime::parse_from_rfc3339("1001-01-01T01:01:01.1111+01:00").unwrap().into();
