@@ -1,8 +1,8 @@
 :root {
-    /*--color-login: #2a5;*/
     --color-login: var(--color-green);
     --color-register: var(--color-red);
     --color-disabled: #666;
+    --transition-time: 0.2s;
 }
 
 #LabelLogin, #LabelRegister, #SwitchLoginRegister {
@@ -13,7 +13,7 @@
     position: relative;
     display: inline-block;
     width: 4em;
-    height: 1.4em;
+    height: 1.5em;
     margin-left: 1em;
     margin-right: 1em;
 }
@@ -32,19 +32,19 @@
     right: 0;
     bottom: 0;
     background-color: var(--color-login);
-    transition: .4s;
+    transition: var(--transition-time);
     border-radius: 0.2em;
 }
 
 #SwitchLoginRegister span:before {
     position: absolute;
     content: "";
-    height: 0.9em;
+    height: 1.0em;
     width: 1.5em;
     left: 0.25em;
     bottom: 0.25em;
     background-color: var(--color-white);
-    transition: .4s;
+    transition: var(--transition-time);
     border-radius: 0.2em;
 }
 
@@ -83,17 +83,17 @@
 
 #LabelLogin.SwitchedToLogin {
     color: var(--color-login);
-    transition: .4s;
+    transition: var(--transition-time);
 }
 
 #LabelLogin.SwitchedToRegister, #LabelRegister.SwitchedToLogin {
     color: var(--color-disabled);
-    transition: .4s;
+    transition: var(--transition-time);
 }
 
 #LabelRegister.SwitchedToRegister {
     color: var(--color-register);
-    transition: .4s;
+    transition: var(--transition-time);
 }
 
 main > div input {
@@ -107,18 +107,18 @@ main > div input {
 
 main > div input.SwitchedToLogin {
     border: 0.2em solid var(--color-login);
-    transition: .4s;
+    transition: var(--transition-time);
 }
 
 main > div input.SwitchedToRegister {
     border: 0.2em solid var(--color-register);
-    transition: .4s;
+    transition: var(--transition-time);
 }
 
 #WithPasswordId.SwitchedToRegister, #WithPasswordPassword.SwitchedToRegister {
     border: 0.2em solid var(--color-disabled);
     font-style: italic;
-    transition: .4s;
+    transition: var(--transition-time);
 }
 
 main > div button {
@@ -133,18 +133,18 @@ main > div button {
 main > div button.SwitchedToLogin {
     border: 0.2em solid var(--color-login);
     background-color: var(--color-login);
-    transition: .4s;
+    transition: var(--transition-time);
 }
 
 main > div button.SwitchedToRegister {
     border: 0.2em solid var(--color-register);
     background-color: var(--color-register);
-    transition: .4s;
+    transition: var(--transition-time);
 }
 
 #WithPasswordButton.SwitchedToRegister {
     border: 0.2em solid var(--color-disabled);
     background-color: var(--color-disabled);
     font-style: italic;
-    transition: .4s;
+    transition: var(--transition-time);
 }
