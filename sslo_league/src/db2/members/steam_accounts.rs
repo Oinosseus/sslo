@@ -176,8 +176,27 @@ impl SteamAccountItem {
     pub async fn steam_id(&self) -> String { self.0.read().await.row.steam_id.clone() }
     pub async fn creation(&self) -> DateTime<Utc> { self.0.read().await.row.creation.clone() }
 
+    /// returns the assigned user
+    /// If no user is assigned, a new user will be tried to create
     pub async fn user(&self) -> Option<UserItem> {
-        let data = self.0.read().await;
+        {   // try reading existing user
+            let data = self.0.read().await;
+            if let Some(user_id) = data.row.user {
+                let db_members = match data.db_members.upgrade() {
+                    Some(db_data) => MembersDbInterface::new(db_data),
+                    None => {
+                        log::error!("cannot upgrade weak pointer for {}", data.row.display());
+                        return None;
+                    }
+                };
+                let tbl_usr = db_members.tbl_users().await;
+                return tbl_usr.user_by_id(user_id).await;
+            }
+        }
+
+        // create new user
+        let mut data = self.0.write().await;
+        let pool = data.pool.clone();
         let db_members = match data.db_members.upgrade() {
             Some(db_data) => MembersDbInterface::new(db_data),
             None => {
@@ -185,7 +204,29 @@ impl SteamAccountItem {
                 return None;
             }
         };
-        db_members.tbl_users().await.user_by_id(data.row.rowid).await
+        let tbl_usr = db_members.tbl_users().await;
+        let user = match tbl_usr.create_new_user().await {
+            Some(user) => user,
+            None => {
+                log::error!("failed to create new user for {}", data.row.display());
+                return None;
+            }
+        };
+        data.row.user = Some(user.id().await);
+        match data.row.store(&pool).await {
+            Ok(_) => {},
+            Err(e) => {
+                log::error!("failed to store new user for {}", data.row.display());
+                return None;
+            }
+        }
+        return Some(user);
+    }
+
+    /// Returns true, if a user is assigned to this steam account
+    pub async fn has_user(&self) -> bool {
+        let data = self.0.read().await;
+        data.row.user.is_some()
     }
 
     /// Assign a new user

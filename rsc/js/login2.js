@@ -99,7 +99,6 @@ function password_login_api_callback(status, data) {
     }
 }
 
-
 // With Email button handling
 document.addEventListener('DOMContentLoaded', function () {
     let btn = document.getElementById("WithEmailButton");
@@ -123,5 +122,33 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             window.location.href = window.location.origin + "/html/login_email_existing/" + inp_email.value;
         }
+    })
+})
+
+// With Steam button handling
+document.addEventListener('DOMContentLoaded', function () {
+    let btn = document.getElementById("WithSteamButton");
+    btn.addEventListener("click", function() {
+        let switch_log_reg = document.getElementById("SwitchLoginRegister").getElementsByTagName("input")[0];
+
+        // disable UI
+        disable_all_elements(true);
+
+        // compose return URL
+        let steam_return_url = window.location.origin + "/html/"
+        if (switch_log_reg.checked) {
+            steam_return_url += "login_steam_create"
+        } else {
+            steam_return_url += "login_steam_existing"
+        }
+
+        // forward to steam
+        let steam_forward_url = "https://steamcommunity.com/openid/login"
+            + "?openid.ns=http://specs.openid.net/auth/2.0"
+            + "&openid.identity=http://specs.openid.net/auth/2.0/identifier_select"
+            + "&openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select"
+            + "&openid.mode=checkid_setup"
+            + "&openid.return_to=" + steam_return_url;
+        window.location.replace(steam_forward_url);
     })
 })

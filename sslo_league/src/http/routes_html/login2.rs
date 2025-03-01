@@ -1,10 +1,13 @@
 use axum::extract::{OriginalUri, Path, State};
+use axum::http;
 use axum::http::header::{REFRESH, SET_COOKIE};
 use axum::http::StatusCode;
 use axum::response::Response;
 use rand::RngCore;
 use crate::app_state::AppState;
 use crate::db2::members::email_accounts::EmailAccountItem;
+use crate::db2::members::steam_accounts::SteamAccountItem;
+use crate::db2::members::users::UserItem;
 use crate::http::HtmlTemplate;
 use crate::http::http_user::HttpUserExtractor;
 
@@ -142,8 +145,8 @@ pub async fn handler_email_existing(State(app_state): State<AppState>,
 
         // create a new token, but only if user is not already existing
         let mut token: Option<String> = None;  // need this option, because build fails when nesting new_email_login_token() and send_email()
-        if email_item.has_user().await {
-            log::warn!("Deny creating new email account with email='{}', because user already exists.", &email);
+        if !email_item.has_user().await || email_item.user().await.is_none() {
+            log::warn!("Deny logging into existing email account with email='{}', because user does not exists.", &email);
         } else {
             token = email_item.create_token().await;
         }
@@ -224,7 +227,143 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     let mut response = html.into_response().await;
     if let Some(cookie) = cookie {
         response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
-        response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
+        response.headers_mut().insert(REFRESH, "0; url=/".parse().unwrap());
+    }
+    Ok(response)
+}
+
+pub async fn get_steam_account(app_state: AppState, uri: http::uri::Uri) -> Option<SteamAccountItem> {
+    let mut steam_account : Option<SteamAccountItem> = None;
+    let db_members = app_state.database.db_members().await;
+    let tbl_steam = db_members.tbl_steam_accounts().await;
+
+    if let Some(query) = uri.query() {
+        let openid_string = format!("?{}", query);
+        if let Ok(params) = steamopenid::kv::decode_keyvalues(&openid_string) {
+
+            // get steam-id
+            let steam_id : Option<String> = match params.get("openid.claimed_id") {
+                None => None,
+                Some(claimed_id) => {
+                    let re = regex::Regex::new(r"^https://steamcommunity.com/openid/id/([0-9]+)$").unwrap();
+                    match re.captures(claimed_id) {
+                        Some(x) => match x.get(1) {
+                            Some(y) => Some(y.as_str().to_string()),
+                            None => None,
+                        },
+                        None => None,
+                    }
+                },
+            };
+
+            // verify
+            match steamopenid::verify_auth_keyvalues(&params).await {
+                Ok(true) => {
+                    if let Some(some_steam_id) = steam_id {
+                        steam_account = tbl_steam.item_by_steam_id(&some_steam_id, true).await;
+                    }
+                },
+                Ok(false) => {
+                    if let Some(some_steam_id) = steam_id {
+                        log::warn!("Steam verification failed for ID {}", some_steam_id);
+                    }
+                }
+                Err(e) => {
+                    log::error!("Could not verify steam openid parameters {}", e);
+                }
+            }
+        }
+    }
+
+    steam_account
+}
+
+pub async fn handler_steam_create(State(app_state): State<AppState>,
+                                  HttpUserExtractor(http_user): HttpUserExtractor,
+                                  OriginalUri(uri): OriginalUri,
+) -> Result<Response, StatusCode> {
+    let mut html = HtmlTemplate::new(http_user);
+
+    let db_members = app_state.database.db_members().await;
+    let tbl_cookie = db_members.tbl_cookie_logins().await;
+
+    // get user
+    let mut user : Option<UserItem> = None;
+    if let Some(some_steam_account) = get_steam_account(app_state, uri).await {
+        if some_steam_account.has_user().await {
+            log::warn!("Deny creating new steam account with SteamID='{}', because user already exists.", &some_steam_account.steam_id().await);
+        } else {
+            user = some_steam_account.user().await;  // this generates a new user and returns it
+            if user.is_none() {
+                log::error!("Could not create new user for SteamID={}", &some_steam_account.steam_id().await);
+                html.message_error("Could not create new user!".to_string());
+            }
+        }
+    }
+
+    // create login cookie
+    let mut cookie: Option<String> = None;
+    if let Some(some_user) = user.as_ref() {
+        if let Some(login_cookie_item) = tbl_cookie.create_new_cookie(some_user).await {
+            cookie = login_cookie_item.get_cookie().await;
+        }
+    }
+
+    // user info
+    if cookie.is_none() {
+        html.message_error("Login failed!".to_string());
+    }
+
+    // done
+    let mut response = html.into_response().await;
+    if let Some(cookie) = cookie {
+        response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
+        response.headers_mut().insert(REFRESH, "0; url=/".parse().unwrap());
+    }
+    Ok(response)
+}
+
+pub async fn handler_steam_existing(State(app_state): State<AppState>,
+                                    HttpUserExtractor(http_user): HttpUserExtractor,
+                                    OriginalUri(uri): OriginalUri,
+) -> Result<Response, StatusCode> {
+    let mut html = HtmlTemplate::new(http_user);
+
+    let db_members = app_state.database.db_members().await;
+    let tbl_cookie = db_members.tbl_cookie_logins().await;
+
+    // get user
+    let mut user : Option<UserItem> = None;
+    if let Some(steam_account) = get_steam_account(app_state, uri).await {
+        if !steam_account.has_user().await || steam_account.user().await.is_none() {
+            log::warn!("Deny logging into existing steam account with SteamID='{}', because user does not exists.", &steam_account.steam_id().await);
+        } else {
+            user = steam_account.user().await;  // this generates a new user and returns it
+            if user.is_none() {
+                log::error!("Could not create new user for SteamID={}", &steam_account.steam_id().await);
+                html.message_error("Could not create new user!".to_string());
+            }
+        }
+    }
+
+    // create login cookie
+    let mut cookie: Option<String> = None;
+    if let Some(some_user) = user.as_ref() {
+        if let Some(login_cookie_item) = tbl_cookie.create_new_cookie(some_user).await {
+            cookie = login_cookie_item.get_cookie().await;
+        }
+    }
+
+    // user info
+    if cookie.is_none() {
+        html.message_error("Login failed!".to_string());
+    }
+
+    // done
+    let mut response = html.into_response().await;
+    if let Some(cookie) = cookie {
+        response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
+        response.headers_mut().insert(REFRESH, "0; url=/".parse().unwrap());
     }
     Ok(response)
 }

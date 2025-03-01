@@ -181,7 +181,7 @@ impl EmailAccountItem {
     }
 
     /// returns the assigned user
-    /// If no user is assigned, a new user will by tried to created
+    /// If no user is assigned, a new user will be tried to create
     pub async fn user(&self) -> Option<UserItem> {
         {   // try reading existing user
             let data = self.0.read().await;
@@ -226,15 +226,15 @@ impl EmailAccountItem {
         }
         return Some(user);
     }
-    
-    
+
+
     /// Returns true, if a user is assigned to this email
     pub async fn has_user(&self) -> bool {
         let data = self.0.read().await;
         data.row.user.is_some()
     }
 
-    
+
     pub async fn set_user(&self, user: &UserItem) -> bool {
         let mut item_data = self.0.write().await;
         let pool = item_data.pool.clone();
