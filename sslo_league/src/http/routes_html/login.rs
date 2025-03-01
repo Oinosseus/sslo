@@ -16,8 +16,8 @@ pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor,
 ) -> Result<Response, StatusCode> {
 
     let mut html = HtmlTemplate::new(http_user);
-    html.include_css("/rsc/css/login2.css");
-    html.include_js("/rsc/js/login2.js");
+    html.include_css("/rsc/css/login.css");
+    html.include_js("/rsc/js/login.js");
     html.push_body("<div class=\"BgBox\">");
 
     // login/register switch
@@ -391,7 +391,7 @@ pub async fn handler_logout(State(app_state): State<AppState>,
     let mut response = html.into_response().await;
     if let Some(cookie_value) = cookie_value {
         response.headers_mut().insert(SET_COOKIE, cookie_value.parse().unwrap());
-        response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
+        response.headers_mut().insert(REFRESH, "0; url=/".parse().unwrap());
     }
     Ok(response)
 }
