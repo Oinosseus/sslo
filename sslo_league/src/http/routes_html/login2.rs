@@ -9,7 +9,7 @@ use crate::db2::members::email_accounts::EmailAccountItem;
 use crate::db2::members::steam_accounts::SteamAccountItem;
 use crate::db2::members::users::UserItem;
 use crate::http::HtmlTemplate;
-use crate::http::http_user::HttpUserExtractor;
+use crate::http::http_user::{HttpUser, HttpUserExtractor};
 
 pub async fn handler(HttpUserExtractor(http_user): HttpUserExtractor,
                      OriginalUri(uri): OriginalUri,
@@ -364,6 +364,34 @@ pub async fn handler_steam_existing(State(app_state): State<AppState>,
     if let Some(cookie) = cookie {
         response.headers_mut().insert(SET_COOKIE, cookie.parse().unwrap());
         response.headers_mut().insert(REFRESH, "0; url=/".parse().unwrap());
+    }
+    Ok(response)
+}
+
+pub async fn handler_logout(State(app_state): State<AppState>,
+                            HttpUserExtractor(mut http_user): HttpUserExtractor) -> Result<Response, StatusCode> {
+
+    // get tables
+    let tbl_cookie = app_state.database.db_members().await.tbl_cookie_logins().await;
+    let name = http_user.user.name().await;
+
+    let mut cookie_value: Option<String> = None;
+    if let Some(cookie_login) = http_user.cookie_login.take() {
+        cookie_value = Some(tbl_cookie.delete_cookie(cookie_login).await);  // invalidate login cookie
+        http_user = HttpUser::new_anonymous(app_state).await;  // downgrade http user
+    } else {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    // generate html
+    let mut html = HtmlTemplate::new(http_user);
+    html.message_success(format!("Logged out '{}' ...", name));
+
+    // create response
+    let mut response = html.into_response().await;
+    if let Some(cookie_value) = cookie_value {
+        response.headers_mut().insert(SET_COOKIE, cookie_value.parse().unwrap());
+        response.headers_mut().insert(REFRESH, "1; url=/".parse().unwrap());
     }
     Ok(response)
 }
