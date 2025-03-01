@@ -1,0 +1,150 @@
+:root {
+    /*--color-login: #2a5;*/
+    --color-login: var(--color-green);
+    --color-register: var(--color-red);
+    --color-disabled: #666;
+}
+
+#LabelLogin, #LabelRegister, #SwitchLoginRegister {
+    vertical-align: middle;
+}
+
+#SwitchLoginRegister {
+    position: relative;
+    display: inline-block;
+    width: 4em;
+    height: 1.4em;
+    margin-left: 1em;
+    margin-right: 1em;
+}
+
+#SwitchLoginRegister input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+#SwitchLoginRegister span {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--color-login);
+    transition: .4s;
+    border-radius: 0.2em;
+}
+
+#SwitchLoginRegister span:before {
+    position: absolute;
+    content: "";
+    height: 0.9em;
+    width: 1.5em;
+    left: 0.25em;
+    bottom: 0.25em;
+    background-color: var(--color-white);
+    transition: .4s;
+    border-radius: 0.2em;
+}
+
+#SwitchLoginRegister input:checked + span {
+    background-color: var(--color-register);
+}
+
+#SwitchLoginRegister input:checked + span:before {
+    transform: translateX(2em);
+}
+
+.HrLine {
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    margin-top: 3em;
+    margin-bottom: 1em;
+    font-size: 0.8em;
+    color: var(--color-disabled);
+}
+
+.HrLine:before, .HrLine:after {
+    background: var(--color-disabled);
+    height: 0.1em;
+    content: "";
+    flex: 1;
+}
+
+.HrLine:before {
+    margin-right: 1em;
+}
+
+.HrLine:after {
+    margin-left: 1em;
+}
+
+#LabelLogin.SwitchedToLogin {
+    color: var(--color-login);
+    transition: .4s;
+}
+
+#LabelLogin.SwitchedToRegister, #LabelRegister.SwitchedToLogin {
+    color: var(--color-disabled);
+    transition: .4s;
+}
+
+#LabelRegister.SwitchedToRegister {
+    color: var(--color-register);
+    transition: .4s;
+}
+
+main > div input {
+    box-sizing: border-box;
+    display: block;
+    margin: 0.5em 0 0 0;
+    width: 100%;
+    padding: 0.5em 1em;
+    background-color: transparent;
+}
+
+main > div input.SwitchedToLogin {
+    border: 0.2em solid var(--color-login);
+    transition: .4s;
+}
+
+main > div input.SwitchedToRegister {
+    border: 0.2em solid var(--color-register);
+    transition: .4s;
+}
+
+#WithPasswordId.SwitchedToRegister, #WithPasswordPassword.SwitchedToRegister {
+    border: 0.2em solid var(--color-disabled);
+    font-style: italic;
+    transition: .4s;
+}
+
+main > div button {
+    box-sizing: border-box;
+    display: block;
+    margin: 0.5em 0 0 0;
+    width: 100%;
+    padding: 0.5em 1em;
+}
+
+
+main > div button.SwitchedToLogin {
+    border: 0.2em solid var(--color-login);
+    background-color: var(--color-login);
+    transition: .4s;
+}
+
+main > div button.SwitchedToRegister {
+    border: 0.2em solid var(--color-register);
+    background-color: var(--color-register);
+    transition: .4s;
+}
+
+#WithPasswordButton.SwitchedToRegister {
+    border: 0.2em solid var(--color-disabled);
+    background-color: var(--color-disabled);
+    font-style: italic;
+    transition: .4s;
+}

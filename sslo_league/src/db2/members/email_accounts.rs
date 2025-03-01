@@ -226,7 +226,15 @@ impl EmailAccountItem {
         }
         return Some(user);
     }
+    
+    
+    /// Returns true, if a user is assigned to this email
+    pub async fn has_user(&self) -> bool {
+        let data = self.0.read().await;
+        data.row.user.is_some()
+    }
 
+    
     pub async fn set_user(&self, user: &UserItem) -> bool {
         let mut item_data = self.0.write().await;
         let pool = item_data.pool.clone();

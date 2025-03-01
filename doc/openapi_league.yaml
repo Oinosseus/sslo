@@ -21,18 +21,16 @@ components:
 paths:
   /login/password:
     post:
-      description: "Login with a link that is sent via email"
+      description: "Login with a password"
       requestBody:
-        description: If user_id is set, this is preferred and email is ignored
+        description: The identification can be either an email address or the user ID
         required: true
         content:
           application/json:
             schema:
               type: object
               properties:
-                user_id:
-                  type: integer
-                email:
+                identification:
                   type: string
                 password:
                   type: string

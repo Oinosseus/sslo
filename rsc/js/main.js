@@ -45,7 +45,11 @@ function api_v0_post(endpoint, tx_data, callback, callback_data) {
         })
 }
 
-
+function is_valid_email(email) {
+    return email.match(
+        /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+    );
+}
 
 function remove_quotes(text) {
     if (text.charAt(0) == "\"" && text.charAt(text.length-1) == "\"") {
