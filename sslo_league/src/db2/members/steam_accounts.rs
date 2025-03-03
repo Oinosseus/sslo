@@ -235,16 +235,28 @@ impl SteamAccountItem {
         let mut data = self.0.write().await;
 
         // check if user is already set
+        let new_user_id = user.id().await;
         if let Some(&existing_user) = data.row.user.as_ref() {
-            if existing_user == user.id().await {
+            if existing_user == new_user_id {
+                log::warn!("Ignore re-assigning {} to {}", user.display().await, data.row.display());
                 return Ok(());
             }
         }
 
         // save
-        data.row.user = Some(user.id().await);
+        let old_user = data.row.user;
+        data.row.user = Some(new_user_id);
         let pool = data.pool.clone();
-        data.row.store(&pool).await
+        let res = data.row.store(&pool).await;
+
+        // check result
+        if res.is_ok() {
+            log::info!("assigning {} to {}", user.display().await, data.row.display());
+        } else {
+            data.row.user = old_user;
+        }
+
+        return res;
     }
 
     pub async fn last_login(&self) -> OptionalDateTime {

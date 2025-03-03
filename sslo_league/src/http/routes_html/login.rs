@@ -278,6 +278,9 @@ pub async fn get_steam_account(app_state: AppState, uri: http::uri::Uri) -> Opti
     steam_account
 }
 
+
+/// Create a new steam account
+/// When the steam account already exists, then it only works when no user is assigned
 pub async fn handler_steam_create(State(app_state): State<AppState>,
                                   HttpUserExtractor(http_user): HttpUserExtractor,
                                   OriginalUri(uri): OriginalUri,
@@ -323,6 +326,7 @@ pub async fn handler_steam_create(State(app_state): State<AppState>,
     Ok(response)
 }
 
+/// Login with steam account and create a new user (if no user is already assigned)
 pub async fn handler_steam_existing(State(app_state): State<AppState>,
                                     HttpUserExtractor(http_user): HttpUserExtractor,
                                     OriginalUri(uri): OriginalUri,
@@ -366,6 +370,35 @@ pub async fn handler_steam_existing(State(app_state): State<AppState>,
         response.headers_mut().insert(REFRESH, "0; url=/".parse().unwrap());
     }
     Ok(response)
+}
+
+
+/// Login with steam account and assign it to the current logged http user
+pub async fn handler_steam_assign(State(app_state): State<AppState>,
+                                    HttpUserExtractor(http_user): HttpUserExtractor,
+                                    OriginalUri(uri): OriginalUri,
+) -> Result<Response, StatusCode> {
+    let mut html = HtmlTemplate::new(http_user);
+
+    // assign user
+    if let Some(steam_account) = get_steam_account(app_state, uri).await {
+        match steam_account.set_user(&html.http_user.user).await {
+            Ok(_) => {
+                html.message_success("Steam account assigned".to_string());
+            },
+            Err(e) => {
+                html.message_error("Internal error when assigning Steam account!".to_string());
+                log::error!("Assigning {} to {} failed: {}",
+                    &html.http_user.user.display().await,
+                    steam_account.display().await, e);
+            }
+        }
+    } else {
+        html.message_error("Deny assigning invalid Steam, account".to_string());
+    }
+
+    // done
+    Ok(html.into_response().await)
 }
 
 pub async fn handler_logout(State(app_state): State<AppState>,

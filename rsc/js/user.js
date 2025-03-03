@@ -66,4 +66,3 @@ function api_callback(status, data) {
         form.elements[i].setAttribute("disabled", "true");
     }
 }
-

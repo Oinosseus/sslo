@@ -2,22 +2,20 @@
     --color-dark-bg: rgba(0, 0, 0, 0.6);
     --color-light-bg: rgba(0, 0, 0, 0.3);
 
-    /* New Color Scheme */
+    /* general purpose colors */
     --color-white: #dde;
     --color-black: #666;
     --color-green: #28c030;
     --color-blue: #2070f0;
     --color-red: #dc3545;
 
+    /* special purpose colors */
     --color-success-fg: #3d1c;
     --color-success-bg: #3d13;
-
-    --color-modified-fg: #ff0c;
-    --color-modified-bg: #ff03;
-
+    --color-modified-fg: #fb0c;
+    --color-modified-bg: #fb03;
     --color-waiting-fg: #00fa;
     --color-waiting-bg: #00f3;
-
     --color-failed-fg: #f00a;
     --color-failed-bg: #f003;
 }
@@ -413,4 +411,23 @@ div.OptionalDateTime > div {
 
 .NoBr > * {
     display: inline-block;
+}
+
+.ButtonDelete {
+    color: var(--color-disabled);
+    background-color: transparent;
+    border: none;
+}
+
+.ButtonDelete:hover {
+    color: var(--color-failed-fg);
+    outline: none;
+}
+
+.ButtonDelete:focus {
+    outline: none;
+}
+
+.ButtonDelete:before {
+    content: "\1f5d1";
 }

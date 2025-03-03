@@ -1,0 +1,62 @@
+
+div#AccountTypeSelection {
+    display: block;
+    /*margin-bottom: 2em;*/
+    text-align: right;
+}
+
+div#AccountTypeSelection + hr {
+    margin-top: 0.25em;
+}
+
+div#AccountTypeSelection > div {
+    display: block;
+    padding: 0.5em 1em;
+    margin-bottom: 0.3em;
+    font-weight: bold;
+    background-color: transparent;
+    color: var(--color-white);
+}
+
+div#AccountTypeSelection > button {
+    display: inline-block;
+    padding: 0.5em 1em;
+    margin-right: 1em;
+    border-radius: 0;
+    border: 0.2em solid var(--color-white);
+    font-weight: bold;
+    background-color: transparent;
+    color: var(--color-white);
+}
+
+div#AccountTypeSelection > button:last-child {
+    margin-right: 0;
+}
+
+div#AccountTypeSelection > button.ActiveButton {
+    background-color: var(--color-white);
+    color: var(--color-black);
+}
+
+div#AccountTypeSelection > button:focus {
+    outline: none;
+}
+
+.TabActive,
+.TabInActive {
+}
+
+.TabInActive {
+    display: none;
+}
+
+
+.TabActive > *,
+.TabInActive > * {
+    padding: 0.5em 1em;
+}
+
+#AccountTabSteam > a {
+    display: inline-block;
+    margin-top: 2em;
+}

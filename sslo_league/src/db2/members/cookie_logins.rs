@@ -201,7 +201,7 @@ impl CookieLoginItem {
                 return None;
             },
             Some(decrypted_token) => {
-                let cookie = format!("cookie_login={}:{}; HttpOnly; Max-Age=31536000; SameSite=Strict; Partitioned; Secure; Path=/;",
+                let cookie = format!("cookie_login={}:{}; HttpOnly; Max-Age=31536000; SameSite=Lax; Partitioned; Secure; Path=/;",
                                      data.row.rowid, decrypted_token);
                 return Some(cookie);
             },

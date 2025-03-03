@@ -113,7 +113,7 @@ impl HtmlTemplate {
             html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">User ⯆</a>\n";
             html += "              <div>\n";
             html += "                  <a href=\"/html/user_profile\">Profile</a>\n";
-            html += "                  <a href=\"/html/user_credentials\">Credentials</a>\n";
+            html += "                  <a href=\"/html/user/accounts\">Accounts</a>\n";
             html += "                  <a href=\"/html/logout\">Logout</a>\n";
             html += "              </div>\n";
             html += "          </div>\n";
@@ -179,10 +179,11 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/html/login_email_verify/:email/:token", routing::get(routes_html::login::handler_email_verify))
         .route("/html/login_steam_create", routing::get(routes_html::login::handler_steam_create))
         .route("/html/login_steam_existing", routing::get(routes_html::login::handler_steam_existing))
+        .route("/html/login_steam_assign", routing::get(routes_html::login::handler_steam_assign))
         .route("/html/logout", routing::get(routes_html::login::handler_logout))
 
         .route("/html/user_profile", routing::get(routes_html::user::handler_profile))
-        .route("/html/user_credentials", routing::get(routes_html::user::handler_credentials))
+        .route("/html/user/accounts", routing::get(routes_html::user::accounts::handler))
 
         .route("/api/v0/login/password", routing::post(routes_rest_v0::login_password::handler))
         .route("/api/v0/user/set_password", routing::post(routes_rest_v0::user::handler_set_password))
