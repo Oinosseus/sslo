@@ -76,3 +76,12 @@ function prepare_password_save(input_elements) {
         api_data:{old_password: pwd_current, new_password: pwd_new1},
     };
 }
+
+function handler_button_delete_email(email_id) {
+    console.log("Deleting Email #" + email_id);
+}
+
+function handler_button_add_email(email_id) {
+    let inp_eml = document.getElementById("AddEmail");
+    console.log("Adding Email #" + inp_eml.value);
+}

@@ -414,13 +414,18 @@ div.OptionalDateTime > div {
 }
 
 .ButtonDelete {
-    color: var(--color-disabled);
-    background-color: transparent;
-    border: none;
+    color: var(--color-white);
+    background-color: var(--color-failed-bg);
+    /*vertical-align: middle;*/
+    border: 0.1em solid var(--color-failed-fg);
+    /*display: inline-block;*/
+    /*margin: auto;*/
+    justify-content: center;
+    box-sizing: border-box;
 }
 
 .ButtonDelete:hover {
-    color: var(--color-failed-fg);
+    background-color: var(--color-failed-fg);
     outline: none;
 }
 
@@ -430,4 +435,25 @@ div.OptionalDateTime > div {
 
 .ButtonDelete:before {
     content: "\1f5d1";
+}
+
+
+.ButtonAdd {
+    color: var(--color-white);
+    background-color: var(--color-success-bg);
+    border: 0.1em solid var(--color-success-fg);
+    font-weight: bold;
+}
+
+.ButtonAdd:hover {
+    background-color: var(--color-success-fg);
+    outline: none;
+}
+
+.ButtonAdd:focus {
+    outline: none;
+}
+
+.ButtonAdd:before {
+    content: "+";
 }

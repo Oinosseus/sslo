@@ -60,3 +60,8 @@ div#AccountTypeSelection > button:focus {
     display: inline-block;
     margin-top: 2em;
 }
+
+#AddEmail {
+    width: 100%;
+    box-sizing: border-box;
+}

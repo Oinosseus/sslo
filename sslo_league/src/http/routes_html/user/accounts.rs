@@ -49,11 +49,15 @@ pub async fn handler(State(app_state): State<AppState>,
         html.push_body(&eml.email().await);
         html.push_body("</td><td>");
         html.push_body(&eml.token_verification().await.html_label_full());
-        html.push_body("</tr>");
+        html.push_body("</td><td>");
+        html.push_body("<button class=\"ButtonDelete\" onclick=\"handler_button_delete_email(");
+        html.push_body(&eml.id().await.to_string());
+        html.push_body(")\" title=\"remove Steam account\"></button>");
+        html.push_body("</td></tr>");
     }
     html.push_body("<tr><td>");
-    html.push_body("<input type=\"email\" name=\"AddEmail\" placeholder=\"Additional email\">");
-    html.push_body(" <button title=\"Save\">&#128190; Save</button>");
+    html.push_body("<input type=\"email\" id=\"AddEmail\" placeholder=\"Additional email\"></td><td></td><td>");
+    html.push_body("<button title=\"Mail verification link\" class=\"ButtonAdd\" onclick=\"handler_button_add_email()\"></button>");
     html.push_body("</td></tr>");
     html.push_body("</table>");
     html.push_body("</div>");
