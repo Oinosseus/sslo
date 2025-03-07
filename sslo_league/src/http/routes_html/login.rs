@@ -84,7 +84,7 @@ pub async fn handler_email_create(State(app_state): State<AppState>,
         Some(eml) => eml,
         None => match tbl_eml.create_account(email.clone()).await {
             Some(eml) => eml,
-            Noone => {
+            None => {
                 log::error!("Failed to create new email account with email='{}'", email);
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
             },

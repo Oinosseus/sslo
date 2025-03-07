@@ -189,6 +189,7 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/api/v0/user/set_password", routing::post(routes_rest_v0::user::handler_set_password))
         .route("/api/v0/user/set_name", routing::post(routes_rest_v0::user::handler_set_name))
         .route("/api/v0/user/account/email", routing::put(routes_rest_v0::user::account::email_put))
+        .route("/api/v0/user/account/email", routing::delete(routes_rest_v0::user::account::email_delete))
 
         .with_state(app_state);
     router

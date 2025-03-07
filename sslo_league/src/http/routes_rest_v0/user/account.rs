@@ -38,7 +38,7 @@ pub async fn email_put(State(app_state): State<AppState>,
         Some(eml) => eml,
         None => match tbl_eml.create_account(input.email.clone()).await {
             Some(eml) => {
-                if !eml.set_user(&http_user.user).await {
+                if !eml.set_user(Some(&http_user.user)).await {
                     return GeneralError::new(StatusCode::INTERNAL_SERVER_ERROR, "Failed to assign user to email account!".to_string()).into_response()
                 }
                 eml
@@ -76,5 +76,42 @@ pub async fn email_put(State(app_state): State<AppState>,
         }
     }
 
+    StatusCode::NO_CONTENT.into_response()
+}
+
+pub async fn email_delete(State(app_state): State<AppState>,
+                       HttpUserExtractor(http_user): HttpUserExtractor,
+                       Json(input): Json<RequestData>,
+) -> Response {
+
+    // verify user
+    if http_user.user.id().await <= 0 {
+        log::warn!("Deny adding email '{}' to invalid {}", input.email, http_user.user.display().await);
+        return GeneralError::new(StatusCode::FORBIDDEN, "No valid user logged in to add an email account!".to_string()).into_response();
+    }
+
+    // artificial slowdown
+    let wait_ms: u64 = 1000u64 + u64::from(rand::thread_rng().next_u32()) / 0x200_000u64; // results in 1000..3048ms
+    tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
+
+    // get email account and create a token
+    let tbl_eml = app_state.database.db_members().await.tbl_email_accounts().await;
+    let email_item: EmailAccountItem = match tbl_eml.item_by_email_ignore_verification(&input.email).await {
+        Some(eml) => eml,
+        None => {
+            log::warn!("Deny deleting email '{}' from {}, because email does not exist!", input.email, http_user.user.display().await);
+            return GeneralError::new(StatusCode::INTERNAL_SERVER_ERROR, "Email deletion not possible!".to_string()).into_response()
+        },
+    };
+    if let Some(email_user) = email_item.user().await {
+        if email_user.id().await != http_user.user.id().await {
+            log::warn!("Deny deleting email '{}' for {}, because email is assigned to {}",
+                input.email, http_user.user.display().await, email_user.id().await);
+            return GeneralError::new(StatusCode::INTERNAL_SERVER_ERROR, "Email deletion not possible!".to_string()).into_response()
+        }
+    }
+
+    // unset user
+    email_item.set_user(None).await;
     StatusCode::NO_CONTENT.into_response()
 }

@@ -1,3 +1,28 @@
+function disable_all_elements(disable) {
+    // let switch_log_reg = document.getElementById("SwitchLoginRegister").getElementsByTagName("input")[0];
+    // switch_log_reg.disabled = disable;
+
+    // if (switch_log_reg.checked) {
+    //     document.getElementById("WithPasswordId").disabled = true;
+    //     document.getElementById("WithPasswordPassword").disabled = true;
+    //     document.getElementById("WithPasswordButton").disabled = true;
+    // } else {
+    //     document.getElementById("WithPasswordId").disabled = disable;
+    //     document.getElementById("WithPasswordPassword").disabled = disable;
+    //     document.getElementById("WithPasswordButton").disabled = disable;
+    // }
+    //
+    // document.getElementById("WithEmailEmail").disabled = disable;
+    // document.getElementById("WithEmailButton").disabled = disable;
+    //
+    // document.getElementById("WithSteamButton").disabled = disable;
+
+    if (disable) {
+        document.body.style.cursor = "wait";
+    } else {
+        document.body.style.cursor = "default";
+    }
+}
 
 function tabSelectByIndex(active_index) {
 
@@ -77,11 +102,14 @@ function prepare_password_save(input_elements) {
     };
 }
 
-function handler_button_delete_email(email_id) {
-    console.log("Deleting Email #" + email_id);
+function handler_button_delete_email(email) {
+    let tx_data= { email: email };
+    api_v0("DELETE", "user/account/email", tx_data, handler_button_email_callback);
+    console.log("DELETE " + email);
+    disable_all_elements(true);
 }
 
-function handler_button_add_email(email_id) {
+function handler_button_add_email() {
     let inp_eml = document.getElementById("AddEmail");
 
     // check valid email
@@ -92,19 +120,24 @@ function handler_button_add_email(email_id) {
 
     // send request
     let tx_data= { email: inp_eml.value };
-    api_v0("PUT", "user/account/email", tx_data, handler_button_add_email_callback);
+    api_v0("PUT", "user/account/email", tx_data, handler_button_email_callback);
+    disable_all_elements(true);
 }
 
-function handler_button_add_email_callback(status, data) {
+function handler_button_email_callback(status, data) {
     if (status == 204) {
         location.reload();
     } else if (status == 400) {
+        disable_all_elements(false);
         append_message_error(data.summary, data.description);
     } else if (status == 403) {
+        disable_all_elements(false);
         append_message_error(data.summary, data.description);
     } else if (status == 500) {
+        disable_all_elements(false);
         append_message_error(data.summary, data.description);
     } else {
+        disable_all_elements(false);
         append_message_error("Unexpected Error", data);
     }
 }

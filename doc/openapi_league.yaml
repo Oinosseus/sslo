@@ -121,12 +121,8 @@ paths:
                 email:
                   type: string
       responses:
-        '200':
+        '204':
           description: "The email is removed (if it was existent)"
-          content:
-            application/json:
-              schema:
-                type: object
         '400':
           $ref: '#/components/responses/GeneralError'
         '401':

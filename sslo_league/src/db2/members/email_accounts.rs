@@ -240,12 +240,23 @@ impl EmailAccountItem {
     }
 
 
-    pub async fn set_user(&self, user: &UserItem) -> bool {
+    /// When user is None, the user is unassigned from this email account
+    pub async fn set_user(&self, user: Option<&UserItem>) -> bool {
         let mut item_data = self.0.write().await;
         let pool = item_data.pool.clone();
-        item_data.row.user = Some(user.id().await);
+
+        let item_display_old = item_data.row.display();
+
+        item_data.row.user = match user {
+            None => None,
+            Some(user) => Some(user.id().await),
+        };
+
         match item_data.row.store(&pool).await {
-            Ok(_) => true,
+            Ok(_) => {
+                log::info!("Set user from {} to {}", item_display_old, item_data.row.display());
+                true
+            },
             Err(e) => {
                 log::error!("Failed to set user for {}: {}", item_data.row.display(), e);
                 false

@@ -50,9 +50,9 @@ pub async fn handler(State(app_state): State<AppState>,
         html.push_body("</td><td>");
         html.push_body(&eml.token_verification().await.html_label_full());
         html.push_body("</td><td>");
-        html.push_body("<button class=\"ButtonDelete\" onclick=\"handler_button_delete_email(");
-        html.push_body(&eml.id().await.to_string());
-        html.push_body(")\" title=\"remove Steam account\"></button>");
+        html.push_body("<button class=\"ButtonDelete\" onclick=\"handler_button_delete_email('");
+        html.push_body(&eml.email().await.to_string());
+        html.push_body("')\" title=\"remove Steam account\"></button>");
         html.push_body("</td></tr>");
     }
     html.push_body("<tr><td>");
