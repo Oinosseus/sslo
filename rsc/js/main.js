@@ -21,6 +21,36 @@ function navbarDropdown(element) {
     }
 }
 
+/** Make a call to the v0 API
+ * method - A string with http method (e.g. GET, POST, PUT)
+ * endpoint - the relative path to the REST API endpoint
+ * tx_data - an object that can be json parsed
+ * callback - function(return_code, json_data, callback_data)
+ * callback_data - arbitraty data that is hand over to the callbackl function
+ */
+function api_v0(method, endpoint, tx_data, callback, callback_data) {
+    let tx_data_string = JSON.stringify(tx_data);
+    fetch("/api/v0/" + endpoint, {
+        method: method,
+        headers: {
+            "Content-Type": "application/json",
+            "Content-Length": tx_data_string.length,
+        },
+        body: tx_data_string,
+    })
+        .then(response => {
+            if (response.status == 204) {  // response with no data
+                callback(response.status, {}, callback_data);
+            } else {
+                response.json().then(json_data => {callback(response.status, json_data, callback_data)});
+            }
+        })
+        .catch(error => {
+            console.log("API error: " + error);
+        })
+}
+
+
 /** Make a POST call to the v0 API
  * endpoint - the relative path to the REST API endpoint
  * tx_data - an object that can be json parsed
@@ -38,7 +68,11 @@ function api_v0_post(endpoint, tx_data, callback, callback_data) {
         body: tx_data_string,
     })
         .then(response => {
-            response.json().then(json_data => {callback(response.status, json_data, callback_data)});
+            if (response.status == 204) {  // response with no data
+                callback(response.status, {}, callback_data);
+            } else {
+                response.json().then(json_data => {callback(response.status, json_data, callback_data)});
+            }
         })
         .catch(error => {
             console.log("API error: " + error);

@@ -20,6 +20,7 @@ struct DbDataRow {
     user: Option<i64>,
     email: String,
     token: Option<String>,
+    token_user: Option<i64>,
     token_creation: Option<DateTime<Utc>>,
     token_consumption: Option<DateTime<Utc>>,
 }
@@ -32,6 +33,7 @@ impl DbDataRow {
             user: None,
             email,
             token: None,
+            token_user: None,
             token_creation: None,
             token_consumption: None,
         }
@@ -103,18 +105,20 @@ impl DbDataRow {
                 "(user,\
                   email,\
                   token,\
+                  token_user, \
                   token_creation,\
                   token_consumption)\
-                  VALUES ($1, $2, $3, $4, $5) RETURNING rowid;"))
+                  VALUES ($1, $2, $3, $4, $5, $6) RETURNING rowid;"))
             },
             _ => {
                 sqlx::query(concat!("UPDATE ", tablename!(), " SET \
                                    user=$1,\
                                    email=$2,\
                                    token=$3,\
-                                   token_creation=$4,\
-                                   token_consumption=$5 \
-                                   WHERE rowid=$6;"))
+                                   token_user=$4,\
+                                   token_creation=$5,\
+                                   token_consumption=$6 \
+                                   WHERE rowid=$7;"))
             }
         };
 
@@ -122,6 +126,7 @@ impl DbDataRow {
         query = query.bind(&self.user)
             .bind(&self.email)
             .bind(&self.token)
+            .bind(&self.token_user)
             .bind(&self.token_creation)
             .bind(&self.token_consumption);
         if self.rowid != 0 {
@@ -292,7 +297,7 @@ impl EmailAccountItem {
     /// The token is not created, if an existing token is still pending.
     /// A token is pending until verified or until a timeout has passed.
     /// The token is stored into DB encrypted, the unencrypted token is returned.
-    pub async fn create_token(&self) -> Option<String> {
+    pub async fn create_token(&self, user: Option<&UserItem>) -> Option<String> {
         let mut item_data = self.0.write().await;
         let pool = item_data.pool.clone();
         let row_display = item_data.row.display();
@@ -322,6 +327,10 @@ impl EmailAccountItem {
 
         // update data and return
         item_data.row.token = Some(token.encrypted);
+        item_data.row.token_user = match user {
+            None => None,
+            Some(u) => Some(u.id().await),
+        };
         item_data.row.token_creation = Some(time_now);
         item_data.row.token_consumption = None;
         match item_data.row.store(&pool).await {
@@ -385,6 +394,7 @@ impl EmailAccountItem {
 
         // update email_token_consumption
         item_data.row.token = None;  // reset for security
+        item_data.row.user = item_data.row.token_user;  // set requested user
         item_data.row.token_consumption = Some(time_now);
         if let Err(e) = item_data.row.store(&pool).await {
             log::error!("failed to store verified email token for{}: {}", row_display, e);

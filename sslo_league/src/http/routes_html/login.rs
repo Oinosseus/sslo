@@ -96,7 +96,7 @@ pub async fn handler_email_create(State(app_state): State<AppState>,
     if email_item.has_user().await {
         log::warn!("Deny creating new email account with email='{}', because user already exists.", &email);
     } else {
-        token = email_item.create_token().await;
+        token = email_item.create_token(None).await;
     }
 
     // send info email
@@ -148,7 +148,7 @@ pub async fn handler_email_existing(State(app_state): State<AppState>,
         if !email_item.has_user().await || email_item.user().await.is_none() {
             log::warn!("Deny logging into existing email account with email='{}', because user does not exists.", &email);
         } else {
-            token = email_item.create_token().await;
+            token = email_item.create_token(email_item.user().await.as_ref()).await;
         }
 
         // send info email
@@ -221,6 +221,8 @@ pub async fn handler_email_verify(State(app_state): State<AppState>,
     // user info
     if cookie.is_none() {
         html.message_error("Login failed!".to_string());
+    } else {
+        html.message_success("Login Successful".to_string());
     }
 
     // done

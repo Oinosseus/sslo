@@ -83,5 +83,28 @@ function handler_button_delete_email(email_id) {
 
 function handler_button_add_email(email_id) {
     let inp_eml = document.getElementById("AddEmail");
-    console.log("Adding Email #" + inp_eml.value);
+
+    // check valid email
+    if (!is_valid_email(inp_eml.value)) {
+        append_message_error("Invalid Email", "The entered new email '" + inp_eml.value + "' is invalid!");
+        return;
+    }
+
+    // send request
+    let tx_data= { email: inp_eml.value };
+    api_v0("PUT", "user/account/email", tx_data, handler_button_add_email_callback);
+}
+
+function handler_button_add_email_callback(status, data) {
+    if (status == 204) {
+        location.reload();
+    } else if (status == 400) {
+        append_message_error(data.summary, data.description);
+    } else if (status == 403) {
+        append_message_error(data.summary, data.description);
+    } else if (status == 500) {
+        append_message_error(data.summary, data.description);
+    } else {
+        append_message_error("Unexpected Error", data);
+    }
 }

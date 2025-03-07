@@ -33,8 +33,19 @@ CREATE TABLE email_accounts (
     rowid INTEGER PRIMARY KEY,
     user INTEGER,
     email TEXT UNIQUE,
+
+    -- the token that shall be sent via email and verified back
     token BLOB UNIQUE,
+
+    -- This defines the user, that shall be assigned after successful token verification
+    token_user INTEGER,
+
+    -- when the token was created
     token_creation TEXT,
+
+    -- when the token was verified
     token_consumption TEXT,
-    FOREIGN KEY(user) REFERENCES users(rowid)
+
+    FOREIGN KEY(user) REFERENCES users(rowid),
+    FOREIGN KEY(token_user) REFERENCES users(rowid)
 )

@@ -49,7 +49,7 @@ pub async fn email_put(State(app_state): State<AppState>,
             },
         },
     };
-    let token : Option<String> = email_item.create_token().await;
+    let token : Option<String> = email_item.create_token(Some(&http_user.user)).await;
 
     // send info email
     if let Some(t) = token {
