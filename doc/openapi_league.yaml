@@ -86,3 +86,50 @@ paths:
           $ref: '#/components/responses/GeneralError'
         '500':
           $ref: '#/components/responses/GeneralError'
+  /user/account/email:
+    put:
+      summary: Add email account
+      requestBody:
+        description: The email address
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+      responses:
+        '204':
+          description: "Request okay. An email with a verification link should be sent."
+        '400':
+          $ref: '#/components/responses/GeneralError'
+        '403':
+          $ref: '#/components/responses/GeneralError'
+        '500':
+          $ref: '#/components/responses/GeneralError'
+    delete:
+      summary: Remove an email account
+      requestBody:
+        description: The email address
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+      responses:
+        '200':
+          description: "The email is removed (if it was existent)"
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/GeneralError'
+        '401':
+          $ref: '#/components/responses/GeneralError'
+        '500':
+          $ref: '#/components/responses/GeneralError'
