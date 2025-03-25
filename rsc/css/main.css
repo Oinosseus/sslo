@@ -94,14 +94,14 @@ div#BusySpinner > div {
 }
 
 div#BusySpinner svg {
-    width: 20%;
+    width: 40%;
 }
 #BusySpinnerS1Fg, #BusySpinnerS1Bg,
 #BusySpinnerS2Fg, #BusySpinnerS2Bg,
 #BusySpinnerLBg, #BusySpinnerLFg,
 #BusySpinnerOBg, #BusySpinnerOFg, #BusySpinnerORing,
 #BusySpinnerRedTop, #BusySpinnerRedBottom {
-    animation-duration: 0.6s;
+    animation-duration: 0.5s;
     animation-direction: alternate;
     animation-timing-function:  ease-in-out;
     animation-iteration-count: infinite;
@@ -113,15 +113,15 @@ div#BusySpinner svg {
 }
 
 #BusySpinnerS2Fg, #BusySpinnerS2Bg {
-    animation-delay: 150ms;
+    animation-delay: 100ms;
 }
 
 #BusySpinnerLBg, #BusySpinnerLFg {
-    animation-delay: 300ms;
+    animation-delay: 200ms;
 }
 
 #BusySpinnerOBg, #BusySpinnerOFg, #BusySpinnerORing {
-    animation-delay: 450ms;
+    animation-delay: 300ms;
 }
 
 #BusySpinnerRedTop {
