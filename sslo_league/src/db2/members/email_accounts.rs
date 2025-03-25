@@ -722,19 +722,19 @@ mod tests {
 
             // successfully create and verify token
             assert_eq!(item.is_verified().await, false);
-            let token = item.create_token().await.unwrap();
+            let token = item.create_token(None).await.unwrap();
             assert!(token.len() > 20); // ensure to have a secure token
             assert!(item.consume_token(token).await);
             assert_eq!(item.is_verified().await, true);
 
             // successfully create and verify token (should work a second time)
-            let token = item.create_token().await.unwrap();
+            let token = item.create_token(None).await.unwrap();
             assert!(token.len() > 20); // ensure to have a secure token
             assert!(item.consume_token(token).await);
             assert_eq!(item.is_verified().await, true);
 
             // fail to consume a wrong token
-            let mut token = item.create_token().await.unwrap();
+            let mut token = item.create_token(None).await.unwrap();
             assert!(token.len() > 20); // ensure to have a secure token
             token.push('X'); // manipulate the token
             assert!(!item.consume_token(token.clone()).await);
@@ -798,7 +798,7 @@ mod tests {
 
             // create two emails
             let item = tbl.create_account("a.b@c.de".to_string()).await.unwrap();
-            let token = item.create_token().await.unwrap();
+            let token = item.create_token(None).await.unwrap();
             assert!(item.consume_token(token).await);
             tbl.create_account("siegmund.jaehn@space.de".to_string()).await.unwrap();
 

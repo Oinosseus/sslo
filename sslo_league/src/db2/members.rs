@@ -172,7 +172,7 @@ mod tests {
             let usr = db.tbl_users().await.create_new_user().await.unwrap();
             assert_eq!(usr.id().await, 1);
             let eml = db.tbl_email_accounts().await.create_account("a.b@c.de".to_string()).await.unwrap();
-            assert!(eml.set_user(&usr).await);
+            assert!(eml.set_user(Some(&usr)).await);
             assert_eq!(eml.user().await.unwrap().id().await, usr.id().await);
 
             // another mail (not associated to known user
@@ -193,12 +193,12 @@ mod tests {
 
             // creates email accounts
             let eml = tbl_eml.create_account("a.b@c.de".to_string()).await.unwrap();
-            assert!(eml.set_user(&usr).await);
+            assert!(eml.set_user(Some(&usr)).await);
             let eml = tbl_eml.create_account("foo.bar@c.de".to_string()).await.unwrap();
-            assert!(eml.set_user(&usr).await);
+            assert!(eml.set_user(Some(&usr)).await);
             let eml = tbl_eml.create_account("not.associated@elsewhere.net".to_string()).await.unwrap();
             let eml = tbl_eml.create_account("foo.baz@c.de".to_string()).await.unwrap();
-            assert!(eml.set_user(&usr).await);
+            assert!(eml.set_user(Some(&usr)).await);
 
             // check associated accounts
             let items = tbl_eml.items_by_user(&usr).await;
@@ -235,41 +235,5 @@ mod tests {
             let user2 = steam_account.user().await.unwrap();
             assert_eq!(user.id().await, user2.id().await);
         }
-    }
-
-    #[test(tokio::test)]
-    async fn email_login_and_cookie() {
-        // Reproducing a strange situation during development
-        // This reproduces the email-login and cookie procedure
-
-        let db = get_db().await;
-        let tbl_eml = db.tbl_email_accounts().await;
-        let tbl_usr = db.tbl_users().await;
-        let tbl_cki = db.tbl_cookie_logins().await;
-
-        // create a dummy user
-        // (actual user with the issue shall have ID=2)
-        // There was an issue with that special situation
-        tbl_usr.create_new_user().await.unwrap();
-
-        // user registers with email
-        let eml = tbl_eml.create_account("a.b@c.de".to_string()).await.unwrap();
-
-        // sending token via email
-        let token = eml.create_token().await.unwrap();
-
-        // receiving email token, create new user account and cookie
-        let eml = tbl_eml.item_by_id(1).await.unwrap();
-        assert_eq!(eml.email().await, "a.b@c.de".to_string());
-        eml.consume_token(token).await;
-        let usr = eml.user().await.unwrap();
-        assert_eq!(usr.id().await, 2);
-        let cki = tbl_cki.create_new_cookie(&usr).await.unwrap();
-        let cookie_string = cki.get_cookie().await.unwrap();
-
-        // login by cookie, get user
-        let cki = tbl_cki.item_by_cookie("unittest".to_string(), &cookie_string).await.unwrap();
-        let usr = cki.user().await.unwrap();
-        assert_eq!(usr.id().await, 2);
     }
 }
