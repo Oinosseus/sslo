@@ -28,7 +28,7 @@ body {
     padding: 0;
 }
 
-body > div {
+div#BodyDiv {
     background-color: #222f33;
     background-image: url("/rsc/img/background.png");
     background-attachment: fixed;
@@ -68,6 +68,101 @@ table tr:nth-child(even) td {
 table tr:nth-child(odd) td {
     background-color: var(--color-dark-bg);
 }
+
+
+/*****************************************************************************
+                               BusySpinner
+ *****************************************************************************/
+
+div#BusySpinner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0.4, 0.4, 0.4, 0.75);
+    color: var(--color-white);
+    display: block;
+    align-content: center;
+    text-align: center;
+    display: none;
+}
+
+div#BusySpinner > div {
+    display: block;
+    font-weight: bold;
+}
+
+div#BusySpinner svg {
+    width: 20%;
+}
+#BusySpinnerS1Fg, #BusySpinnerS1Bg,
+#BusySpinnerS2Fg, #BusySpinnerS2Bg,
+#BusySpinnerLBg, #BusySpinnerLFg,
+#BusySpinnerOBg, #BusySpinnerOFg, #BusySpinnerORing,
+#BusySpinnerRedTop, #BusySpinnerRedBottom {
+    animation-duration: 1.0s;
+    animation-direction: alternate;
+    animation-timing-function:  ease-in-out;
+    animation-iteration-count: infinite;
+    animation-name: BusySpinnerAnimation;
+}
+
+#BusySpinnerS1Fg, #BusySpinnerS1Bg {
+    animation-delay: 0ms;
+}
+
+#BusySpinnerS2Fg, #BusySpinnerS2Bg {
+    animation-delay: 250ms;
+}
+
+#BusySpinnerLBg, #BusySpinnerLFg {
+    animation-delay: 500ms;
+}
+
+#BusySpinnerOBg, #BusySpinnerOFg, #BusySpinnerORing {
+    animation-delay: 750ms;
+}
+
+#BusySpinnerRedTop {
+    animation-name: BusySpinnerAnimationRedTop;
+}
+
+#BusySpinnerRedBottom {
+    animation-name: BusySpinnerAnimationRedBottom;
+}
+
+@keyframes BusySpinnerAnimation {
+    0% {
+        transform: scale(1.0) translate(0, 0);
+    }
+    70% {
+        transform: scale(0.85) translate(6px, 17px);
+    }
+    100% {
+        transform: scale(0.85) translate(6px, 17px);
+    }
+}
+
+@keyframes BusySpinnerAnimationRedTop {
+    0% {
+        transform: scale(1.0) translate(0, 0);
+    }
+    100% {
+        transform: scale(0.99) translate(2px, 1px);
+    }
+}
+
+@keyframes BusySpinnerAnimationRedBottom {
+    0% {
+        transform: scale(1.0) translate(0, 0);
+    }
+    100% {
+        transform: scale(1.01) translate(-2px, -1px);
+    }
+}
+
+
 
 
 /*****************************************************************************

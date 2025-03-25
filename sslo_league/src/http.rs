@@ -93,9 +93,29 @@ impl HtmlTemplate {
             html += "\" defer></script>\n";
         }
         html += "  </head>\n";
+        html += "  <body>";
+
+        // busy spinner
+        html += "<div id=\"BusySpinner\">";
+        html += "<div><svg viewBox=\"-1 -2 88 36\">";
+        html += "<g transform=\"translate(-2.4746312,-74.753705)\">";
+        html += "<path id=\"BusySpinnerRedTop\" style=\"fill:#e52115;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\" d=\"M 4.6931537,91.168273 2.4746312,83.253777 84.608969,78.156731 80.454171,88.769797 Z\" />";
+        html += "<path id=\"BusySpinnerRedBottom\" style=\"fill:#e52115;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\" d=\"M 2.916956,100.28772 4.9668335,92.353875 80.861309,90.116 l 6.163959,14.28806 z\" />";
+        html += "<path id=\"BusySpinnerS1Bg\" style=\"display:inline;fill:#004600;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\" d=\"M 10.662993,79.128101 9.9900573,93.071494 11.3133,93.868482 8.8740882,106.23914 31.770429,104.42775 30.214801,86.663479 31.169867,85.907215 27.869605,75.943469 Z\"/>";
+        html += "<path id=\"BusySpinnerS2Bg\" style=\"fill:#004600;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\" d=\"m 28.396062,105.93963 20.134337,-2.49347 -1.461294,-18.907622 0.736878,-0.487128 -1.121232,-9.249898 -4.032255,0.623115 -11.668283,0.368656 -0.233722,17.08661 -0.980302,0.388673 z\" />";
+        html += "<path id=\"BusySpinnerS2Fg\" style=\"fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\" d=\"m 29.144261,105.05352 1.053166,-11.472878 9.810955,1.23217 0.977738,-0.917921 -9.820474,-0.509207 0.224637,-17.241837 14.979443,-0.752482 1.046523,8.64909 -8.54792,0.727555 -1.07929,0.714618 9.049445,-1.176597 1.349771,18.711809 z\" />";
+        html += "<path id=\"BusySpinnerOBg\" style=\"fill:#004600;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\" d=\"m 57.897911,74.902317 c 0,0 -1.255337,12.801036 -1.230957,31.487323 0,0 18.267263,0.34155 18.339329,-0.001 C 76.966937,97.055797 74.493847,78.573428 73.897433,75.086425 58.488165,74.467013 57.897911,74.902317 57.897911,74.902317 Z\" />";
+        html += "<path id=\"BusySpinnerOFg\" style=\"display:inline;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\" d=\"m 58.63426,75.516093 c -2.276455,12.707054 -1.588301,30.675647 -1.588301,30.675647 0,0 13.762354,0.36183 17.925367,-0.53684 1.204978,-23.315684 -1.729176,-30.233937 -1.729176,-30.233937 0,0 -6.021829,-0.797607 -14.60789,0.09513 z\" />";
+        html += "<path id=\"BusySpinnerLBg\" style=\"display:inline;fill:#004600;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\" d=\"m 54.005209,75.467091 0.202957,10.734361 4.481291,-0.07349 0.76304,18.079168 -0.518408,0.64761 c 0,0 -9.562832,0.63117 -9.754594,0.63117 -0.191759,0 -2.975382,-0.61349 -2.975382,-0.61349 l 2.317589,-12.658526 -1.507366,-17.360473 3.51512,0.466249 z\" />";
+        html += "<path id=\"BusySpinnerS1Fg\" style=\"fill:#ffffff;fill-opacity:1;stroke:#004600;stroke-width:0.565;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers\" d=\"M 10.948314,79.544703 10.511495,92.948831 24.412259,93.894348 23.991024,94.826544 11.65984,93.626175 9.5858333,105.75077 31.467195,103.82706 29.746565,87.849773 29.495232,85.859715 17.887637,87.579842 v -1.137285 l 12.666714,-0.77084 -2.925776,-8.949491 z\" />";
+        html += "<path id=\"BusySpinnerLFg\" style=\"fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\" d=\"m 47.451705,75.270888 1.413316,17.714086 -2.379222,12.086846 12.648936,-0.59286 -0.872692,-18.26329 -4.263853,0.321316 0.004,1.747123 -0.304239,0.327299 0.128702,-12.73805 z\" />";
+        html += "<path id=\"BusySpinnerORing\" style=\"fill:#004600;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\" d=\"m 63.699513,85.579766 4.652704,0.742514 -1.345161,9.792359 -1.113414,-9.18118 z\" />";
+        html += "</g>";
+        html += "</svg></div>";
+        html += "</div>";
 
         // html body
-        html += "  <body><div>\n";
+        html += "  <div id=\"BodyDiv\">\n";
 
         // page header
         html += "    <header>";

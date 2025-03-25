@@ -16,6 +16,8 @@ function disable_all_elements(disable) {
     document.getElementById("WithEmailButton").disabled = disable;
 
     document.getElementById("WithSteamButton").disabled = disable;
+    
+    busy_spinner(disable)
 }
 
 

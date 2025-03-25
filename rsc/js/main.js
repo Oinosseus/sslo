@@ -133,6 +133,15 @@ function append_message_success(title, message) {
 }
 
 
+function busy_spinner(visible) {
+    let bs_div = document.getElementById("BusySpinner");
+    if (visible) {
+        bs_div.style.display = "block";
+    } else {
+        bs_div.style.display = "none";
+    }
+}
+
 
 // ==========================================================================================
 //                                    LiveInput
