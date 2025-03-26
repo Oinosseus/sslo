@@ -143,7 +143,10 @@ impl Promotion {
 
     pub fn label(&self) -> &'static str {
         match self.level {
-            PromotionLevel::None => "",
+            PromotionLevel::None => match self.authority {
+                PromotionAuthority::Executing => {""}
+                PromotionAuthority::Chief => {"Chief"}
+            },
             PromotionLevel::Steward => match self.authority {
                 PromotionAuthority::Executing => {"Executing Steward"}
                 PromotionAuthority::Chief => {"Chief Steward"}
