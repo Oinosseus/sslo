@@ -73,26 +73,26 @@ impl HtmlTemplate {
     pub async fn into_response(self) -> Response {
         let mut html = String::new();
 
-        html += "<!DOCTYPE html>\n";
-        html += "<html>\n";
-        html += "  <head>\n";
-        html += "    <meta charset=\"UTF-8\">\n";
-        html += "    <meta name=\"color-scheme\" content=\"dark light\">\n";
-        html += "    <title>SSLO League</title>\n";
-        html += "    <link rel=\"icon\" href=\"/rsc/img/favicon.svg\" sizes=\"any\" type=\"image/svg+xml\">\n";
-        html += "    <link rel=\"stylesheet\" href=\"/rsc/css/main.css\">\n";
+        html += "<!DOCTYPE html>";
+        html += "<html>";
+        html += "  <head>";
+        html += "    <meta charset=\"UTF-8\">";
+        html += "    <meta name=\"color-scheme\" content=\"dark light\">";
+        html += "    <title>SSLO League</title>";
+        html += "    <link rel=\"icon\" href=\"/rsc/img/favicon.svg\" sizes=\"any\" type=\"image/svg+xml\">";
+        html += "    <link rel=\"stylesheet\" href=\"/rsc/css/main.css\">";
         for css_file in &self.css_files {
             html += "    <link rel=\"stylesheet\" href=\"";
             html += css_file;
-            html += "\">\n";
+            html += "\">";
         }
-        html += "    <script src=\"/rsc/js/main.js\" defer></script>\n";
+        html += "    <script src=\"/rsc/js/main.js\" defer></script>";
         for js_file in &self.js_files {
             html += "    <script src=\"";
             html += js_file;
-            html += "\" defer></script>\n";
+            html += "\" defer></script>";
         }
-        html += "  </head>\n";
+        html += "  </head>";
         html += "  <body>";
 
         // busy spinner
@@ -115,43 +115,59 @@ impl HtmlTemplate {
         html += "</div>";
 
         // html body
-        html += "  <div id=\"BodyDiv\">\n";
+        html += "  <div id=\"BodyDiv\">";
 
         // page header
         html += "    <header>";
-        html += "</header>\n";
+        html += "</header>";
 
         // navigation
-        html += "    <nav>\n";
-        html += "      <div id=\"NavbarLogo\"><a href=\"/\"><img src=\"/rsc/img/sslo_logo.svg\" title=\"Simracing Sports League Organization\"></a></div>\n";
-        html += "      <div id=\"NavbarMenu\">\n";
-        html += "          <div class=\"NavbarNoDrop\">\n";
-        html += "              <a href=\"/\" class=\"active\">Home</a>\n";
-        html += "          </div>\n";
+        html += "    <nav>";
+        html += "      <div id=\"NavbarLogo\"><a href=\"/\"><img src=\"/rsc/img/sslo_logo.svg\" title=\"Simracing Sports League Organization\"></a></div>";
+        html += "      <div id=\"NavbarMenu\">";
+        html += "          <div class=\"NavbarNoDrop\">";
+        html += "              <a href=\"/\" class=\"active\">Home</a>";
+        html += "          </div>";
+        html += "          <div class=\"NavbarDropdown\">";
+        html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">League ⯆</a>";
+        html += "              <div>";
+        html += "                  <a href=\"/html/ranking\">Driver Ranking</a>";
+        html += "                  <a href=\"/html/schedules\">Scheduled Races</a>";
+        html += "                  <a href=\"/html/championships\">Championships</a>";
+        html += "              </div>";
+        html += "          </div>";
+        html += "          <div class=\"NavbarDropdown\">";
+        html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">Content ⯆</a>";
+        html += "              <div>";
+        html += "                  <a href=\"/html/users\">Users</a>";
+        html += "                  <a href=\"/html/tracks\">Tracks</a>";
+        html += "                  <a href=\"/html/cars\">Cars</a>";
+        html += "              </div>";
+        html += "          </div>";
         if self.http_user.is_logged_in() {
-            html += "          <div class=\"NavbarDropdown\">\n";
-            html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">User ⯆</a>\n";
-            html += "              <div>\n";
-            html += "                  <a href=\"/html/user_profile\">Profile</a>\n";
-            html += "                  <a href=\"/html/user/accounts\">Accounts</a>\n";
-            html += "                  <a href=\"/html/logout\">Logout</a>\n";
-            html += "              </div>\n";
-            html += "          </div>\n";
+            html += "          <div class=\"NavbarDropdown\">";
+            html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">User ⯆</a>";
+            html += "              <div>";
+            html += "                  <a href=\"/html/user_profile\">Profile</a>";
+            html += "                  <a href=\"/html/user/accounts\">Accounts</a>";
+            html += "                  <a href=\"/html/logout\">Logout</a>";
+            html += "              </div>";
+            html += "          </div>";
         } else {
-            html += "          <div class=\"NavbarLogin\">\n";
-            html += "              <a href=\"/html/login\">Login</a>\n";
-            html += "          </div>\n";
+            html += "          <div class=\"NavbarLogin\">";
+            html += "              <a href=\"/html/login\">Login</a>";
+            html += "          </div>";
         }
-        html += "          <div class=\"NavbarDropdown\">\n";
-        html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">About ⯆</a>\n";
-        html += "              <div>\n";
-        html += "                  <a href=\"/html/about\">General</a>\n";
-        html += "                  <a href=\"/html/about/third_party\">Third Party Integrations</a>\n";
-        html += "                  <a href=\"/html/about/data_protection\">Data Protection</a>\n";
-        html += "              </div>\n";
-        html += "          </div>\n";
-        html += "      </div>\n";
-        html += "    </nav>\n";
+        html += "          <div class=\"NavbarDropdown\">";
+        html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">About ⯆</a>";
+        html += "              <div>";
+        html += "                  <a href=\"/html/about\">General</a>";
+        html += "                  <a href=\"/html/about/third_party\">Third Party Integrations</a>";
+        html += "                  <a href=\"/html/about/data_protection\">Data Protection</a>";
+        html += "              </div>";
+        html += "          </div>";
+        html += "      </div>";
+        html += "    </nav>";
 
         // TODO: implement breadcrumps
 
@@ -163,24 +179,24 @@ impl HtmlTemplate {
         html += "</messages>";
 
         // content
-        html += "    <main>\n";
+        html += "    <main>";
         html += &self.html_body;
-        html += "    </main>\n";
+        html += "    </main>";
 
         // footer
-        html.push_str("    <footer>\n");
+        html.push_str("    <footer>");
         html.push_str(&self.http_user.user.html_name().await);
         html.push_str(" <small>&lt;");
         html.push_str(self.http_user.user.activity().await.label());
         let promotion = self.http_user.user.promotion().await.label();
         if promotion.len() > 0 { html.push_str(" "); }
         html.push_str(promotion);
-        html.push_str("&gt;</small>\n");
-        html.push_str("    </footer>\n");
+        html.push_str("&gt;</small>");
+        html.push_str("    </footer>");
 
         // html finish
-        html.push_str("  </div></body>\n");
-        html.push_str("</html>\n");
+        html.push_str("  </div></body>");
+        html.push_str("</html>");
 
         Html(html).into_response()
     }
