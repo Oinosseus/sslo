@@ -142,6 +142,7 @@ impl HtmlTemplate {
         html += "                  <a href=\"/html/users\">Users</a>";
         html += "                  <a href=\"/html/tracks\">Tracks</a>";
         html += "                  <a href=\"/html/cars\">Cars</a>";
+        html += "                  <a href=\"/html/cars\">Car Classes</a>";
         html += "              </div>";
         html += "          </div>";
         if self.http_user.is_logged_in() {
