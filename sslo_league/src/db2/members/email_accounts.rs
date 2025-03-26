@@ -19,6 +19,7 @@ struct DbDataRow {
     rowid: i64,
     user: Option<i64>,
     email: String,
+    verified_since: Option<DateTime<Utc>>,
     token: Option<String>,
     token_user: Option<i64>,
     token_creation: Option<DateTime<Utc>>,
@@ -32,6 +33,7 @@ impl DbDataRow {
             rowid,
             user: None,
             email,
+            verified_since: None,
             token: None,
             token_user: None,
             token_creation: None,
@@ -104,27 +106,30 @@ impl DbDataRow {
                 sqlx::query(concat!("INSERT INTO ", tablename!(),
                 "(user,\
                   email,\
+                  verified_since,\
                   token,\
                   token_user, \
                   token_creation,\
                   token_consumption)\
-                  VALUES ($1, $2, $3, $4, $5, $6) RETURNING rowid;"))
+                  VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING rowid;"))
             },
             _ => {
                 sqlx::query(concat!("UPDATE ", tablename!(), " SET \
                                    user=$1,\
                                    email=$2,\
-                                   token=$3,\
-                                   token_user=$4,\
-                                   token_creation=$5,\
-                                   token_consumption=$6 \
-                                   WHERE rowid=$7;"))
+                                   verified_since=$3,\
+                                   token=$4,\
+                                   token_user=$5,\
+                                   token_creation=$6,\
+                                   token_consumption=$7 \
+                                   WHERE rowid=$8;"))
             }
         };
 
         // bind values
         query = query.bind(&self.user)
             .bind(&self.email)
+            .bind(&self.verified_since)
             .bind(&self.token)
             .bind(&self.token_user)
             .bind(&self.token_creation)
@@ -240,68 +245,15 @@ impl EmailAccountItem {
     }
 
 
-    /// When user is None, the user is unassigned from this email account
-    pub async fn set_user(&self, user: Option<&UserItem>) -> bool {
-        let mut item_data = self.0.write().await;
-        let pool = item_data.pool.clone();
-
-        let item_display_old = item_data.row.display();
-
-        item_data.row.user = match user {
-            None => None,
-            Some(user) => Some(user.id().await),
-        };
-
-        match item_data.row.store(&pool).await {
-            Ok(_) => {
-                log::info!("Set user from {} to {}", item_display_old, item_data.row.display());
-                true
-            },
-            Err(e) => {
-                log::error!("Failed to set user for {}: {}", item_data.row.display(), e);
-                false
-            },
-        }
-    }
-
     pub async fn email(&self) -> String {
         self.0.read().await.row.email.clone()
     }
 
-    /// Returns true, if the email token has been verified
-    pub async fn is_verified(&self) -> bool {
-        let now = Utc::now();
+    /// Returns existing time when token is correctly verified
+    /// check verified: verified_since().await.raw().is_some()
+    pub async fn verified_since(&self) -> OptionalDateTime {
         let item_data = self.0.read().await;
-
-        // ensure email is verified
-        let token_creation = item_data.row.token_creation.as_ref();
-        let token_consumption = item_data.row.token_consumption.as_ref();
-        return match token_consumption {
-            Some(some_token_consumption) if some_token_consumption > &now => {
-                log::error!("Token creation/consumption time mismatch for {}, consumption='{}'",
-                            item_data.row.display(), some_token_consumption);
-                false
-            },
-            Some(some_token_consumption) => match token_creation {
-                Some(some_token_creation) if some_token_creation > some_token_consumption => {
-                    log::error!("Token creation/consumption time mismatch for {}, creation='{}', consumption='{}'",
-                        item_data.row.display(),
-                        some_token_creation,
-                        some_token_consumption,
-                    );
-                    false
-                },
-                Some(_) => true,
-                None => {
-                    log::error!("Token consumed, but never created for {}, consumption='{}'",
-                        item_data.row.display(),
-                        some_token_consumption,
-                    );
-                    false
-                }
-            },
-            None => false,
-        }
+        OptionalDateTime::new(item_data.row.verified_since)
     }
 
     /// Creates a new token, that shall be sent via email
@@ -407,6 +359,7 @@ impl EmailAccountItem {
         item_data.row.token = None;  // reset for security
         item_data.row.user = item_data.row.token_user;  // set requested user
         item_data.row.token_consumption = Some(time_now);
+        item_data.row.verified_since = Some(time_now);
         if let Err(e) = item_data.row.store(&pool).await {
             log::error!("failed to store verified email token for{}: {}", row_display, e);
             return false;
@@ -417,9 +370,32 @@ impl EmailAccountItem {
         true
     }
 
-    pub async fn token_verification(&self) -> OptionalDateTime {
+    pub async fn token_creation(&self) -> OptionalDateTime {
+        let item_data = self.0.read().await;
+        OptionalDateTime::new(item_data.row.token_creation)
+    }
+
+    pub async fn token_consumption(&self) -> OptionalDateTime {
         let item_data = self.0.read().await;
         OptionalDateTime::new(item_data.row.token_consumption)
+    }
+
+    pub async fn token_user(&self) -> Option<UserItem> {
+        let item_data = self.0.read().await;
+        match item_data.row.token_user.clone() {
+            None => None,
+            Some(user_id) => {
+                let db_members = match item_data.db_members.upgrade() {
+                    Some(db_data) => MembersDbInterface::new(db_data),
+                    None => {
+                        log::error!("cannot upgrade weak pointer for {}", item_data.row.display());
+                        return None;
+                    }
+                };
+                let tbl_usr = db_members.tbl_users().await;
+                return tbl_usr.user_by_id(user_id).await;
+            }
+        }
     }
 }
 
@@ -565,7 +541,7 @@ impl EmailAccountsTable {
     pub async fn item_by_email(&self, email: &str) -> Option<EmailAccountItem> {
         match self.item_by_email_ignore_verification(email).await {
             None => None,
-            Some(item) => match item.is_verified().await {
+            Some(item) => match item.verified_since().await.raw().is_some() {
                 false => None,
                 true => Some(item),
             },
@@ -712,7 +688,7 @@ mod tests {
             let item = create_new_item(&pool, "a.b@c.de".to_string()).await;
             assert_eq!(item.id().await, 1);
             assert_eq!(item.email().await, "a.b@c.de".to_string());
-            assert_eq!(item.is_verified().await, false);
+            assert!(item.verified_since().await.raw().is_none());
         }
 
         #[test(tokio::test)]
@@ -720,27 +696,74 @@ mod tests {
             let pool = get_pool().await;
             let item = create_new_item(&pool, "a.b@c.de".to_string()).await;
 
+            // check initial internal state
+            {
+                let item_data = item.0.read().await;
+                assert!(item_data.row.token_creation.is_none());
+                assert!(item_data.row.token_user.is_none());
+                assert!(item_data.row.token_consumption.is_none());
+            }
+
             // successfully create and verify token
-            assert_eq!(item.is_verified().await, false);
+            assert!(item.verified_since().await.raw().is_none());
             let token = item.create_token(None).await.unwrap();
+            {   // check internal state
+                let item_data = item.0.read().await;
+                assert!(item_data.row.token_consumption.is_none());
+                assert!(item_data.row.token_creation.is_some());
+            }
             assert!(token.len() > 20); // ensure to have a secure token
             assert!(item.consume_token(token).await);
-            assert_eq!(item.is_verified().await, true);
+            assert!(item.verified_since().await.raw().is_some());
+            {   // check internal state
+                let item_data = item.0.read().await;
+                assert!(item_data.row.token_consumption.is_some());
+                assert!(item_data.row.token_creation.is_some());
+            }
 
             // successfully create and verify token (should work a second time)
             let token = item.create_token(None).await.unwrap();
+            {   // check internal state
+                let item_data = item.0.read().await;
+                assert!(item_data.row.token_consumption.is_none());
+                assert!(item_data.row.token_creation.is_some());
+            }
             assert!(token.len() > 20); // ensure to have a secure token
             assert!(item.consume_token(token).await);
-            assert_eq!(item.is_verified().await, true);
+            assert!(item.verified_since().await.raw().is_some());
+            {   // check internal state
+                let item_data = item.0.read().await;
+                assert!(item_data.row.token_consumption.is_some());
+                assert!(item_data.row.token_creation.is_some());
+            }
 
             // fail to consume a wrong token
             let mut token = item.create_token(None).await.unwrap();
+            {   // check internal state
+                let item_data = item.0.read().await;
+                assert!(item_data.row.token_consumption.is_none());
+                assert!(item_data.row.token_creation.is_some());
+            }
             assert!(token.len() > 20); // ensure to have a secure token
             token.push('X'); // manipulate the token
             assert!(!item.consume_token(token.clone()).await);
-            assert_eq!(item.is_verified().await, false);
+            assert!(item.verified_since().await.raw().is_some());  // verified from last token consumption
+            {   // check internal state
+                let item_data = item.0.read().await;
+                assert!(item_data.row.token_consumption.is_none());
+                assert!(item_data.row.token_creation.is_some());
+            }
+        }
 
-            // fail when token is outdated
+        #[test(tokio::test)]
+        async fn token_outdated_verification() {
+            let pool = get_pool().await;
+
+            // create item and token
+            let item = create_new_item(&pool, "a.b@c.de".to_string()).await;
+            let token = item.create_token(None).await.unwrap();
+
+            // manipulate token creation time
             let time_now = Utc::now();
             let time_token_outdated = time_now.clone().checked_add_signed(chrono::TimeDelta::hours(-1)).unwrap();
             // let token = item.create_token().await.unwrap();  // not generating new token, because last token is still active
@@ -749,10 +772,12 @@ mod tests {
             row.load(&pool).await.unwrap();
             row.token_creation = Some(time_token_outdated);
             row.store(&pool).await.unwrap();
+
+            // verify denied token verification
             let item_data = EmailAccountItemData::new(&pool, row, Weak::new());
             let item = EmailAccountItem::new(item_data.clone());
             assert!(!item.consume_token(token).await);
-            assert_eq!(item.is_verified().await, false);
+            assert!(item.verified_since().await.raw().is_none());
         }
     }
 

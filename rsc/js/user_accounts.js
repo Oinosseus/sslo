@@ -22,6 +22,7 @@ function disable_all_elements(disable) {
     } else {
         document.body.style.cursor = "default";
     }
+    busy_spinner(disable);
 }
 
 function tabSelectByIndex(active_index) {

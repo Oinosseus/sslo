@@ -37,12 +37,7 @@ pub async fn email_put(State(app_state): State<AppState>,
     let email_item: EmailAccountItem = match tbl_eml.item_by_email_ignore_verification(&input.email).await {
         Some(eml) => eml,
         None => match tbl_eml.create_account(input.email.clone()).await {
-            Some(eml) => {
-                if !eml.set_user(Some(&http_user.user)).await {
-                    return GeneralError::new(StatusCode::INTERNAL_SERVER_ERROR, "Failed to assign user to email account!".to_string()).into_response()
-                }
-                eml
-            },
+            Some(eml) => eml,
             None => {
                 log::error!("Failed to create new email account with email='{}'", input.email);
                 return GeneralError::new(StatusCode::INTERNAL_SERVER_ERROR, "Failed to create email account!".to_string()).into_response()
@@ -112,6 +107,6 @@ pub async fn email_delete(State(app_state): State<AppState>,
     }
 
     // unset user
-    email_item.set_user(None).await;
+    email_item.create_token(None).await;
     StatusCode::NO_CONTENT.into_response()
 }

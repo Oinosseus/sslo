@@ -43,20 +43,29 @@ pub async fn handler(State(app_state): State<AppState>,
 
     // Tab Email
     html.push_body("<div id=\"AccountTabEmail\" class=\"TabInActive\">");
-    html.push_body("<table><tr><th>Email</th><th>Verified At</th></tr>");
+    html.push_body("<table><tr><th>Email</th><th>Verified Since</th><th>Info</th></tr>");
     for eml in tbl_eml.items_by_user(&html.http_user.user).await.iter() {
         html.push_body("<tr><td>");
         html.push_body(&eml.email().await);
         html.push_body("</td><td>");
-        html.push_body(&eml.token_verification().await.html_label_full());
+        html.push_body(&eml.verified_since().await.html_label_full());
+        html.push_body("</td><td>");
+        if eml.token_consumption().await.raw().is_none() {
+            if let Some(token_user) = eml.token_user().await {
+                html.push_body("waiting to be verified by ");
+                html.push_body(&token_user.display().await);
+                html.push_body("<br> since ");
+                html.push_body(&eml.token_creation().await.html_label_full());
+            }
+        }
         html.push_body("</td><td>");
         html.push_body("<button class=\"ButtonDelete\" onclick=\"handler_button_delete_email('");
         html.push_body(&eml.email().await.to_string());
         html.push_body("')\" title=\"remove Steam account\"></button>");
         html.push_body("</td></tr>");
     }
-    html.push_body("<tr><td>");
-    html.push_body("<input type=\"email\" id=\"AddEmail\" placeholder=\"Additional email\"></td><td></td><td>");
+    html.push_body("<tr><td colspan=\"3\">");
+    html.push_body("<input type=\"email\" id=\"AddEmail\" placeholder=\"Additional email\"></td><td>");
     html.push_body("<button title=\"Mail verification link\" class=\"ButtonAdd\" onclick=\"handler_button_add_email()\"></button>");
     html.push_body("</td></tr>");
     html.push_body("</table>");

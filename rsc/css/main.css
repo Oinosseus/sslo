@@ -494,6 +494,7 @@ form.GridForm > * {
 *******************************************************************************************************************/
 
 div.OptionalDateTime {
+    display: inline-block;
 }
 
 div.OptionalDateTime > div {

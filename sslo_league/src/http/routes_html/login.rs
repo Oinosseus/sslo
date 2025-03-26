@@ -342,7 +342,7 @@ pub async fn handler_steam_existing(State(app_state): State<AppState>,
     let mut user : Option<UserItem> = None;
     if let Some(steam_account) = get_steam_account(app_state, uri).await {
         if !steam_account.has_user().await || steam_account.user().await.is_none() {
-            log::warn!("Deny logging into existing steam account with SteamID='{}', because user does not exists.", &steam_account.steam_id().await);
+            log::warn!("Deny logging into existing steam account with SteamID='{}', because steam account does not exists.", &steam_account.steam_id().await);
         } else {
             user = steam_account.user().await;  // this generates a new user and returns it
             if user.is_none() {

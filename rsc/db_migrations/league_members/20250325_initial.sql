@@ -34,6 +34,9 @@ CREATE TABLE email_accounts (
     user INTEGER,
     email TEXT UNIQUE,
 
+    -- since when the last token verification process successfully finished
+    verified_since TEXT,
+
     -- the token that shall be sent via email and verified back
     token BLOB UNIQUE,
 
