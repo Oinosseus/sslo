@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    "sslo_central",
+    "sslo_lobby",
     "sslo_league",
     "sslo_lib",
 ]

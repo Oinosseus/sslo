@@ -1,40 +1,38 @@
-use std::net::{Ipv4Addr, SocketAddr};
-use axum::extract::Host;
-use axum::handler::HandlerWithoutStateExt;
-use axum::http::{StatusCode, Uri};
-use axum::response::{Html, IntoResponse, Redirect, Response};
+mod routes_html;
+
 use axum::{routing, Router};
+use axum::response::{Html, IntoResponse, Response};
 use sslo_lib::http_routes::static_resources;
 use sslo_lib::http::FrontendMessage;
 use crate::app_state::AppState;
 
-mod routes_html;
-mod routes_rest_v0;
-mod http_user;
+pub fn create_router(app_state: AppState) -> Router {
+    let router = Router::new()
+        .route("/rsc/*filepath", routing::get(static_resources::route_handler))
+
+        .route("/", routing::get(routes_html::home::handler))
+
+        .with_state(app_state);
+    router
+}
 
 struct HtmlTemplate {
     html_body: String,
     css_files: Vec<& 'static str>,
     js_files: Vec<& 'static str>,
     frontend_messages: Vec<FrontendMessage>,
-    http_user: http_user::HttpUser,
+    // http_user: http_user::HttpUser,
 }
 
 impl HtmlTemplate {
 
-    pub fn new(http_user: http_user::HttpUser) -> Self {
+    pub fn new() -> Self {
         HtmlTemplate {
             html_body: "".to_string(),
             css_files: Vec::new(),
             js_files: Vec::new(),
             frontend_messages: Vec::new(),
-            http_user,
         }
-    }
-
-
-    pub fn http_user(&self) -> &http_user::HttpUser {
-        &self.http_user
     }
 
 
@@ -79,7 +77,7 @@ impl HtmlTemplate {
         html += "  <head>";
         html += "    <meta charset=\"UTF-8\">";
         html += "    <meta name=\"color-scheme\" content=\"dark light\">";
-        html += "    <title>SSLO League</title>";
+        html += "    <title>SSLO Lobby</title>";
         html += "    <link rel=\"icon\" href=\"/rsc/img/favicon.svg\" sizes=\"any\" type=\"image/svg+xml\">";
         html += "    <link rel=\"stylesheet\" href=\"/rsc/css/main.css\">";
         for css_file in &self.css_files {
@@ -129,37 +127,9 @@ impl HtmlTemplate {
         html += "          <div class=\"NavbarNoDrop\">";
         html += "              <a href=\"/\" class=\"active\">Home</a>";
         html += "          </div>";
-        html += "          <div class=\"NavbarDropdown\">";
-        html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">League ⯆</a>";
-        html += "              <div>";
-        html += "                  <a href=\"/html/ranking\">Driver Ranking</a>";
-        html += "                  <a href=\"/html/schedules\">Scheduled Races</a>";
-        html += "                  <a href=\"/html/championships\">Championships</a>";
-        html += "              </div>";
+        html += "          <div class=\"NavbarLogin\">";
+        html += "              <a href=\"/html/login\">Login</a>";
         html += "          </div>";
-        html += "          <div class=\"NavbarDropdown\">";
-        html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">Content ⯆</a>";
-        html += "              <div>";
-        html += "                  <a href=\"/html/users\">Users</a>";
-        html += "                  <a href=\"/html/tracks\">Tracks</a>";
-        html += "                  <a href=\"/html/cars\">Cars</a>";
-        html += "                  <a href=\"/html/cars\">Car Classes</a>";
-        html += "              </div>";
-        html += "          </div>";
-        if self.http_user.is_logged_in() {
-            html += "          <div class=\"NavbarDropdown\">";
-            html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">User ⯆</a>";
-            html += "              <div>";
-            html += "                  <a href=\"/html/user_profile\">Profile</a>";
-            html += "                  <a href=\"/html/user/accounts\">Accounts</a>";
-            html += "                  <a href=\"/html/logout\">Logout</a>";
-            html += "              </div>";
-            html += "          </div>";
-        } else {
-            html += "          <div class=\"NavbarLogin\">";
-            html += "              <a href=\"/html/login\">Login</a>";
-            html += "          </div>";
-        }
         html += "          <div class=\"NavbarDropdown\">";
         html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">About ⯆</a>";
         html += "              <div>";
@@ -187,13 +157,13 @@ impl HtmlTemplate {
 
         // footer
         html.push_str("    <footer>");
-        html.push_str(&self.http_user.user.html_name().await);
-        html.push_str(" <small>&lt;");
-        html.push_str(self.http_user.user.activity().await.label());
-        let promotion = self.http_user.user.promotion().await.label();
-        if promotion.len() > 0 { html.push_str(" "); }
-        html.push_str(promotion);
-        html.push_str("&gt;</small>");
+        // html.push_str(&self.http_user.user.html_name().await);
+        // html.push_str(" <small>&lt;");
+        // html.push_str(self.http_user.user.activity().await.label());
+        // let promotion = self.http_user.user.promotion().await.label();
+        // if promotion.len() > 0 { html.push_str(" "); }
+        // html.push_str(promotion);
+        // html.push_str("&gt;</small>");
         html.push_str("    </footer>");
 
         // html finish
@@ -202,70 +172,4 @@ impl HtmlTemplate {
 
         Html(html).into_response()
     }
-}
-
-
-pub fn create_router(app_state: AppState) -> Router {
-    let router = Router::new()
-        .route("/rsc/*filepath", routing::get(static_resources::route_handler))
-
-        .route("/", routing::get(routes_html::home::handler))
-
-        .route("/html/login", routing::get(routes_html::login::handler))
-        .route("/html/login_email_create/:email", routing::get(routes_html::login::handler_email_create))
-        .route("/html/login_email_existing/:email", routing::get(routes_html::login::handler_email_existing))
-        .route("/html/login_email_verify/:email/:token", routing::get(routes_html::login::handler_email_verify))
-        .route("/html/login_steam_create", routing::get(routes_html::login::handler_steam_create))
-        .route("/html/login_steam_existing", routing::get(routes_html::login::handler_steam_existing))
-        .route("/html/login_steam_assign", routing::get(routes_html::login::handler_steam_assign))
-        .route("/html/logout", routing::get(routes_html::login::handler_logout))
-
-        .route("/html/user_profile", routing::get(routes_html::user::handler_profile))
-        .route("/html/user/accounts", routing::get(routes_html::user::accounts::handler))
-
-        .route("/api/v0/login/password", routing::post(routes_rest_v0::login_password::handler))
-        .route("/api/v0/user/set_password", routing::post(routes_rest_v0::user::handler_set_password))
-        .route("/api/v0/user/set_name", routing::post(routes_rest_v0::user::handler_set_name))
-        .route("/api/v0/user/account/email", routing::put(routes_rest_v0::user::account::email_put))
-        .route("/api/v0/user/account/email", routing::delete(routes_rest_v0::user::account::email_delete))
-
-        .with_state(app_state);
-    router
-}
-
-
-#[allow(dead_code)]
-pub async fn http2https_background_service(port_http: u16, port_https: u16) {
-    // Implementation from:
-    // https://github.com/tokio-rs/axum/blob/main/examples/tls-rustls/src/main.rs
-
-    fn make_https(host: String, uri: Uri, port_http: u16, port_https: u16) -> Result<Uri, axum::BoxError> {
-        let mut parts = uri.into_parts();
-
-        parts.scheme = Some(axum::http::uri::Scheme::HTTPS);
-
-        if parts.path_and_query.is_none() {
-            parts.path_and_query = Some("/".parse().unwrap());
-        }
-
-        let https_host = host.replace(&port_http.to_string(), &port_https.to_string());
-        parts.authority = Some(https_host.parse()?);
-
-        Ok(Uri::from_parts(parts)?)
-    }
-
-    let redirect = move |Host(host): Host, uri: Uri| async move {
-        match make_https(host, uri, port_http, port_https) {
-            Ok(uri) => Ok(Redirect::permanent(&uri.to_string())),
-            Err(_) => {
-                Err(StatusCode::BAD_REQUEST)
-            }
-        }
-    };
-
-    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, port_http));
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, redirect.into_make_service())
-        .await
-        .unwrap();
 }

@@ -1,5 +1,5 @@
 [package]
-name = "sslo_central"
+name = "sslo_lobby"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,3 +11,9 @@ axum-server = { version = "0.7.1", features = ["tls-rustls"] }
 rust-embed = { version = "8.5.0", features = ["interpolate-folder-path"] }
 tokio = { version = "1.40.0", features = ["full"] }
 sslo_lib = { path = "../sslo_lib" }
+serde = { version = "1.0.217", features = ["derive"] }
+toml = "0.8.20"
+clap = { version = "4.5.34", features = ["derive"] }
+log = "0.4.27"
+chrono = "0.4.40"
+env_logger = "0.11.7"
