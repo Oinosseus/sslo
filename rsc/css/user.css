@@ -1,0 +1,81 @@
+
+table#UserProfile th {
+    text-align: right;
+    vertical-align: top;
+    font-weight: bold;
+    padding-right: 1em;
+}
+
+table#UserProfile th::after {
+    content: ":";
+}
+
+table#UserProfile td {
+    font-style: italic;
+}
+
+table#UserProfile input {
+    font-style: normal;
+}
+
+
+/* --------------------------------------------------------------------------------------------------------------------
+                                                      Tab Select
+-------------------------------------------------------------------------------------------------------------------- */
+
+div#TabSelection {
+    display: block;
+    margin-bottom: 2em;
+}
+
+div#TabSelection > div {
+    display: block;
+    padding: 0.5em 1em;
+    margin-bottom: 0.3em;
+    font-weight: bold;
+    background-color: transparent;
+    color: var(--color-white);
+}
+
+div#TabSelection > button {
+    display: inline-block;
+    padding: 0.5em 1em;
+    margin-right: 1em;
+    border-radius: 0;
+    border: 0.2em solid var(--color-white);
+    font-weight: bold;
+    background-color: transparent;
+    color: var(--color-white);
+}
+
+div#TabSelection > button:last-child {
+    margin-right: 0;
+}
+
+div#TabSelection > button.ActiveButton {
+    background-color: var(--color-white);
+    color: var(--color-black);
+}
+
+div#TabSelection > button:focus {
+    outline: none;
+}
+
+main > .TabActive,
+main > .TabInActive {
+    /*display: none;*/
+    /*padding: 0;*/
+    /*margin: 1em;*/
+}
+
+main > .TabInActive {
+    display: none;
+}
+
+
+main > .TabActive > *,
+main > .TabInActive > * {
+    display: block;
+    /*margin-bottom: 1em;*/
+    padding: 0.5em 1em;
+}

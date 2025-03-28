@@ -1,17 +1,15 @@
-use std::error::Error;
 use clap::Parser;
 use std::net::{Ipv4Addr, SocketAddr};
 use env_logger::fmt::Formatter;
 use std::io::Write;
-use log::{error, Level, Record};
+use log::{Level, Record};
 use app_state::AppState;
 
 mod http;
 mod config;
 mod app_state;
-mod db;
 mod helpers;
-mod user_grade;
+mod db2;
 
 #[derive(Parser)]
 struct CliArgs {
@@ -52,20 +50,20 @@ async fn main() {
         .init();
 
     // create app state
-    let mut app_state: AppState = match AppState::new(&cli_args.config_file) {
+    let mut app_state: AppState = match AppState::new(&cli_args.config_file).await {
         Ok(x) => x,
         Err(err) => {
             log::error!("Failed to create AppState: {}", err);
             return;
         }
     };
-    match app_state.init().await {
-        Ok(_) => {},
-        Err(err) => {
-            log::error!("Failed to initialize AppState: {}", err);
-            return;
-        }
-    };
+    // match app_state.init().await {
+    //     Ok(_) => {},
+    //     Err(err) => {
+    //         log::error!("Failed to initialize AppState: {}", err);
+    //         return;
+    //     }
+    // };
 
     // user info
     log::info!("initialization complete");

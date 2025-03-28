@@ -13,3 +13,8 @@ email="sslo@myprovider.tld"
 host="smtp.myprovider.tld"
 username="my_stmp_username"
 password="my_smtp_password"
+
+[steam]
+
+# get an API key here:  https://steamcommunity.com/dev/apikey
+apikey="123abc"

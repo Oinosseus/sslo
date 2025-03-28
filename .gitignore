@@ -1,3 +1,4 @@
 target/*
 *.dia~
 *.dia.autosave
+.idea/*

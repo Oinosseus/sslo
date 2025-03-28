@@ -19,20 +19,24 @@ components:
               description:
                 type: string
 paths:
-  /login/email:
+  /login/password:
     post:
-      description: "Login with a link that is sent via email"
-      responses:
-        '200':
-          description: "Link sent (if allowed)"
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
+      description: "Login with a password"
+      requestBody:
+        description: The identification can be either an email address or the user ID
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identification:
+                  type: string
+                password:
+                  type: string
         '500':
           $ref: '#/components/responses/GeneralError'
-  /user/update_settings:
+  /user/set_name:
     post:
       summary: Change name of current user
       requestBody:
@@ -43,11 +47,7 @@ paths:
             schema:
               type: object
               properties:
-                new_name:
-                  type: string
-                old_password:
-                  type: string
-                new_password:
+                name:
                   type: string
       responses:
         '200':
@@ -57,6 +57,75 @@ paths:
               schema:
                 type: object
         '401':
-          description: "Current user not valid"
+          $ref: '#/components/responses/GeneralError'
+        '500':
+          $ref: '#/components/responses/GeneralError'
+  /user/set_password:
+    post:
+      summary: Set/Update password for a user
+      requestBody:
+        description: Containing current and new passwords
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                old_password:
+                  type: string
+                new_password:
+                  type: string
+      responses:
+        '200':
+          description: "password set"
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/GeneralError'
+        '500':
+          $ref: '#/components/responses/GeneralError'
+  /user/account/email:
+    put:
+      summary: Add email account
+      requestBody:
+        description: The email address
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+      responses:
+        '204':
+          description: "Request okay. An email with a verification link should be sent."
+        '400':
+          $ref: '#/components/responses/GeneralError'
+        '403':
+          $ref: '#/components/responses/GeneralError'
+        '500':
+          $ref: '#/components/responses/GeneralError'
+    delete:
+      summary: Remove an email account
+      requestBody:
+        description: The email address
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+      responses:
+        '204':
+          description: "The email is removed (if it was existent)"
+        '400':
+          $ref: '#/components/responses/GeneralError'
+        '401':
+          $ref: '#/components/responses/GeneralError'
         '500':
           $ref: '#/components/responses/GeneralError'

@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::path::PathBuf;
 use serde::Deserialize;
-
+use sslo_lib::error::SsloError;
 
 #[derive(Deserialize, Clone)]
 pub struct Config {
@@ -20,13 +20,13 @@ pub struct Config {
 impl Config {
 
     /// Read config from a toml file
-    pub fn from_file(file_path: &PathBuf) -> Result<Self, Box<dyn Error>> {
+    pub fn from_file(file_path: &PathBuf) -> Result<Self, SsloError> {
         let toml_content = std::fs::read_to_string(&file_path).or_else(|e| {
-            log::error!("Could not read config file '{}': {}", file_path.display(), e);
+            let e = SsloError::ConfigFileUnreadable(file_path.display().to_string(), e);
             Err(e)
         })?;
         let config : Self = toml::from_str(&toml_content).or_else(|e| {
-            log::error!("Could not parse config file '{}': {}", file_path.display(), e);
+            let e = SsloError::ConfigFileUnparsable(file_path.display().to_string(), e);
             Err(e)
         })?;
         Ok(config)
