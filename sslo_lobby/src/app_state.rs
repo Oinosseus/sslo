@@ -15,7 +15,7 @@ pub struct AppState {
     database_dir: PathBuf,
 
     /// databases
-    database: db::DatabaseManager,
+    pub database: db::DatabaseManager,
 }
 
 
@@ -36,7 +36,7 @@ impl AppState {
         }
 
         // sqlite databases
-        let sqlite_dir = database_dir.join("sqlite");
+        let sqlite_dir = database_dir.join("sqlite_lobby");
         if !sqlite_dir.exists() {
             if let Err(e) = std::fs::create_dir_all(&sqlite_dir) {
                 return Err(SsloError::ConfigCannotCreateSqliteDirectories(e));

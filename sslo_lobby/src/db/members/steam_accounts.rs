@@ -211,13 +211,16 @@ impl SteamAccountItem {
             }
         };
         let tbl_usr = db_members.tbl_users().await;
-        let user = match tbl_usr.create_new_user().await {
+        let mut user = match tbl_usr.create_new_user().await {
             Some(user) => user,
             None => {
                 log::error!("failed to create new user for {}", data.row.display());
                 return None;
             }
         };
+        if user.set_name(format!("Steam-User-{}", data.row.steam_id)).await.is_err() {
+            log::error!("Could not set name for {}", user.display().await);
+        }
         data.row.user = Some(user.id().await);
         match data.row.store(&pool).await {
             Ok(_) => {},

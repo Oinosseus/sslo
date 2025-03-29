@@ -2621,6 +2621,7 @@ dependencies = [
  "serde",
  "sqlx",
  "sslo_lib",
+ "steamopenid",
  "test-log",
  "tokio",
  "toml",

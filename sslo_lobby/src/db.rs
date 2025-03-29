@@ -1,4 +1,4 @@
-mod members;
+pub mod members;
 
 use std::path::Path;
 use std::sync::Arc;
