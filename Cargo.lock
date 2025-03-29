@@ -2616,6 +2616,7 @@ dependencies = [
  "html-escape",
  "log",
  "rand",
+ "regex",
  "rust-embed",
  "serde",
  "sqlx",
