@@ -1,7 +1,7 @@
-use std::error::Error;
 use std::path::{Path, PathBuf};
 use axum_server::tls_rustls::RustlsConfig;
 use sslo_lib::error::SsloError;
+use crate::db;
 use super::config::Config;
 
 
@@ -13,6 +13,9 @@ pub struct AppState {
 
     /// path to the sslo database directory
     database_dir: PathBuf,
+
+    /// databases
+    database: db::DatabaseManager,
 }
 
 
@@ -40,13 +43,16 @@ impl AppState {
             };
         }
 
+        // setup databases
+        let database = db::DatabaseManager::new(&sqlite_dir).await?;
+
         // compile app state
         Ok(AppState {
             database_dir,
             config,
+            database,
         })
     }
-
 
     /// Returns a RustlsConfig object, or panics
     pub async fn get_rustls_config(&self) -> RustlsConfig {
@@ -65,7 +71,6 @@ impl AppState {
 
         RustlsConfig::from_pem_file(path_cert, path_key).await.unwrap()
     }
-
 
     /// Relate a path to the sslo database directory and return.
     /// When the given path already absolute, it is returned unchanged.

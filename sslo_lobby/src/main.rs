@@ -8,6 +8,7 @@ use app_state::AppState;
 mod http;
 mod config;
 mod app_state;
+mod db;
 
 #[derive(Parser)]
 struct CliArgs {
