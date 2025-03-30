@@ -1,0 +1,9 @@
+div#SteamLogin {
+    text-align: center;
+    display: block;
+    margin: 3em auto;
+}
+
+div#SteamLogin img {
+    margin: 1em auto;
+}

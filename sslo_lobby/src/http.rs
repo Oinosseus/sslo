@@ -1,16 +1,19 @@
 mod routes_html;
+mod http_user;
 
 use axum::{routing, Router};
 use axum::response::{Html, IntoResponse, Response};
-use sslo_lib::http_routes::static_resources;
+use sslo_lib::http::route_handler_static_resources;
 use sslo_lib::http::FrontendMessage;
 use crate::app_state::AppState;
 
 pub fn create_router(app_state: AppState) -> Router {
     let router = Router::new()
-        .route("/rsc/*filepath", routing::get(static_resources::route_handler))
-
         .route("/", routing::get(routes_html::home::handler))
+        .route("/rsc/*filepath", routing::get(route_handler_static_resources))
+
+        .route("/html/login", routing::get(routes_html::login::handler))
+        .route("/html/login/steam", routing::get(routes_html::login::handler_steam))
 
         .with_state(app_state);
     router
@@ -21,17 +24,18 @@ struct HtmlTemplate {
     css_files: Vec<& 'static str>,
     js_files: Vec<& 'static str>,
     frontend_messages: Vec<FrontendMessage>,
-    // http_user: http_user::HttpUser,
+    http_user: http_user::HttpUser,
 }
 
 impl HtmlTemplate {
 
-    pub fn new() -> Self {
+    pub fn new(http_user: http_user::HttpUser) -> Self {
         HtmlTemplate {
             html_body: "".to_string(),
             css_files: Vec::new(),
             js_files: Vec::new(),
             frontend_messages: Vec::new(),
+            http_user,
         }
     }
 
@@ -67,6 +71,10 @@ impl HtmlTemplate {
     /// request a javascript file to be additionally loaded
     pub fn include_js(&mut self, file_path: & 'static str) {
         self.js_files.push(file_path)
+    }
+
+    pub fn http_user(&self) -> &http_user::HttpUser {
+        &self.http_user
     }
 
     pub async fn into_response(self) -> Response {
@@ -127,9 +135,26 @@ impl HtmlTemplate {
         html += "          <div class=\"NavbarNoDrop\">";
         html += "              <a href=\"/\" class=\"active\">Home</a>";
         html += "          </div>";
-        html += "          <div class=\"NavbarLogin\">";
-        html += "              <a href=\"/html/login\">Login</a>";
+        html += "          <div class=\"NavbarDropdown\">";
+        html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">Racing ⯆</a>";
+        html += "              <div>";
+        html += "                  <a href=\"/html/about\">Leagues</a>";
+        html += "                  <a href=\"/html/about/third_party\">Calendar</a>";
+        html += "              </div>";
         html += "          </div>";
+        if self.http_user.is_logged_in() {
+            html += "          <div class=\"NavbarDropdown\">";
+            html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">User ⯆</a>";
+            html += "              <div>";
+            html += "                  <a href=\"/html/about\">my Leagues</a>";
+            html += "                  <a href=\"/html/about/third_party\">Accounts</a>";
+            html += "              </div>";
+            html += "          </div>";
+        } else {
+            html += "          <div class=\"NavbarLogin\">";
+            html += "              <a href=\"/html/login\">Login</a>";
+            html += "          </div>";
+        }
         html += "          <div class=\"NavbarDropdown\">";
         html += "              <a href=\"#\" onclick=\"navbarDropdown(this)\">About ⯆</a>";
         html += "              <div>";
@@ -157,13 +182,7 @@ impl HtmlTemplate {
 
         // footer
         html.push_str("    <footer>");
-        // html.push_str(&self.http_user.user.html_name().await);
-        // html.push_str(" <small>&lt;");
-        // html.push_str(self.http_user.user.activity().await.label());
-        // let promotion = self.http_user.user.promotion().await.label();
-        // if promotion.len() > 0 { html.push_str(" "); }
-        // html.push_str(promotion);
-        // html.push_str("&gt;</small>");
+        html.push_str(&self.http_user.user.html_name().await);
         html.push_str("    </footer>");
 
         // html finish

@@ -1,8 +1,9 @@
 use std::net::{Ipv4Addr, SocketAddr};
-use axum::extract::Host;
+use axum::extract::{Host, Path};
 use axum::handler::HandlerWithoutStateExt;
-use axum::http::{StatusCode, Uri};
-use axum::response::Redirect;
+use axum::http::{header, StatusCode, Uri};
+use axum::response::{IntoResponse, Redirect};
+use rust_embed::RustEmbed;
 
 #[allow(dead_code)]
 pub async fn http2https_background_service(port_http: u16, port_https: u16) {
@@ -67,4 +68,32 @@ impl FrontendMessage {
         html += "</div>";
         html
     }
+}
+
+
+#[derive(RustEmbed)]
+#[folder = "$CARGO_MANIFEST_DIR/../rsc"]
+struct Resources;
+
+/// axum route handler for static resources in /rsc project directory
+///
+/// Integrate like: Router::new().route("/rsc/*filepath", routing::get(route_handler_static_resources))
+pub async fn route_handler_static_resources(Path(filepath): Path<String>) -> Result<impl IntoResponse, StatusCode> {
+    let fileconent = Resources::get(&filepath).ok_or_else(|| StatusCode::NOT_FOUND)?;
+
+    // find content-type
+    let mime_type : &'static str;
+    if      filepath.ends_with(".css") { mime_type = "text/css" }
+    else if filepath.ends_with(".js")  { mime_type = "application/javascript" }
+    else if filepath.ends_with(".png") { mime_type = "image/png" }
+    else if filepath.ends_with(".svg") { mime_type = "image/svg+xml" }
+    else if filepath.ends_with(".ico") { mime_type = "image/x-icon" }
+    else {
+        return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+    }
+
+    // return file
+    Ok((StatusCode::OK,
+        [(header::CONTENT_TYPE, mime_type)],
+        fileconent.data))
 }

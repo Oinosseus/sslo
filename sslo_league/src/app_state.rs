@@ -37,7 +37,7 @@ impl AppState {
         }
 
         // sqlite databases
-        let sqlite_dir = database_dir.join("sqlite");
+        let sqlite_dir = database_dir.join("sqlite_league");
         if !sqlite_dir.exists() {
             if let Err(e) = std::fs::create_dir_all(&sqlite_dir) {
                 return Err(SsloError::ConfigCannotCreateSqliteDirectories(e));
