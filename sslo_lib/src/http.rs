@@ -1,4 +1,4 @@
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::{Ipv4Addr, SocketAddr, ToSocketAddrs};
 use axum::extract::{Host, Path};
 use axum::handler::HandlerWithoutStateExt;
 use axum::http::{header, StatusCode, Uri};
@@ -6,9 +6,13 @@ use axum::response::{IntoResponse, Redirect};
 use rust_embed::RustEmbed;
 
 #[allow(dead_code)]
-pub async fn http2https_background_service(port_http: u16, port_https: u16) {
+pub async fn http2https_background_service(url_http: String, url_https: String) {
     // Implementation from:
     // https://github.com/tokio-rs/axum/blob/main/examples/tls-rustls/src/main.rs
+
+    let addr_http : SocketAddr = url_http.to_socket_addrs().unwrap().next().unwrap();
+    let addr_https : SocketAddr = url_https.to_socket_addrs().unwrap().next().unwrap();
+
 
     fn make_https(host: String, uri: Uri, port_http: u16, port_https: u16) -> Result<Uri, axum::BoxError> {
         let mut parts = uri.into_parts();
@@ -26,7 +30,7 @@ pub async fn http2https_background_service(port_http: u16, port_https: u16) {
     }
 
     let redirect = move |Host(host): Host, uri: Uri| async move {
-        match make_https(host, uri, port_http, port_https) {
+        match make_https(host, uri, addr_http.port(), addr_https.port()) {
             Ok(uri) => Ok(Redirect::permanent(&uri.to_string())),
             Err(_) => {
                 Err(StatusCode::BAD_REQUEST)
@@ -34,8 +38,8 @@ pub async fn http2https_background_service(port_http: u16, port_https: u16) {
         }
     };
 
-    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, port_http));
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(addr_http).await.unwrap();
+    log::info!("starting HTTP-to-HTTPS forwarding server on {}", addr_http);
     axum::serve(listener, redirect.into_make_service())
         .await
         .unwrap();
