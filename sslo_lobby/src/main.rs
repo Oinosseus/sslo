@@ -1,7 +1,7 @@
 use clap::Parser;
 use env_logger::fmt::Formatter;
 use std::io::Write;
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::ToSocketAddrs;
 use log::{Level, Record};
 use app_state::AppState;
 
@@ -59,14 +59,18 @@ async fn main() {
     log::info!("initialization complete");
 
     // HTTP to HTTPS forwarder (background service)
-    tokio::spawn(sslo_lib::http::http2https_background_service(app_state.config.http.port_http, app_state.config.http.port_https));
+    tokio::spawn(sslo_lib::http::http2https_background_service(app_state.config.http.url_http.clone(),
+                                                               app_state.config.http.url_https.clone()));
 
     // run https server
     let app = http::create_router(app_state.clone());
-    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, app_state.config.http.port_https));
+    let socket_addr = app_state.config.http.url_https.to_socket_addrs().unwrap().next().unwrap();
     let tls_cfg = app_state.get_rustls_config().await;
-    match axum_server::bind_rustls(addr, tls_cfg).serve(app.into_make_service()).await {
-        Ok(_) => {},
+    log::info!("starting HTTPS server on {}", socket_addr);
+    match axum_server::bind_rustls(socket_addr, tls_cfg).serve(app.into_make_service()).await {
+        Ok(_) => {
+            log::info!("HTTPS server stopped");
+        },
         Err(err) => {
             log::error!("Failed to bind axum server: {}", err);
             return;
