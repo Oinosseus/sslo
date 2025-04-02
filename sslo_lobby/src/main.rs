@@ -65,8 +65,11 @@ async fn main() {
     let app = http::create_router(app_state.clone());
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, app_state.config.http.port_https));
     let tls_cfg = app_state.get_rustls_config().await;
+    log::info!("starting HTTPS server on {}", addr);
     match axum_server::bind_rustls(addr, tls_cfg).serve(app.into_make_service()).await {
-        Ok(_) => {},
+        Ok(_) => {
+            log::info!("HTTPS server stopped");
+        },
         Err(err) => {
             log::error!("Failed to bind axum server: {}", err);
             return;
