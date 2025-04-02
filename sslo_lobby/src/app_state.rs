@@ -69,7 +69,15 @@ impl AppState {
             panic!("Cannot find SSL KEY path: '{}!'", path_key.display());
         }
 
-        RustlsConfig::from_pem_file(path_cert, path_key).await.unwrap()
+        match RustlsConfig::from_pem_file(&path_cert, &path_key).await {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                eprintln!("Failed to read ssl certificates from '{:?}' and '{:?}'",
+                          self.config.http.tls_key,
+                          self.config.http.tls_cert);
+                panic!("{}", e);
+            }
+        }
     }
 
     /// Relate a path to the sslo database directory and return.
